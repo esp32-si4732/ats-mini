@@ -1,6 +1,6 @@
 profiles:
   esp32s3:
-    fqbn: esp32:esp32:esp32s3
+    fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=8M,PSRAM=disabled,CPUFreq=80,USBMode=hwcdc,FlashMode=qio,PartitionScheme=default_8MB
     platforms:
       - platform: esp32:esp32 (3.1.1)
     libraries:
