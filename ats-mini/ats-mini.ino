@@ -2967,8 +2967,10 @@ void syncTimeFromRDS(char *rdsTimeStr)
  */
 void loop() {
   // Check if the encoder has moved.
-  if (encoderCount != 0 && !display_on) {
+  if (encoderCount != 0 && currentSleep && !display_on) {
+    displayOn();
     encoderCount = 0;
+    elapsedSleep = millis();
   } else if (encoderCount != 0 && pb1_pressed  && !isModalMode()) {
     if (isSSB()) {
 #if TUNE_HOLDOFF
