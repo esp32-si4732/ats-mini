@@ -2854,8 +2854,11 @@ void getColorTheme() {
  */
 void loop() {
   // Check if the encoder has moved.
-  if (encoderCount != 0 && !display_on) {
+  if (encoderCount != 0 && currentSleep && !display_on) {
+    displayOn();
     encoderCount = 0;
+    delay(MIN_ELAPSED_TIME);
+    elapsedSleep = millis();
   } else if (encoderCount != 0 && pb1_pressed) {
     seekDirection = (encoderCount == 1) ? 1 : 0;
     seekModePress = true;
