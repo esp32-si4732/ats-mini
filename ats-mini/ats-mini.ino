@@ -201,7 +201,6 @@ long elapsedButton = millis();
 long lastStrengthCheck = millis();
 long lastRDSCheck = millis();
 
-long elapsedClick = millis();
 long elapsedCommand = millis();
 volatile int encoderCount = 0;
 uint16_t currentFrequency;
@@ -493,27 +492,24 @@ uint8_t volume = DEFAULT_VOLUME;
 
 
 // SSB Mode detection
-bool isSSB()
-{
-    return currentMode > FM && currentMode < AM;    // This allows for adding CW mode as well as LSB/USB if required
+bool isSSB() {
+  return currentMode > FM && currentMode < AM;    // This allows for adding CW mode as well as LSB/USB if required
 }
 
 
 // Generation of step value
-int getSteps()
-{
-    if (isSSB())
-    {
-        if (idxAmStep >= AmTotalSteps)
-            return tabAmStep[idxAmStep];            // SSB: Return in Hz used for VFO + BFO tuning
+int getSteps() {
+  if (isSSB()) {
+    if (idxAmStep >= AmTotalSteps)
+      return tabAmStep[idxAmStep];             // SSB: Return in Hz used for VFO + BFO tuning
 
-        return tabAmStep[idxAmStep] * 1000;         // SSB: Return in Hz used for VFO + BFO tuning
-    }
+    return tabAmStep[idxAmStep] * 1000;        // SSB: Return in Hz used for VFO + BFO tuning
+  }
 
-    if (idxAmStep >= AmTotalSteps)                  // AM: Set to 0kHz if step is from the SSB Hz values
-        idxAmStep = 0;
+  if (idxAmStep >= AmTotalSteps)                  // AM: Set to 0kHz if step is from the SSB Hz values
+    idxAmStep = 0;
 
-    return tabAmStep[idxAmStep];                    // AM: Return value in KHz for SI4732 step
+  return tabAmStep[idxAmStep];                    // AM: Return value in KHz for SI4732 step
 }
 
 
@@ -712,7 +708,6 @@ void setup()
   useBand();
 
   showStatus();
-  drawSprite();
 
   // Interrupt actions for Rotary encoder
   // Note: Moved to end of setup to avoid inital interrupt actions
@@ -912,7 +907,7 @@ void readAllReceiverInformation()
  */
 void resetEepromDelay()
 {
-  elapsedCommand = storeTime = millis();
+  storeTime = millis();
   itIsTimeToSave = true;
 }
 
@@ -940,6 +935,39 @@ void disableCommands()
   cmdAbout = false;
 }
 
+
+bool isModalMode() {
+  return (
+          isMenuMode() |
+          isSettingsMode() |
+          cmdAbout
+          );
+}
+
+bool isMenuMode() {
+  return (
+          cmdMenu |
+          cmdStep |
+          cmdBandwidth |
+          cmdAgc |
+          cmdVolume |
+          cmdSoftMuteMaxAtt |
+          cmdMode |
+          cmdBand |
+          cmdCal |
+          cmdAvc
+          );
+}
+
+bool isSettingsMode() {
+  return (
+          cmdSettings |
+          cmdBrt |
+          cmdSleep |
+          cmdTheme
+          );
+}
+
 /**
  * Reads encoder via interrupt
  * Use Rotary.h and  Rotary.cpp implementation to process encoder via interrupt
@@ -958,12 +986,8 @@ ICACHE_RAM_ATTR void rotaryEncoder()
 /**
  * Shows frequency information on Display
  */
-void showFrequency()
-{
-  char tmp[15];
-  sprintf(tmp, "%5.5u", currentFrequency);
+void showFrequency() {
   drawSprite();
-  // showMode();
 }
 
 /**
@@ -976,10 +1000,8 @@ void showMode() {
 /**
  * Shows some basic information on display
  */
-void showStatus()
-{
-  showFrequency();
-  showRSSI();
+void showStatus() {
+  drawSprite();
 }
 
 /**
@@ -1031,7 +1053,6 @@ void showBFO()
   else
     sprintf(bfo, "%4.4d", currentBFO);
   drawSprite();
-  elapsedCommand = millis();
 }
 
 /*
@@ -1097,10 +1118,7 @@ void setBand(int8_t up_down)
     ssbLoaded = false;
   }
 
-
   useBand();
-  delay(MIN_ELAPSED_TIME); // waits a little more for releasing the button.
-  elapsedCommand = millis();
 }
 
 /**
@@ -1286,7 +1304,6 @@ void doBandwidth(int8_t v)
     band[bandIdx].bandwidthIdx = bwIdxFM;
   }
   showBandwidth();
-  delay(MIN_ELAPSED_TIME); // waits a little more for releasing the button.
 }
 
 /**
@@ -1363,9 +1380,6 @@ void doAgc(int8_t v) {
 
   // Only call showAgcAtt() if incr/decr action (allows the doAgc(0) to act as getAgc)
   if (v != 0) showAgcAtt();
-
-  delay(MIN_ELAPSED_TIME); // waits a little more for releasing the button.
-  elapsedCommand = millis();
 }
 
 
@@ -1424,7 +1438,6 @@ void doStep(int8_t v)
 
     band[bandIdx].currentStepIdx = currentStepIdx;
     showStep();
-    elapsedCommand = millis();
 }
 
 /**
@@ -1484,8 +1497,6 @@ void doMode(int8_t v)
     bandMODE[bandIdx] = currentMode;                      // G8PTN: Added to support mode per band
     useBand();
   }
-  delay(MIN_ELAPSED_TIME); // waits a little more for releasing the button.
-  elapsedCommand = millis();
 }
 
 /**
@@ -1498,7 +1509,6 @@ void doVolume( int8_t v ) {
     rx.volumeDown();
 
   showVolume();
-  delay(MIN_ELAPSED_TIME); // waits a little more for releasing the button.
 }
 
 /**
@@ -1571,8 +1581,6 @@ void doSoftMute(int8_t v)
 
   // Only call showSoftMute() if incr/decr action (allows the doSoftMute(0) to act as getSoftMute)
   if (v != 0) showSoftMute();
-
-  elapsedCommand = millis();
   }
 }
 
@@ -1588,8 +1596,6 @@ void doMenu( int8_t v) {
     menuIdx = lastMenu;
 
   showMenu();
-  delay(MIN_ELAPSED_TIME); // waits a little more for releasing the button.
-  elapsedCommand = millis();
 }
 
 /**
@@ -1609,8 +1615,6 @@ void doSettings( uint8_t v ) {
     settingsMenuIdx = lastSettingsMenu;
 
   showSettings();
-  delay(MIN_ELAPSED_TIME); // waits a little more for releasing the button.
-  elapsedCommand = millis();
 }
 
 void showSettings() {
@@ -1704,7 +1708,6 @@ void doCurrentMenuCmd() {
       break;
   }
   currentMenuCmd = -1;
-  elapsedCommand = millis();
 }
 
 
@@ -1739,30 +1742,8 @@ void doCurrentSettingsMenuCmd() {
       break;
   }
   currentSettingsMenuCmd = -1;
-  elapsedCommand = millis();
 }
 
-/**
- * Return true if the current status is Menu command
- */
-bool isMenuMode() {
-  return (
-          cmdMenu |
-          cmdStep |
-          cmdBandwidth |
-          cmdAgc |
-          cmdVolume |
-          cmdSoftMuteMaxAtt |
-          cmdMode |
-          cmdBand |
-          cmdCal |
-          cmdAvc |
-          cmdSettings |
-          cmdBrt |
-          cmdSleep |
-          cmdTheme
-          );
-}
 
 uint8_t getStrength() {
 #if THEME_EDITOR
@@ -1851,7 +1832,7 @@ void drawMenu() {
     spr.setTextColor(theme[themeIdx].menu_hdr,theme[themeIdx].menu_bg);
     spr.fillSmoothRoundRect(1+menu_offset_x,1+menu_offset_y,76+menu_delta_x,110,4,theme[themeIdx].menu_border);
     spr.fillSmoothRoundRect(2+menu_offset_x,2+menu_offset_y,74+menu_delta_x,108,4,theme[themeIdx].menu_bg);
-    if (cmdBrt || cmdSleep || cmdTheme) {
+    if (isSettingsMode()) {
       spr.drawString(settingsMenu[settingsMenuIdx],40+menu_offset_x+(menu_delta_x/2),12+menu_offset_y,2);
     } else {
       spr.drawString(menu[menuIdx],40+menu_offset_x+(menu_delta_x/2),12+menu_offset_y,2);
@@ -2059,7 +2040,7 @@ void drawSprite()
       spr.drawString("kHz", funit_offset_x, funit_offset_y);
     }
 
-    if (isMenuMode()) {
+    if (isModalMode()) {
       drawMenu();
     } else {
       // Info box
@@ -2377,19 +2358,15 @@ void batteryMonitor() {
 ***************************************************************************************/
 // Tuning algorithm
 void doFrequencyTuneSSB() {
-    //const int BFOMax = 16000;    G8PTN: Moved to a global variable
     int step = encoderCount == 1 ? getSteps() : getSteps() * -1;
     int newBFO = currentBFO + step;
     int redundant = 0;
 
-    if (newBFO > BFOMax)
-    {
+    if (newBFO > BFOMax) {
         redundant = (newBFO / BFOMax) * BFOMax;
         currentFrequency += redundant / 1000;
         newBFO -= redundant;
-    }
-    else if (newBFO < -BFOMax)
-    {
+    } else if (newBFO < -BFOMax) {
         redundant = ((abs(newBFO) / BFOMax) * BFOMax);
         currentFrequency -= redundant / 1000;
         newBFO += redundant;
@@ -2398,24 +2375,16 @@ void doFrequencyTuneSSB() {
     currentBFO = newBFO;
     updateBFO();
 
-    if (redundant != 0)
-
-    {
+    if (redundant != 0) {
         clampSSBBand();                                   // G8PTN: Added
         rx.setFrequency(currentFrequency);
         //agcSetFunc(); //Re-apply to remove noize        // G8PTN: Commented out
         currentFrequency = rx.getFrequency();
-        //band[bandIdx].currentFreq = currentFrequency;   // G8PTN: Commented out, covered below
     }
 
     band[bandIdx].currentFreq = currentFrequency + (currentBFO / 1000);     // Update band table currentFreq
 
-    //g_lastFreqChange = millis();
-    //g_previousFrequency = 0; //Force EEPROM update
     if (clampSSBBand()) {
-      // Clamp frequency to band limits                  // Automatically done by function call
-      //showFrequency();                                 // This action is not required
-
       // Debug
       #if DEBUG1_PRINT
       Serial.println("Info: clampSSBBand() >>> SSB Band Clamp !");
@@ -2496,7 +2465,6 @@ void doCal( int16_t v ) {
   if (isSSB()) updateBFO();
 
   showCal();
-  delay(MIN_ELAPSED_TIME); // waits a little more for releasing the button.
 }
 
 void showCal()
@@ -2518,16 +2486,11 @@ void doBrt( uint16_t v ) {
   if (display_on)
     ledcWrite(PIN_LCD_BL, currentBrt);
   showBrt();
-  delay(MIN_ELAPSED_TIME); // waits a little more for releasing the button.
 }
 
 void showBrt()
 {
 drawSprite();
-}
-
-void doAbout( uint16_t v ) {
-  delay(MIN_ELAPSED_TIME); // waits a little more for releasing the button.
 }
 
 void showAbout() {
@@ -2544,7 +2507,6 @@ void doSleep( uint16_t v ) {
   }
 
   showSleep();
-  delay(MIN_ELAPSED_TIME); // waits a little more for releasing the button.
 }
 
 void showSleep() {
@@ -2558,7 +2520,6 @@ void doTheme( uint16_t v ) {
     themeIdx = (themeIdx > 0) ? (themeIdx - 1) : lastTheme;
 
   showTheme();
-  delay(MIN_ELAPSED_TIME); // waits a little more for releasing the button.
 }
 
 void showTheme() {
@@ -2602,8 +2563,6 @@ void doAvc(int16_t v) {
 
   // Only call showAvc() if incr/decr action (allows the doAvc(0) to act as getAvc)
   if (v != 0) showAvc();
-
-  delay(MIN_ELAPSED_TIME); // waits a little more for releasing the button.
   }
 }
 
@@ -2838,16 +2797,15 @@ void loop() {
   // Check if the encoder has moved.
   if (encoderCount != 0 && !display_on) {
     encoderCount = 0;
-  } else if (encoderCount != 0 && pb1_pressed) {
+  } else if (encoderCount != 0 && pb1_pressed  && !isModalMode()) {
     seekDirection = (encoderCount == 1) ? 1 : 0;
-    seekModePress = true;
     seekStop = false; // G8PTN: Flag is set by rotary encoder and cleared on seek entry
     doSeek();
-    encoderCount = 0;
     band[bandIdx].currentFreq = currentFrequency;            // G8PTN: Added to ensure update of currentFreq in table for AM/FM
+    encoderCount = 0;
+    seekModePress = true;
     resetEepromDelay();
-    delay(MIN_ELAPSED_TIME);
-    elapsedSleep = millis();
+    elapsedSleep = elapsedCommand = millis();
   } else if (encoderCount != 0) {
     // G8PTN: The manual BFO adjusment is not required with the doFrequencyTuneSSB method, but leave for debug
     if (bfoOn & isSSB()) {
@@ -2875,13 +2833,10 @@ void loop() {
       doSoftMute(encoderCount);
     else if (cmdBand)
       setBand(encoderCount);
-
-    // G8PTN: Added commands
     else if (cmdCal)
       doCal(encoderCount);
     else if (cmdAvc)
       doAvc(encoderCount);
-
     else if (cmdSettings)
       doSettings(encoderCount);
     else if (cmdBrt)
@@ -2890,9 +2845,7 @@ void loop() {
       doSleep(encoderCount);
     else if (cmdTheme)
       doTheme(encoderCount);
-    else if (cmdAbout)
-      doAbout(encoderCount);
-
+    else if (cmdAbout) {}
     // G8PTN: Added SSB tuning
     else if (isSSB()) {
 
@@ -2910,7 +2863,6 @@ void loop() {
 #endif
 
       doFrequencyTuneSSB();
-      currentFrequency = rx.getFrequency();
 
       // Debug
       #if DEBUG1_PRINT
@@ -2922,8 +2874,6 @@ void loop() {
       Serial.print(", rx.setSSBbfo() = ");
       Serial.println((currentBFO + currentCAL) * -1);
       #endif
-
-      showFrequency();
     } else {
 
 #if TUNE_HOLDOFF
@@ -2962,17 +2912,6 @@ void loop() {
 
       rx.setFrequency(currentFrequency);                                   // Set new frequency
 
-      /*
-      if (encoderCount == 1)
-      {
-        rx.frequencyUp();
-      }
-      else
-      {
-        rx.frequencyDown();
-      }
-      */
-
       if (currentMode == FM) cleanBfoRdsInfo();
       // Show the current frequency only if it has changed
       currentFrequency = rx.getFrequency();
@@ -2987,13 +2926,10 @@ void loop() {
       //Serial.print(", rx.setSSBbfo() = ");                   // rx.setSSBbfo() will not have been written
       //Serial.println((currentBFO + currentCAL) * -1);        // rx.setSSBbfo() will not have been written
       #endif
-
-      showFrequency();
     }
 
     encoderCount = 0;
     resetEepromDelay();
-    delay(MIN_ELAPSED_TIME);
     elapsedSleep = elapsedCommand = millis();
   } else {
     if (pb1_long_pressed && !seekModePress) {
@@ -3004,8 +2940,7 @@ void loop() {
         displayOn();
       }
       elapsedSleep = millis();
-      delay(MIN_ELAPSED_TIME);
-    } else if (pb1_short_released && !seekModePress) {
+    } else if (pb1_short_released && display_on && !seekModePress) {
       pb1_released = pb1_short_released = pb1_long_released = false;
       if (muted) {
         rx.setVolume(mute_vol_val);
@@ -3015,15 +2950,13 @@ void loop() {
       cmdVolume = true;
       menuIdx = MENU_VOLUME;
       showVolume();
-      delay(MIN_ELAPSED_TIME);
+      delay(MIN_ELAPSED_TIME); // waits a little more for releasing the button.
       elapsedSleep = elapsedCommand = millis();
    } else if (pb1_released && !pb1_long_released && !seekModePress) {
       pb1_released = pb1_short_released = pb1_long_released = false;
       if (!display_on) {
         if (currentSleep) {
           displayOn();
-          elapsedSleep = millis();
-          delay(MIN_ELAPSED_TIME);
         }
       } else if (cmdMenu) {
         currentMenuCmd = menuIdx;
@@ -3032,7 +2965,7 @@ void loop() {
         currentSettingsMenuCmd = settingsMenuIdx;
         doCurrentSettingsMenuCmd();
       } else {
-        if (isMenuMode() || cmdAbout) {
+        if (isModalMode()) {
           disableCommands();
           showStatus();
           showCommandStatus((char *)"VFO ");
@@ -3048,7 +2981,7 @@ void loop() {
           drawSprite();
         }
       }
-      delay(MIN_ELAPSED_TIME);
+      delay(MIN_ELAPSED_TIME); // waits a little more for releasing the button.
       elapsedSleep = elapsedCommand = millis();
     }
   }
@@ -3078,7 +3011,6 @@ void loop() {
     Serial.println(rssi);
     #endif
 
-    //if (rssi != aux && !isMenuMode())
     if (rssi != aux)                            // G8PTN: Based on 1.2s update, always allow S-Meter
     {
       // Debug
@@ -3102,11 +3034,7 @@ void loop() {
       disableCommands();
       showStatus();
     }
-    //else if (isMenuMode() or cmdBand) {
-    else if (isMenuMode()) {                     // G8PTN: Removed cmdBand, now part of isMenuMode()
-      disableCommands();
-      showStatus();
-    } else if (cmdAbout) {
+    else if (isModalMode()) {
       disableCommands();
       showStatus();
     }
@@ -3118,11 +3046,9 @@ void loop() {
     lastRDSCheck = millis();
   }
 
-  // Show the current frequency only if it has changed
-  if (itIsTimeToSave)
-  {
-    if ((millis() - storeTime) > STORE_TIME)
-    {
+  // Save the current frequency only if it has changed
+  if (itIsTimeToSave) {
+    if ((millis() - storeTime) > STORE_TIME) {
       saveAllReceiverInformation();
       storeTime = millis();
       itIsTimeToSave = false;
@@ -3130,7 +3056,6 @@ void loop() {
   }
 
   // Check for button activity
-  // In this case used for falling edge detection
   buttonCheck();
   if (!pb1_pressed && seekModePress) {
     seekModePress = false;
@@ -3141,7 +3066,7 @@ void loop() {
   // This covers the case where there is nothing else triggering a refresh
   if ((millis() - background_timer) > BACKGROUND_REFRESH_TIME) {
     background_timer = millis();
-    if (!isMenuMode()) showStatus();
+    if (!isModalMode()) showStatus();
   }
 
 #if TUNE_HOLDOFF
@@ -3151,7 +3076,7 @@ void loop() {
       tuning_flag = false;
       showFrequency();
       #if DEBUG3_PRINT
-      Serial.print("Info: TUNE_HOLDOFF FM/AM (Reset) >>> ");
+      Serial.print("Info: TUNE_HOLDOFF (Reset) >>> ");
       Serial.print("tuning_flag = ");
       Serial.print(tuning_flag);
       Serial.print(", millis = ");
