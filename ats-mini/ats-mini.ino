@@ -396,6 +396,21 @@ int tabAmStep[] = {
   500     // 11  SSB      (Hz)
 };
 
+int tabSsbFastStep[] = {
+  1,   // 0->1 (1kHz -> 5kHz)
+  3,   // 1->3 (5kHz -> 10kHz)
+  2,   // 2->2 (9kHz -> 9kHz)
+  3,   // 3->3 (10kHz -> 10kHz)
+  4,   // 4->4 (50kHz -> 50kHz) n/a
+  5,   // 5->5 (100kHz -> 100kHz) n/a
+  6,   // 6->6 (1MHz -> 1MHz) n/a
+  10,  // 7->10 (10Hz -> 100Hz)
+  10,  // 8->10 (25Hz -> 100Hz)
+  11,  // 9->11 (50Hz -> 500Hz)
+  0,   // 10->0 (100Hz -> 1kHz)
+  1,   // 11->1 (500Hz -> 5kHz)
+};
+
 uint8_t AmTotalSteps = 7;                          // Total AM steps
 uint8_t AmTotalStepsSsb = 4;                       // G8PTN: Original : AM(LW/MW) 1k, 5k, 9k, 10k, 50k        : SSB 1k, 5k, 9k, 10k
 //uint8_t AmTotalStepsSsb = 5;                     // G8PTN: Option 1 : AM(LW/MW) 1k, 5k, 9k, 10k, 100k       : SSB 1k, 5k, 9k, 10k, 50k
@@ -498,12 +513,13 @@ bool isSSB() {
 
 
 // Generation of step value
-int getSteps() {
+int getSteps(bool fast = false) {
   if (isSSB()) {
-    if (idxAmStep >= AmTotalSteps)
-      return tabAmStep[idxAmStep];             // SSB: Return in Hz used for VFO + BFO tuning
+    int8_t idxAmStepEff = fast ? tabSsbFastStep[idxAmStep] : idxAmStep;
+    if (idxAmStepEff >= AmTotalSteps)
+      return tabAmStep[idxAmStepEff];             // SSB: Return in Hz used for VFO + BFO tuning
 
-    return tabAmStep[idxAmStep] * 1000;        // SSB: Return in Hz used for VFO + BFO tuning
+    return tabAmStep[idxAmStepEff] * 1000;        // SSB: Return in Hz used for VFO + BFO tuning
   }
 
   if (idxAmStep >= AmTotalSteps)                  // AM: Set to 0kHz if step is from the SSB Hz values
@@ -2357,8 +2373,8 @@ void batteryMonitor() {
 **                - Algorithm from ATS-20_EX Goshante firmware
 ***************************************************************************************/
 // Tuning algorithm
-void doFrequencyTuneSSB() {
-    int step = encoderCount == 1 ? getSteps() : getSteps() * -1;
+void doFrequencyTuneSSB(bool fast = false) {
+    int step = encoderCount == 1 ? getSteps(fast) : getSteps(fast) * -1;
     int newBFO = currentBFO + step;
     int redundant = 0;
 
@@ -2798,10 +2814,26 @@ void loop() {
   if (encoderCount != 0 && !display_on) {
     encoderCount = 0;
   } else if (encoderCount != 0 && pb1_pressed  && !isModalMode()) {
-    seekDirection = (encoderCount == 1) ? 1 : 0;
-    seekStop = false; // G8PTN: Flag is set by rotary encoder and cleared on seek entry
-    doSeek();
-    band[bandIdx].currentFreq = currentFrequency;            // G8PTN: Added to ensure update of currentFreq in table for AM/FM
+    if (isSSB()) {
+#if TUNE_HOLDOFF
+      // Tuning timer to hold off (FM/AM) display updates
+      tuning_flag = true;
+      tuning_timer = millis();
+      #if DEBUG3_PRINT
+      Serial.print("Info: TUNE_HOLDOFF SSB (Set) >>> ");
+      Serial.print("tuning_flag = ");
+      Serial.print(tuning_flag);
+      Serial.print(", millis = ");
+      Serial.println(millis());
+      #endif
+#endif
+      doFrequencyTuneSSB(true);
+    } else {
+      seekDirection = (encoderCount == 1) ? 1 : 0;
+      seekStop = false; // G8PTN: Flag is set by rotary encoder and cleared on seek entry
+      doSeek();
+      band[bandIdx].currentFreq = currentFrequency;            // G8PTN: Added to ensure update of currentFreq in table for AM/FM
+    }
     encoderCount = 0;
     seekModePress = true;
     resetEepromDelay();
