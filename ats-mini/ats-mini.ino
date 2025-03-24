@@ -2298,46 +2298,46 @@ void checkRDS()
 
 void checkCBChannel()
 {
-    const int column_step = 450;  // In kHz
-    const int row_step = 10;
-    const int max_columns = 8; // A-H
-    const int max_rows = 45;
+  const int column_step = 450;  // In kHz
+  const int row_step = 10;
+  const int max_columns = 8; // A-H
+  const int max_rows = 45;
 
-    if (currentFrequency < MIN_CB_FREQUENCY || currentFrequency > MAX_CB_FREQUENCY) {
-        bufferStationName[0] = '\0';
-        return;
-    }
+  if (currentFrequency < MIN_CB_FREQUENCY || currentFrequency > MAX_CB_FREQUENCY) {
+    bufferStationName[0] = '\0';
+    return;
+  }
 
-    int offset = currentFrequency - MIN_CB_FREQUENCY;
-    char type = 'R';
+  int offset = currentFrequency - MIN_CB_FREQUENCY;
+  char type = 'R';
 
-    if (offset % 10 == 5) {
-      type = 'E';
-      offset -= 5;
-    }
+  if (offset % 10 == 5) {
+    type = 'E';
+    offset -= 5;
+  }
 
-    int column_index = offset / column_step;
+  int column_index = offset / column_step;
 
-    if (column_index >= max_columns) {
-        bufferStationName[0] = '\0';
-        return;
-    }
+  if (column_index >= max_columns) {
+    bufferStationName[0] = '\0';
+    return;
+  }
 
-    int remainder = offset % column_step;
+  int remainder = offset % column_step;
 
-    if (remainder % row_step != 0) {
-        bufferStationName[0] = '\0';
-        return;
-    }
+  if (remainder % row_step != 0) {
+    bufferStationName[0] = '\0';
+    return;
+  }
 
-    int row_number = remainder / row_step;
+  int row_number = remainder / row_step;
 
-    if (row_number >= max_rows || row_number < 0) {
-        bufferStationName[0] = '\0';
-        return;
-    }
+  if (row_number >= max_rows || row_number < 0) {
+    bufferStationName[0] = '\0';
+    return;
+  }
 
-    sprintf(bufferStationName, "%c%s%c", 'A' + column_index, cbChannelNumber[row_number], type);
+  sprintf(bufferStationName, "%c%s%c", 'A' + column_index, cbChannelNumber[row_number], type);
 }
 
 /***************************************************************************************
