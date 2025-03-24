@@ -115,6 +115,10 @@
 #define USB 2
 #define AM  3
 
+#define MIN_CB_FREQUENCY 26060
+#define MAX_CB_FREQUENCY 29665
+
+
 // Menu Options
 #define MENU_MODE         0
 #define MENU_BAND         1
@@ -456,6 +460,28 @@ typedef struct
    ATTENTION: You have to RESET the eeprom after adding or removing a line of this table.
               Turn your receiver on with the encoder push button pressed at first time to RESET the eeprom content.
 */
+
+#define BAND_VHF 0
+#define BAND_MW1 1
+#define BAND_MW2 2
+#define BAND_MW3 3
+#define BAND_80M 4
+#define BAND_SW1 5
+#define BAND_SW2 6
+#define BAND_40M 7
+#define BAND_SW3 8
+#define BAND_SW4 9
+#define BAND_SW5 10
+#define BAND_SW6 11
+#define BAND_20M 12
+#define BAND_SW7 13
+#define BAND_SW8 14
+#define BAND_15M 15
+#define BAND_SW9 16
+#define BAND_CB  17
+#define BAND_10M 18
+#define BAND_ALL 19
+
 Band band[] = {
     {"VHF", FM_BAND_TYPE, 6400, 10800, 10390, 1, 0},
     {"MW1", MW_BAND_TYPE, 150, 1720, 810, 3, 4},
@@ -474,7 +500,7 @@ Band band[] = {
     {"SW8", SW_BAND_TYPE, 17000, 18000, 17500, 1, 4},
     {"15M", SW_BAND_TYPE, 20000, 21400, 21100, 0, 4},
     {"SW9", SW_BAND_TYPE, 21400, 22800, 21500, 1, 4},
-    {"CB ", SW_BAND_TYPE, 26000, 28000, 27500, 0, 4},
+    {"CB ", SW_BAND_TYPE, 26000, 30000, 27135, 0, 4},
     {"10M", SW_BAND_TYPE, 28000, 30000, 28400, 0, 4},
     {"ALL", SW_BAND_TYPE, 150, 30000, 15000, 0, 4} // All band. LW, MW and SW (from 150kHz to 30MHz)
 };
@@ -494,6 +520,20 @@ int16_t bandCAL[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 // Defaults
 uint8_t bandMODE[] = {FM, AM, AM, AM, LSB, AM, AM, LSB, AM, AM, AM, AM, USB, AM, AM, USB, AM, AM, USB, AM};
 
+const char *cbChannelNumber[] = {
+    "1", "2", "3", "41",
+    "4", "5", "6", "7", "42",
+    "8", "9", "10", "11", "43",
+    "12", "13", "14", "15", "44",
+    "16", "17", "18", "19", "45",
+    "20", "21", "22", "23",
+    "24", "25", "26", "27",
+    "28", "29", "30", "31",
+    "32", "33", "34", "35",
+    "36", "37", "38", "39",
+    "40",
+};
+
 char *rdsMsg;
 char *stationName;
 char *rdsTime;
@@ -509,6 +549,10 @@ uint8_t volume = DEFAULT_VOLUME;
 // SSB Mode detection
 bool isSSB() {
   return currentMode > FM && currentMode < AM;    // This allows for adding CW mode as well as LSB/USB if required
+}
+
+bool isCB() {
+  return bandIdx == BAND_CB;
 }
 
 
@@ -2137,6 +2181,8 @@ void drawSprite()
         spr.fillRect(15+meter_offset_x + (i*4), 2+meter_offset_y, 2, 12, theme[themeIdx].smeter_bar_plus);
       }
     }
+
+    // RDS info
     if (currentMode == FM) {
       if (rx.getCurrentPilot()) {
         spr.fillRect(15 + meter_offset_x, 7+meter_offset_y, 4*17, 2, theme[themeIdx].bg);
@@ -2149,6 +2195,12 @@ void drawSprite()
 #else
       spr.drawString(bufferStationName, rds_offset_x, rds_offset_y, 4);
 #endif
+    }
+
+    if (isCB()) {
+      spr.setTextDatum(TC_DATUM);
+      spr.setTextColor(theme[themeIdx].rds_text, theme[themeIdx].bg);
+      spr.drawString(bufferStationName, rds_offset_x, rds_offset_y, 4);
     }
 
     // Tuner scale
@@ -2244,6 +2296,49 @@ void checkRDS()
   }
 }
 
+void checkCBChannel()
+{
+    const int column_step = 450;  // In kHz
+    const int row_step = 10;
+    const int max_columns = 8; // A-H
+    const int max_rows = 45;
+
+    if (currentFrequency < MIN_CB_FREQUENCY || currentFrequency > MAX_CB_FREQUENCY) {
+        bufferStationName[0] = '\0';
+        return;
+    }
+
+    int offset = currentFrequency - MIN_CB_FREQUENCY;
+    char type = 'R';
+
+    if (offset % 10 == 5) {
+      type = 'E';
+      offset -= 5;
+    }
+
+    int column_index = offset / column_step;
+
+    if (column_index >= max_columns) {
+        bufferStationName[0] = '\0';
+        return;
+    }
+
+    int remainder = offset % column_step;
+
+    if (remainder % row_step != 0) {
+        bufferStationName[0] = '\0';
+        return;
+    }
+
+    int row_number = remainder / row_step;
+
+    if (row_number >= max_rows || row_number < 0) {
+        bufferStationName[0] = '\0';
+        return;
+    }
+
+    sprintf(bufferStationName, "%c%s%c", 'A' + column_index, cbChannelNumber[row_number], type);
+}
 
 /***************************************************************************************
 ** Function name:           batteryMonitor
@@ -2945,6 +3040,9 @@ void loop() {
       rx.setFrequency(currentFrequency);                                   // Set new frequency
 
       if (currentMode == FM) cleanBfoRdsInfo();
+
+      if (isCB()) checkCBChannel();
+
       // Show the current frequency only if it has changed
       currentFrequency = rx.getFrequency();
       band[bandIdx].currentFreq = currentFrequency;            // G8PTN: Added to ensure update of currentFreq in table for AM/FM
