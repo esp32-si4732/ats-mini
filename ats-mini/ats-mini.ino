@@ -3017,10 +3017,10 @@ void loop() {
 #endif
 
       // G8PTN: Used in place of rx.frequencyUp() and rx.frequencyDown()
-      if (currentMode == FM)
-        currentFrequency += tabFmStep[currentStepIdx] * encoderCount;       // FM Up/Down
-      else
-        currentFrequency += tabAmStep[currentStepIdx] * encoderCount;       // AM Up/Down
+      uint16_t step = currentMode == FM ? tabFmStep[currentStepIdx] : tabAmStep[currentStepIdx]; 
+      uint16_t stepAdjust = currentFrequency % step;
+      step = !stepAdjust? step : encoderCount>0? step - stepAdjust : stepAdjust;
+      currentFrequency += step * encoderCount;
 
       // Band limit checking
       uint16_t bMin = band[bandIdx].minimumFreq;                            // Assign lower band limit
