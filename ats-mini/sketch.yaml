@@ -6,5 +6,6 @@ profiles:
     libraries:
       - PU2CLR SI4735 (2.1.8)
       - TFT_eSPI (2.5.43)
+      - TJpg_Decoder (1.1.0)
 
 default_profile: esp32s3

@@ -140,6 +140,7 @@
 #define MENU_SLEEP        1
 #define MENU_THEME        2
 #define MENU_ABOUT        3
+#define MENU_TV           4
 
 #define EEPROM_SIZE     512
 #define STORE_TIME    10000                  // Time of inactivity to make the current receiver status writable (10s)
@@ -195,6 +196,7 @@ bool cmdBrt = false;
 bool cmdSleep = false;
 bool cmdTheme = false;
 bool cmdAbout = false;
+bool cmdTV = false;
 
 bool fmRDS = false;
 
@@ -338,6 +340,7 @@ const char *settingsMenu[] = {
   "Sleep",
   "Theme",
   "About",
+  "TV",
 };
 
 int8_t settingsMenuIdx = MENU_BRIGHTNESS;
@@ -601,6 +604,8 @@ Rotary encoder = Rotary(ENCODER_PIN_B, ENCODER_PIN_A);      // G8PTN: Corrected 
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
+#include <TJpg_Decoder.h>
+#include "rick.h"
 
 SI4735 rx;
 
@@ -611,6 +616,15 @@ void get_fw_ver() {
     uint16_t ver_minor = (app_ver % 100);
     sprintf(fw_ver, "F/W: v%1.1d.%2.2d %s", ver_major, ver_minor, app_date);
 }
+
+bool tft_output(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap)
+{
+  if (y >= tft.height()) return 0;
+
+  tft.pushImage(x, y, w, h, bitmap);
+  return 1;
+}
+
 
 void setup()
 {
@@ -774,6 +788,10 @@ void setup()
   // ICACHE_RAM_ATTR void rotaryEncoder(); see rotaryEncoder implementation below.
   attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_A), rotaryEncoder, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_B), rotaryEncoder, CHANGE);
+
+  TJpgDec.setJpgScale(1);
+  TJpgDec.setSwapBytes(true);
+  TJpgDec.setCallback(tft_output);
 }
 
 
@@ -993,6 +1011,7 @@ void disableCommands()
   cmdSleep = false;
   cmdTheme = false;
   cmdAbout = false;
+  cmdTV = false;
 }
 
 
@@ -1000,7 +1019,8 @@ bool isModalMode() {
   return (
           isMenuMode() |
           isSettingsMode() |
-          cmdAbout
+          cmdAbout |
+          cmdTV
           );
 }
 
@@ -1797,6 +1817,11 @@ void doCurrentSettingsMenuCmd() {
       showAbout();
       break;
 
+  case MENU_TV:
+      cmdTV = true;
+      showTV();
+      break;
+
   default:
       showStatus();
       break;
@@ -2051,6 +2076,8 @@ void drawSprite()
     spr.drawString("Authors: PU2CLR (Ricardo Caratti),", 2, 33 + 16 * 3, 2);
     spr.drawString("Volos Projects, Ralph Xavier, Sunnygold,", 2, 33 + 16 * 4, 2);
     spr.drawString("Goshante, G8PTN (Dave), R9UCL (Max Arnold)", 2, 33 + 16 * 5, 2);
+  } else if (cmdTV) {
+    TJpgDec.drawJpg(0, 0, rick, sizeof(rick));
   } else {
     // Band and mode
     spr.setFreeFont(&Orbitron_Light_24);
@@ -2607,6 +2634,11 @@ drawSprite();
 void showAbout() {
   drawSprite();
 }
+
+void showTV() {
+  drawSprite();
+}
+
 
 void doSleep( uint16_t v ) {
   if ( v == 1) {
