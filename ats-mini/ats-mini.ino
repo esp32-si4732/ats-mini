@@ -2018,10 +2018,12 @@ void drawSprite()
   spr.fillSprite(theme[themeIdx].bg);
 
   // Time
-  spr.setTextColor(theme[themeIdx].text, theme[themeIdx].bg);
-  spr.setTextDatum(ML_DATUM);
-  spr.drawString(time_disp, batt_offset_x + 14, batt_offset_y + 20, 2); // Position below battery icon
-  spr.setTextColor(theme[themeIdx].text, theme[themeIdx].bg);
+  if (time_synchronized) {
+    spr.setTextColor(theme[themeIdx].text, theme[themeIdx].bg);
+    spr.setTextDatum(ML_DATUM);
+    spr.drawString(time_disp, batt_offset_x, batt_offset_y + 24, 2); // Position below battery icon
+    spr.setTextColor(theme[themeIdx].text, theme[themeIdx].bg);
+  }
 
   /* // Screen activity icon */
   /* screen_toggle = !screen_toggle; */
