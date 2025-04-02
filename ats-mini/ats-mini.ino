@@ -79,7 +79,7 @@
 #define rds_offset_y    94    // RDS vertical offset
 #define batt_offset_x  288    // Battery meter x offset
 #define batt_offset_y    0    // Battery meter y offset
-#define clock_datum     90    // Clock x offset
+#define clock_datum    240    // Clock x offset
 
 // Battery Monitoring
 #define BATT_ADC_READS          10  // ADC reads for average calculation (Maximum value = 16 to avoid rollover in average calculation)
@@ -749,7 +749,7 @@ void setup()
     ledcWrite(PIN_LCD_BL, currentBrt);                   // Set initial brightness after EEPROM reset
   }
 
-  sprintf(time_disp, "%02d:%02d", time_hours, time_minutes);
+  sprintf(time_disp, "%02d:%02dZ", time_hours, time_minutes);
 
   // Debug
   // Read all EEPROM locations
@@ -2020,7 +2020,7 @@ void drawSprite()
   // Time
   spr.setTextColor(theme[themeIdx].text, theme[themeIdx].bg);
   spr.setTextDatum(ML_DATUM);
-  spr.drawString(time_disp, clock_datum, 12, 2);
+  spr.drawString(time_disp, clock_datum, 8, 2);
   spr.setTextColor(theme[themeIdx].text, theme[themeIdx].bg);
 
   /* // Screen activity icon */
@@ -2790,7 +2790,7 @@ void clock_time()
     }
 
     // Format for display HH:MM (24 hour format)
-    sprintf(time_disp, "%2.2d:%2.2d", time_hours, time_minutes);
+    sprintf(time_disp, "%2.2d:%2.2dZ", time_hours, time_minutes);
   }
 }
 
@@ -2948,7 +2948,7 @@ void syncTimeFromRDS(char *rdsTimeStr)
       time_seconds = 0; // Reset seconds for greater precision
       
       // Update display
-      sprintf(time_disp, "%02d:%02d", time_hours, time_minutes);
+      sprintf(time_disp, "%02d:%02dZ", time_hours, time_minutes);
       
       time_synchronized = true;
 
