@@ -282,6 +282,7 @@ uint8_t time_seconds = 0;
 uint8_t time_minutes = 0;
 uint8_t time_hours = 0;
 char time_disp [16];
+bool time_synchronized = false;  // Flag to indicate if time has been synchronized with RDS
 
 // Remote serial
 #if USE_REMOTE
@@ -747,6 +748,8 @@ void setup()
     rx.setVolume(volume);                                // Set initial volume after EEPROM reset
     ledcWrite(PIN_LCD_BL, currentBrt);                   // Set initial brightness after EEPROM reset
   }
+
+  sprintf(time_disp, "%02d:%02d", time_hours, time_minutes);
 
   // Debug
   // Read all EEPROM locations
@@ -2015,10 +2018,10 @@ void drawSprite()
   spr.fillSprite(theme[themeIdx].bg);
 
   // Time
-  /* spr.setTextColor(theme[themeIdx].text,theme[themeIdx].bg); */
-  /* spr.setTextDatum(ML_DATUM); */
-  /* spr.drawString(time_disp,clock_datum,12,2); */
-  /* spr.setTextColor(theme[themeIdx].text,theme[themeIdx].bg); */
+  spr.setTextColor(theme[themeIdx].text, theme[themeIdx].bg);
+  spr.setTextDatum(ML_DATUM);
+  spr.drawString(time_disp, clock_datum, 12, 2);
+  spr.setTextColor(theme[themeIdx].text, theme[themeIdx].bg);
 
   /* // Screen activity icon */
   /* screen_toggle = !screen_toggle; */
@@ -2276,6 +2279,17 @@ void showRDSTime()
 {
   if (strcmp(bufferRdsTime, rdsTime) == 0)
     return;
+
+  if (snr < 12) return; // Do not synchronize if the signal is weak
+
+  // Copy new RDS time to buffer
+  strcpy(bufferRdsTime, rdsTime);
+  
+  // Synchronize internal time with RDS time
+  syncTimeFromRDS(rdsTime);
+  
+  // Display updated time (optional)
+  drawSprite();
 }
 
 void checkRDS()
@@ -2288,10 +2302,11 @@ void checkRDS()
       rdsMsg = rx.getRdsText2A();
       stationName = rx.getRdsText0A();
       rdsTime = rx.getRdsTime();
+      
       // if ( rdsMsg != NULL )   showRDSMsg();
       if (stationName != NULL)
           showRDSStation();
-      // if ( rdsTime != NULL ) showRDSTime();
+      if (rdsTime != NULL) showRDSTime();
     }
   }
 }
@@ -2900,6 +2915,50 @@ void getColorTheme() {
   Serial.println();
 }
 #endif
+
+// Function to synchronize internal clock with RDS data
+void syncTimeFromRDS(char *rdsTimeStr)
+{
+  if (!rdsTimeStr) return;
+  
+  // The standard RDS time format is “HH:MM”.
+  // or sometimes more complex like “DD.MM.YY,HH:MM”.
+  char *timeField = strstr(rdsTimeStr, ":");
+  
+  // If we find a valid time format
+  if (timeField && (timeField >= rdsTimeStr + 2)) {
+    char hourStr[3] = {0};
+    char minStr[3] = {0};
+    
+    // Extract hours and minutes
+    hourStr[0] = *(timeField - 2);
+    hourStr[1] = *(timeField - 1);
+    minStr[0] = *(timeField + 1);
+    minStr[1] = *(timeField + 2);
+    
+    // Convert to numbers
+    int hours = atoi(hourStr);
+    int mins = atoi(minStr);
+    
+    // Check validity of values
+    if (hours >= 0 && hours < 24 && mins >= 0 && mins < 60) {
+      // Update internal clock
+      time_hours = hours;
+      time_minutes = mins;
+      time_seconds = 0; // Reset seconds for greater precision
+      
+      // Update display
+      sprintf(time_disp, "%02d:%02d", time_hours, time_minutes);
+      
+      time_synchronized = true;
+
+      #if DEBUG1_PRINT
+      Serial.print("Info: syncTimeFromRDS() >>> Synchronized clock: ");
+      Serial.println(time_disp);
+      #endif
+    }
+  }
+}
 
 /**
  * Main loop
