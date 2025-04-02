@@ -79,7 +79,7 @@
 #define rds_offset_y    94    // RDS vertical offset
 #define batt_offset_x  288    // Battery meter x offset
 #define batt_offset_y    0    // Battery meter y offset
-#define clock_datum    240    // Clock x offset
+#define clock_datum     90    // Clock x offset
 
 // Battery Monitoring
 #define BATT_ADC_READS          10  // ADC reads for average calculation (Maximum value = 16 to avoid rollover in average calculation)
