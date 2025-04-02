@@ -2020,7 +2020,7 @@ void drawSprite()
   // Time
   spr.setTextColor(theme[themeIdx].text, theme[themeIdx].bg);
   spr.setTextDatum(ML_DATUM);
-  spr.drawString(time_disp, clock_datum, 8, 2);
+  spr.drawString(time_disp, batt_offset_x + 14, batt_offset_y + 20, 2); // Position below battery icon
   spr.setTextColor(theme[themeIdx].text, theme[themeIdx].bg);
 
   /* // Screen activity icon */
