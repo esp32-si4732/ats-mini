@@ -139,7 +139,8 @@
 #define MENU_BRIGHTNESS   0
 #define MENU_SLEEP        1
 #define MENU_THEME        2
-#define MENU_ABOUT        3
+#define MENU_CLOCK        3
+#define MENU_ABOUT        4
 
 #define EEPROM_SIZE     512
 #define STORE_TIME    10000                  // Time of inactivity to make the current receiver status writable (10s)
@@ -194,6 +195,7 @@ bool cmdSettings = false;
 bool cmdBrt = false;
 bool cmdSleep = false;
 bool cmdTheme = false;
+bool cmdClock = false;
 bool cmdAbout = false;
 
 bool fmRDS = false;
@@ -264,6 +266,7 @@ uint16_t currentBrt = 128;              // Display brightness, range = 32 to 255
 int8_t currentAVC = 48;                 // Selected AVC, range = 12 to 90 in steps of 2
 uint16_t currentSleep = 30;             // Display sleep timeout, range = 0 to 255 in steps of 5
 long elapsedSleep = millis();           // Display sleep timer
+bool currentClock = true;               // Display clock state
 
 // Background screen refresh
 uint32_t background_timer = millis();   // Background screen refresh timer.
@@ -281,7 +284,7 @@ uint32_t clock_timer = 0;
 uint8_t time_seconds = 0;
 uint8_t time_minutes = 0;
 uint8_t time_hours = 0;
-char time_disp [16];
+char time_disp[8];
 bool time_synchronized = false;  // Flag to indicate if time has been synchronized with RDS
 
 // Remote serial
@@ -338,6 +341,7 @@ const char *settingsMenu[] = {
   "Brightness",
   "Sleep",
   "Theme",
+  "RDS clock",
   "About",
 };
 
@@ -749,8 +753,6 @@ void setup()
     ledcWrite(PIN_LCD_BL, currentBrt);                   // Set initial brightness after EEPROM reset
   }
 
-  sprintf(time_disp, "%02d:%02dZ", time_hours, time_minutes);
-
   // Debug
   // Read all EEPROM locations
   #if DEBUG4_PRINT
@@ -848,6 +850,7 @@ void saveAllReceiverInformation()
   EEPROM.write(addr_offset++, currentSleep >> 8);       // Stores the current Sleep value (HIGH byte)
   EEPROM.write(addr_offset++, currentSleep & 0XFF);     // Stores the current Sleep value (LOW byte)
   EEPROM.write(addr_offset++, themeIdx);                // Stores the current Theme index value
+  EEPROM.write(addr_offset++, currentClock);            // Stores the current Clock state
   EEPROM.commit();
 
   addr_offset = eeprom_setp_address;
@@ -907,6 +910,7 @@ void readAllReceiverInformation()
   currentSleep    = EEPROM.read(addr_offset++) << 8;      // Reads stored Sleep value (HIGH byte)
   currentSleep   |= EEPROM.read(addr_offset++);           // Reads stored Sleep value (LOW byte)
   themeIdx        = EEPROM.read(addr_offset++);           // Reads stored Theme index value
+  currentClock    = EEPROM.read(addr_offset++);           // Reads stored Clock state
 
   addr_offset = eeprom_setp_address;
   for (int i = 0; i <= lastBand; i++)
@@ -995,6 +999,7 @@ void disableCommands()
   cmdBrt = false;
   cmdSleep = false;
   cmdTheme = false;
+  cmdClock = false;
   cmdAbout = false;
 }
 
@@ -1027,7 +1032,8 @@ bool isSettingsMode() {
           cmdSettings |
           cmdBrt |
           cmdSleep |
-          cmdTheme
+          cmdTheme |
+          cmdClock
           );
 }
 
@@ -1795,6 +1801,11 @@ void doCurrentSettingsMenuCmd() {
       showTheme();
       break;
 
+  case MENU_CLOCK:
+      cmdClock = true;
+      showClock();
+      break;
+
   case MENU_ABOUT:
       cmdAbout = true;
       showAbout();
@@ -2003,6 +2014,12 @@ void drawMenu() {
       spr.drawNumber(currentBrt,40+menu_offset_x+(menu_delta_x/2),60+menu_offset_y,4);
     }
 
+    if (cmdClock) {
+      spr.setTextColor(theme[themeIdx].menu_param,theme[themeIdx].menu_bg);
+      spr.fillRoundRect(6+menu_offset_x,24+menu_offset_y+(2*16),66+menu_delta_x,16,2,theme[themeIdx].menu_bg);
+      spr.drawString(currentClock ? "On":"Off",40+menu_offset_x+(menu_delta_x/2),60+menu_offset_y,4);
+    }
+
     if (cmdSleep) {
       spr.setTextColor(theme[themeIdx].menu_param,theme[themeIdx].menu_bg);
       spr.fillRoundRect(6+menu_offset_x,24+menu_offset_y+(2*16),66+menu_delta_x,16,2,theme[themeIdx].menu_bg);
@@ -2018,11 +2035,10 @@ void drawSprite()
   spr.fillSprite(theme[themeIdx].bg);
 
   // Time
-  if (time_synchronized) {
+  if (currentClock && time_synchronized) {
     spr.setTextColor(theme[themeIdx].text, theme[themeIdx].bg);
     spr.setTextDatum(ML_DATUM);
-    spr.drawString(time_disp, batt_offset_x - 10, batt_offset_y + 24, 2); // Position below battery icon
-    spr.setTextColor(theme[themeIdx].text, theme[themeIdx].bg);
+    spr.drawString(time_disp, batt_offset_x - 5, batt_offset_y + 24, 2); // Position below battery icon
   }
 
   /* // Screen activity icon */
@@ -2286,10 +2302,10 @@ void showRDSTime()
 
   // Copy new RDS time to buffer
   strcpy(bufferRdsTime, rdsTime);
-  
+
   // Synchronize internal time with RDS time
   syncTimeFromRDS(rdsTime);
-  
+
   // Display updated time (optional)
   drawSprite();
 }
@@ -2304,11 +2320,11 @@ void checkRDS()
       rdsMsg = rx.getRdsText2A();
       stationName = rx.getRdsText0A();
       rdsTime = rx.getRdsTime();
-      
+
       // if ( rdsMsg != NULL )   showRDSMsg();
       if (stationName != NULL)
           showRDSStation();
-      if (rdsTime != NULL) showRDSTime();
+      if (currentClock && rdsTime != NULL) showRDSTime();
     }
   }
 }
@@ -2618,7 +2634,17 @@ void doBrt( uint16_t v ) {
 
 void showBrt()
 {
-drawSprite();
+  drawSprite();
+}
+
+void doClock(uint16_t v) {
+  currentClock = !currentClock;
+  showClock();
+}
+
+void showClock()
+{
+  drawSprite();
 }
 
 void showAbout() {
@@ -2772,7 +2798,7 @@ void buttonCheck() {
   }
 }
 
-void clock_time()
+void syncTimeFromInternalClock()
 {
   if ((micros() - clock_timer) >= 1000000) {
     clock_timer = micros();
@@ -2792,7 +2818,7 @@ void clock_time()
     }
 
     // Format for display HH:MM (24 hour format)
-    sprintf(time_disp, "%2.2d:%2.2dZ", time_hours, time_minutes);
+    sprintf(time_disp, "%02d:%02d", time_hours, time_minutes);
   }
 }
 
@@ -2922,36 +2948,36 @@ void getColorTheme() {
 void syncTimeFromRDS(char *rdsTimeStr)
 {
   if (!rdsTimeStr) return;
-  
+
   // The standard RDS time format is “HH:MM”.
   // or sometimes more complex like “DD.MM.YY,HH:MM”.
   char *timeField = strstr(rdsTimeStr, ":");
-  
+
   // If we find a valid time format
   if (timeField && (timeField >= rdsTimeStr + 2)) {
     char hourStr[3] = {0};
     char minStr[3] = {0};
-    
+
     // Extract hours and minutes
     hourStr[0] = *(timeField - 2);
     hourStr[1] = *(timeField - 1);
     minStr[0] = *(timeField + 1);
     minStr[1] = *(timeField + 2);
-    
+
     // Convert to numbers
     int hours = atoi(hourStr);
     int mins = atoi(minStr);
-    
+
     // Check validity of values
     if (hours >= 0 && hours < 24 && mins >= 0 && mins < 60) {
       // Update internal clock
       time_hours = hours;
       time_minutes = mins;
       time_seconds = 0; // Reset seconds for greater precision
-      
+
       // Update display
-      sprintf(time_disp, "%02d:%02dZ", time_hours, time_minutes);
-      
+      sprintf(time_disp, "%02d:%02d", time_hours, time_minutes);
+
       time_synchronized = true;
 
       #if DEBUG1_PRINT
@@ -3033,6 +3059,8 @@ void loop() {
       doSleep(encoderCount);
     else if (cmdTheme)
       doTheme(encoderCount);
+    else if (cmdClock)
+      doClock(encoderCount);
     else if (cmdAbout) {}
     // G8PTN: Added SSB tuning
     else if (isSSB()) {
@@ -3078,7 +3106,7 @@ void loop() {
 #endif
 
       // G8PTN: Used in place of rx.frequencyUp() and rx.frequencyDown()
-      uint16_t step = currentMode == FM ? tabFmStep[currentStepIdx] : tabAmStep[currentStepIdx]; 
+      uint16_t step = currentMode == FM ? tabFmStep[currentStepIdx] : tabAmStep[currentStepIdx];
       uint16_t stepAdjust = currentFrequency % step;
       step = !stepAdjust? step : encoderCount>0? step - stepAdjust : stepAdjust;
       currentFrequency += step * encoderCount;
@@ -3278,7 +3306,7 @@ void loop() {
 #endif
 
   // Run clock
-  clock_time();
+  if (currentClock) syncTimeFromInternalClock();
 
 
 #if USE_REMOTE

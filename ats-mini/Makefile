@@ -10,7 +10,7 @@ PORT := /dev/cu.usbmodem1101
 
 INO = ats-mini.ino
 SRC = $(INO) Rotary.cpp
-HEADERS = User_Setup.h Rotary.h patch_init.h
+HEADERS = tft_setup.h themes.h Rotary.h patch_init.h
 ELF = ./build/$(FQBN)/$(INO).elf
 
 all: build
