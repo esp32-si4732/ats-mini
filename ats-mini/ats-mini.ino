@@ -637,7 +637,12 @@ void setup()
 
   // TFT display setup
   tft.begin();
+  tft.invertDisplay(0);
   tft.setRotation(3);
+
+  tft.writecommand(TFT_MADCTL);
+  tft.writedata(TFT_MAD_MV | TFT_MAD_MX | TFT_MAD_MY | TFT_MAD_COLOR_ORDER);
+
   tft.fillScreen(theme[themeIdx].bg);
   spr.createSprite(320,170);
   spr.setTextDatum(MC_DATUM);
@@ -2056,6 +2061,9 @@ void drawSprite()
     spr.drawString("Authors: PU2CLR (Ricardo Caratti),", 2, 33 + 16 * 3, 2);
     spr.drawString("Volos Projects, Ralph Xavier, Sunnygold,", 2, 33 + 16 * 4, 2);
     spr.drawString("Goshante, G8PTN (Dave), R9UCL (Max Arnold)", 2, 33 + 16 * 5, 2);
+    char rddid[10];
+    sprintf(rddid, "%08X", (unsigned int)tft.readcommand32(ST7789_RDDID));
+    spr.drawString(rddid, 2, 33 + 16 * 6, 2);
   } else {
     // Band and mode
     spr.setFreeFont(&Orbitron_Light_24);
