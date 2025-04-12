@@ -7,6 +7,7 @@
 #include "EEPROM.h"
 #include <SI4735.h>
 #include "Rotary.h"              // Disabled half-step mode
+#include "esp_sleep.h"           // less current 62ma->40ma
 #include "patch_init.h"          // SSB patch for whole SSBRX initialization string
 
 
@@ -35,7 +36,7 @@
 // Battery Monitor PIN
 #define VBAT_MON  4                 // GPIO04
 
-
+#define time_zone 8
 // =================================
 // COMPILE CONSTANTS
 // =================================
@@ -1188,6 +1189,8 @@ void setBand(int8_t up_down)
  * Switch the radio to current band
  */
 void useBand() {
+  //Mute SPEAKER
+  digitalWrite(PIN_AMP_EN, LOW);
   currentMode = bandMODE[bandIdx];                  // G8PTN: Added to support mode per band
   if (band[bandIdx].bandType == FM_BAND_TYPE) {
     currentMode = FM;
@@ -1300,7 +1303,7 @@ void useBand() {
 
   // Store mode
   bandMODE[bandIdx] = currentMode;               // G8PTN: Added to support mode per band
-
+  digitalWrite(PIN_AMP_EN, HIGH);
   rssi = 0;
   snr = 0;
   cleanBfoRdsInfo();
@@ -2805,11 +2808,15 @@ void displayOff() {
   ledcWrite(PIN_LCD_BL, 0);
   tft.writecommand(ST7789_DISPOFF);
   tft.writecommand(ST7789_SLPIN);
-  delay(120);
+  setCpuFrequencyMhz(80);
+  pinMode(1, INPUT_PULLUP);
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_1, LOW);
+  esp_light_sleep_start();
 }
 
 void displayOn() {
   display_on = true;
+  setCpuFrequencyMhz(240);
   tft.writecommand(ST7789_SLPOUT);
   delay(120);
   tft.writecommand(ST7789_DISPON);
@@ -2945,7 +2952,7 @@ void syncTimeFromRDS(char *rdsTimeStr)
     // Check validity of values
     if (hours >= 0 && hours < 24 && mins >= 0 && mins < 60) {
       // Update internal clock
-      time_hours = hours;
+      time_hours = hours+time_zone;
       time_minutes = mins;
       time_seconds = 0; // Reset seconds for greater precision
       
