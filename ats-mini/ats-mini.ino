@@ -1171,8 +1171,10 @@ void setBand(int8_t up_down)
     if (ssbLoaded == false)
     {
       // Only loadSSB if not already loaded
+      digitalWrite(PIN_AMP_EN, LOW);//disable SSB Noise On HeadPhone
       showLoadingSSB();
-      loadSSB();
+      );
+      digitalWrite(PIN_AMP_EN, HIGH);
       ssbLoaded = true;
     }
   }
@@ -1188,6 +1190,8 @@ void setBand(int8_t up_down)
  * Switch the radio to current band
  */
 void useBand() {
+  //Mute SPEAKER
+  digitalWrite(PIN_AMP_EN, LOW);
   currentMode = bandMODE[bandIdx];                  // G8PTN: Added to support mode per band
   if (band[bandIdx].bandType == FM_BAND_TYPE) {
     currentMode = FM;
@@ -1300,7 +1304,7 @@ void useBand() {
 
   // Store mode
   bandMODE[bandIdx] = currentMode;               // G8PTN: Added to support mode per band
-
+  digitalWrite(PIN_AMP_EN, HIGH);
   rssi = 0;
   snr = 0;
   cleanBfoRdsInfo();
@@ -1308,7 +1312,7 @@ void useBand() {
 }
 
 
-void loadSSB()
+void )
 {
   rx.setI2CFastModeCustom(400000); // You can try rx.setI2CFastModeCustom(700000); or greater value
   rx.loadPatch(ssb_patch_content, size_content, bandwidthSSB[bwIdxSSB].idx);
@@ -1516,9 +1520,10 @@ void doMode(int8_t v)
       if (currentMode == AM)
       {
         // If you were in AM mode, it is necessary to load SSB patch (every time)
-
+        digitalWrite(PIN_AMP_EN, LOW);//disable SSB Noise On HeadPhone
         showLoadingSSB();
-        loadSSB();
+        );
+        digitalWrite(PIN_AMP_EN, HIGH);
         ssbLoaded = true;
         currentMode = LSB;
       }
@@ -1538,7 +1543,9 @@ void doMode(int8_t v)
       {
         // If you were in AM mode, it is necessary to load SSB patch (every time)
         showLoadingSSB();
-        loadSSB();
+        digitalWrite(PIN_AMP_EN, LOW);//disable SSB Noise On HeadPhone
+        );
+        digitalWrite(PIN_AMP_EN, HIGH);
         ssbLoaded = true;
         currentMode = USB;
       }
@@ -1597,10 +1604,10 @@ void showFrequencySeek(uint16_t freq)
 void doSeek()
 {
   if (isSSB()) return; // It does not work for SSB mode
-
+  digitalWrite(PIN_AMP_EN, LOW);//disable Seek Noise On HeadPhone
   rx.seekStationProgress(showFrequencySeek, checkStopSeeking, seekDirection);   // G8PTN: Added checkStopSeeking
   currentFrequency = rx.getFrequency();
-
+  digitalWrite(PIN_AMP_EN, HIGH);
 }
 
 /**
