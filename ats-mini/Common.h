@@ -116,8 +116,11 @@ void drawBattery(int x, int y);
 
 // Station.c
 const char *getStationName();
+const char *getStationInfo();
+const char *getProgramInfo();
 const char *getRdsTime();
-void clearStationName();
+uint16_t getRdsPiCode();
+void clearStationInfo();
 bool checkRds();
 bool checkCbChannel();
 

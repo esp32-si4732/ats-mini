@@ -95,6 +95,14 @@ static void drawFrequency(uint32_t freq, int x, int y, int ux, int uy)
     spr.setTextDatum(ML_DATUM);
     spr.setTextColor(TH.funit_text, TH.bg);
     spr.drawString("MHz", ux, uy);
+    // Draw RDS PI code, if present
+    uint16_t piCode = getRdsPiCode();
+    if(piCode)
+    {
+      char text[8];
+      sprintf(text, "PI:%04X", piCode);
+      spr.drawString(text, ux, uy+22, 2);
+    }
   }
   else
   {
@@ -255,6 +263,9 @@ void drawScreen()
   // Draw S-meter
   drawSMeter(getStrength(rssi), METER_OFFSET_X, METER_OFFSET_Y);
 
+  // Draw tuner scale
+  drawScale(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency);
+
   // Draw FM-specific information
   if(currentMode==FM)
   {
@@ -263,6 +274,12 @@ void drawScreen()
       spr.fillRect(15 + METER_OFFSET_X, 7+METER_OFFSET_Y, 4*17, 2, TH.bg);
     // Draw RDS station name
     drawStationName(getStationName(), RDS_OFFSET_X, RDS_OFFSET_Y);
+    if(*getStationInfo() || *getProgramInfo())
+    {
+      spr.fillRect(0, 130, 320, 30, TH.bg);
+      spr.drawString(getStationInfo(), RDS_OFFSET_X, RDS_OFFSET_Y + 20, 2);
+      spr.drawString(getProgramInfo(), RDS_OFFSET_X, RDS_OFFSET_Y + 35, 2);
+    }
   }
   // Draw CB-specific information
   else if(isCB())
@@ -270,9 +287,6 @@ void drawScreen()
     // Draw CB channel name
     drawStationName(getStationName(), RDS_OFFSET_X, RDS_OFFSET_Y);
   }
-
-  // Draw tuner scale
-  drawScale(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency);
 
 #ifdef ENABLE_HOLDOFF
   // Update if not tuning
