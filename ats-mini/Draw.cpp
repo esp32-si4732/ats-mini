@@ -153,27 +153,33 @@ static void drawScale(uint32_t freq)
   uint32_t minFreq = band->minimumFreq / 10;
   uint32_t maxFreq = band->maximumFreq / 10;
 
-  for (int i = 0; i < 41; i++, freq++) {
+  for(int i=0 ; i < 41 ; i++, freq++)
+  {
     int16_t x = i * 8 - offset;
-    if (freq >= minFreq && freq <= maxFreq) {
+    if(freq >= minFreq && freq <= maxFreq)
+    {
       uint16_t lineColor =
-          i == 20 && (offset == 0 || ((freq % 5) == 0 && offset == 1))
-              ? TH.scale_pointer
-              : TH.scale_line;
+        i == 20 && (offset == 0 || ((freq % 5) == 0 && offset == 1)) ?
+          TH.scale_pointer : TH.scale_line;
 
-      if ((freq % 10) == 0) {
+      if((freq % 10) == 0)
+      {
         spr.drawLine(x, 169, x, 150, lineColor);
         spr.drawLine(x + 1, 169, x + 1, 150, lineColor);
-        if (currentMode == FM)
+        if(currentMode == FM)
           spr.drawFloat(freq / 10.0, 1, x, 140, 2);
-        else if (freq >= 100)
+        else if(freq >= 100)
           spr.drawFloat(freq / 100.0, 3, x, 140, 2);
         else
           spr.drawNumber(freq * 10, x, 140, 2);
-      } else if ((freq % 5) == 0 && (freq % 10) != 0) {
+      }
+      else if((freq % 5) == 0 && (freq % 10) != 0)
+      {
         spr.drawLine(x, 169, x, 155, lineColor);
         spr.drawLine(x + 1, 169, x + 1, 155, lineColor);
-      } else {
+      }
+      else
+      {
         spr.drawLine(x, 169, x, 160, lineColor);
       }
     }
@@ -263,9 +269,6 @@ void drawScreen()
   // Draw S-meter
   drawSMeter(getStrength(rssi), METER_OFFSET_X, METER_OFFSET_Y);
 
-  // Draw tuner scale
-  drawScale(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency);
-
   // Draw FM-specific information
   if(currentMode==FM)
   {
@@ -274,18 +277,26 @@ void drawScreen()
       spr.fillRect(15 + METER_OFFSET_X, 7+METER_OFFSET_Y, 4*17, 2, TH.bg);
     // Draw RDS station name
     drawStationName(getStationName(), RDS_OFFSET_X, RDS_OFFSET_Y);
-    if(*getStationInfo() || *getProgramInfo())
-    {
-      spr.fillRect(0, 130, 320, 30, TH.bg);
-      spr.drawString(getStationInfo(), RDS_OFFSET_X, RDS_OFFSET_Y + 20, 2);
-      spr.drawString(getProgramInfo(), RDS_OFFSET_X, RDS_OFFSET_Y + 35, 2);
-    }
   }
   // Draw CB-specific information
   else if(isCB())
   {
     // Draw CB channel name
     drawStationName(getStationName(), RDS_OFFSET_X, RDS_OFFSET_Y);
+  }
+
+  // If there is station or program info...
+  if(*getStationInfo() || *getProgramInfo())
+  {
+    // Draw station and program info
+    spr.setTextDatum(TC_DATUM);
+    spr.drawString(getStationInfo(), 160, 135, 2);
+    spr.drawString(getProgramInfo(), 169, 150, 2);
+  }
+  else
+  {
+    // Draw tuner scale
+    drawScale(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency);
   }
 
 #ifdef ENABLE_HOLDOFF
