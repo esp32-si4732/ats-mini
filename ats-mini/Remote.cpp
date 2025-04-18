@@ -176,6 +176,21 @@ bool remoteDoCommand(char key)
       remoteLogOn = !remoteLogOn;
       break;
 
+    case '0':
+      Serial.printf("DID: %08lX, DST: %02X%08lX\r\n",
+                    tft.readcommand32(ST7789_RDDID, 1),
+                    tft.readcommand8(ST7789_RDDST, 1),
+                    tft.readcommand32(ST7789_RDDST, 2)
+                    );
+      spr.fillSprite(TH.bg);
+      spr.fillRect(64, 0, 64, 144, TFT_WHITE);
+      spr.fillRect(128, 0, 64, 108, TFT_RED);
+      spr.fillRect(192, 0, 64, 72, TFT_GREEN);
+      spr.fillRect(256, 0, 64, 36, TFT_BLUE);
+      spr.pushSprite(0, 0);
+      delay(5000);
+      break;
+
 #ifdef THEME_EDITOR
     case '!':
       setColorTheme();

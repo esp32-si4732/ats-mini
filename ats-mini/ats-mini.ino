@@ -138,15 +138,14 @@ void setup()
   // TFT display setup
   tft.begin();
   tft.setRotation(3);
-
   // Detect and fix the mirrored & inverted display
   // https://github.com/esp32-si4732/ats-mini/issues/41
-  if(tft.readcommand8(ST7789_RDDID, 3) == 0x93)
-  {
+  // if(tft.readcommand8(ST7789_RDDID, 3) == 0x93)
+  // {
     // tft.invertDisplay(0);
-    tft.writecommand(TFT_MADCTL);
-    tft.writedata(TFT_MAD_MV | TFT_MAD_MX | TFT_MAD_MY | TFT_MAD_COLOR_ORDER);
-  }
+    // tft.writecommand(TFT_MADCTL);
+    // tft.writedata(TFT_MAD_MV | TFT_MAD_MX | TFT_MAD_MY | TFT_MAD_COLOR_ORDER);
+  // }
 
   tft.fillScreen(TH.bg);
   spr.createSprite(320, 170);
