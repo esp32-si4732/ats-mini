@@ -142,7 +142,7 @@ void setup()
   // https://github.com/esp32-si4732/ats-mini/issues/41
   // if(tft.readcommand8(ST7789_RDDID, 3) == 0x93)
   // {
-    tft.invertDisplay(1);
+    tft.invertDisplay(0);
     tft.writecommand(TFT_MADCTL);
     tft.writedata(TFT_MAD_MV | TFT_MAD_MX | TFT_MAD_MY | TFT_MAD_COLOR_ORDER);
   // }

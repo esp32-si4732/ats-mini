@@ -42,7 +42,7 @@ static void drawAbout()
   spr.drawString("Marat Fayzullin", 2, 70 + 16 * 3, 2);
 
   char text[64];
-  sprintf(text, "DID: %08lX  DST: %02X%08lX  Test 1",
+  sprintf(text, "DID: %08lX  DST: %02X%08lX  Test 2",
     tft.readcommand32(ST7789_RDDID, 1),
     tft.readcommand8(ST7789_RDDST, 1),
     tft.readcommand32(ST7789_RDDST, 2)
