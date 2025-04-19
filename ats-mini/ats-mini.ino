@@ -161,9 +161,6 @@ void setup()
 //  ledcWrite(PIN_LCD_BL, 255);        // Default value 255 = 100%
   ledcWrite(PIN_LCD_BL, 0);          // Turn brightness off for now
 
-  // Turn display off for now
-  displayOn(false);
-
   // Press and hold Encoder button to force an EEPROM reset
   // Note: EEPROM reset is recommended after firmware updates
   if(digitalRead(ENCODER_PUSH_BUTTON)==LOW)
@@ -176,7 +173,6 @@ void setup()
     tft.println();
     tft.setTextColor(TH.text_warn, TH.bg);
     tft.print("EEPROM Resetting");
-    displayOn(true);
     delay(2000);
   }
 
@@ -197,8 +193,7 @@ void setup()
   {
     tft.setTextSize(2);
     tft.setTextColor(TH.text_warn, TH.bg);
-    tft.println("Si4735 not detected");
-    displayOn(true);
+    tft.println("Si4732 not detected");
     while(1);
   }
 
@@ -239,8 +234,7 @@ void setup()
   // Uses values from EEPROM (Last stored or defaults after EEPROM reset)
   selectBand(bandIdx);
 
-  // Enable and draw display for the first time
-  displayOn(true);
+  // Draw display for the first time
   drawScreen();
 
   // Interrupt actions for Rotary encoder

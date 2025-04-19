@@ -47,7 +47,6 @@ void loadSSB(uint8_t bandwidth)
 {
   if(!ssbLoaded)
   {
-    drawLoadingSSB();
     // You can try rx.setI2CFastModeCustom(700000); or greater value
     rx.setI2CFastModeCustom(400000);
     rx.loadPatch(ssb_patch_content, sizeof(ssb_patch_content), bandwidth);
