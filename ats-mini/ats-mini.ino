@@ -83,6 +83,7 @@ bool pb1_long_released = false;         // Push button long released
 bool screen_toggle = false;             // Toggle when drawsprite is called
 
 // Menu options
+uint8_t volume = DEFAULT_VOLUME;        // Volume, range = 0 (muted) - 63
 uint16_t currentBrt = 128;              // Display brightness, range = 32 to 255 in steps of 32
 uint16_t currentSleep = 30;             // Display sleep timeout, range = 0 to 255 in steps of 5
 long elapsedSleep = millis();           // Display sleep timer
@@ -158,8 +159,7 @@ void setup()
   // TFT display brightness control (PWM)
   // Note: At brightness levels below 100%, switching from the PWM may cause power spikes and/or RFI
   ledcAttach(PIN_LCD_BL, 16000, 8);  // Pin assignment, 16kHz, 8-bit
-//  ledcWrite(PIN_LCD_BL, 255);        // Default value 255 = 100%
-  ledcWrite(PIN_LCD_BL, 0);          // Turn brightness off for now
+  ledcWrite(PIN_LCD_BL, 255);        // Default value 255 = 100%
 
   // Press and hold Encoder button to force an EEPROM reset
   // Note: EEPROM reset is recommended after firmware updates
@@ -175,13 +175,6 @@ void setup()
     tft.print("EEPROM Resetting");
     delay(2000);
   }
-
-  // G8PTN: Moved this to later, to avoid interrupt action
-  /*
-  // ICACHE_RAM_ATTR void rotaryEncoder(); see rotaryEncoder implementation below.
-  attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_A), rotaryEncoder, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_B), rotaryEncoder, CHANGE);
-  */
 
   // Check for SI4732 connected on I2C interface
   // If the SI4732 is not detected, then halt with no further processing
@@ -224,15 +217,14 @@ void setup()
   {
     // Save default configuration to EEPROM
     eepromSaveConfig();
-    // Set initial volume after EEPROM reset
-    rx.setVolume(DEFAULT_VOLUME);
-    // Set initial brightness after EEPROM reset
-    ledcWrite(PIN_LCD_BL, currentBrt);
   }
 
   // ** SI4732 STARTUP **
   // Uses values from EEPROM (Last stored or defaults after EEPROM reset)
-  selectBand(bandIdx);
+  ledcWrite(PIN_LCD_BL, currentBrt);
+  selectBand(bandIdx, false);
+  delay(50);
+  rx.setVolume(volume);
 
   // Draw display for the first time
   drawScreen();

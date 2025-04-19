@@ -43,10 +43,11 @@ const char *getVersion()
 //
 // Load SSB patch into SI4735
 //
-void loadSSB(uint8_t bandwidth)
+void loadSSB(uint8_t bandwidth, bool draw)
 {
   if(!ssbLoaded)
   {
+    if(draw) drawLoadingSSB();
     // You can try rx.setI2CFastModeCustom(700000); or greater value
     rx.setI2CFastModeCustom(400000);
     rx.loadPatch(ssb_patch_content, sizeof(ssb_patch_content), bandwidth);
@@ -69,12 +70,14 @@ bool muteOn(int x)
   if((x==0) && muted)
   {
     rx.setVolume(mute_vol_val);
+    volume = mute_vol_val;
     muted = false;
   }
   else if((x==1) && !muted)
   {
-    mute_vol_val = rx.getVolume();
-    rx.setVolume(0);
+    mute_vol_val = volume;
+    volume = 0;
+    rx.setVolume(volume);
     muted = true;
   }
 

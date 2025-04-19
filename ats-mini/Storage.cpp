@@ -99,7 +99,7 @@ void eepromSaveConfig()
   EEPROM.begin(EEPROM_SIZE);
 
   EEPROM.write(addr++, EEPROM_VERSION);     // Stores the EEPROM_VERSION;
-  EEPROM.write(addr++, rx.getVolume());     // Stores the current Volume
+  EEPROM.write(addr++, volume);             // Stores the current Volume
   EEPROM.write(addr++, bandIdx);            // Stores the current band
   EEPROM.write(addr++, 0x00);               // G8PTN: Not used (was fmRDS)
   EEPROM.write(addr++, currentMode);        // Stores the current Mode (FM / AM / LSB / USB). Now per mode, leave for compatibility
@@ -161,7 +161,6 @@ void eepromSaveConfig()
 
 void eepromLoadConfig()
 {
-  uint8_t volume;
   int addr;
 
   EEPROM.begin(EEPROM_SIZE);
@@ -206,8 +205,4 @@ void eepromLoadConfig()
 
   EEPROM.end();
 
-  ledcWrite(PIN_LCD_BL, currentBrt);
-  selectBand(bandIdx);
-  delay(50);
-  rx.setVolume(volume);
 }

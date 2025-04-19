@@ -61,7 +61,6 @@ void remotePrintStatus()
 {
   // Prepare information ready to be sent
   float remoteVoltage = batteryMonitor();
-  int remoteVolume = rx.getVolume();
 
   // S-Meter conditional on compile option
   rx.getCurrentReceivedSignalQuality();
@@ -81,7 +80,7 @@ void remotePrintStatus()
                 getCurrentStep()->desc,
                 getCurrentBandwidth()->desc,
                 agcIdx,
-                remoteVolume,
+                volume,
                 remoteRssi,
                 tuningCapacitor,
                 remoteVoltage,
