@@ -1,5 +1,16 @@
 # User Manual
 
+## Controls
+
+Controls are implemented through the knob. The knob has quick press, long press, press and twist, and press and hold.
+
+| Gesture         | Result              |
+|-----------------|---------------------|
+| Click           | Opens menu, selects |
+| Long press      | Volume              |
+| Press and hold  | Screen on/off       |
+| Press and twist | Scan up or down     |
+
 ## Bands table
 
 | Name | Min frequency | Max frequency | Type | Modes |
