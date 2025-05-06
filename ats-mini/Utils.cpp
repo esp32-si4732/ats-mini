@@ -74,7 +74,7 @@ bool muteOn(int x)
   if((x==0) && muted)
   {
     rx.setVolume(mute_vol_val);
-    // Disable audio amplifier to silence speaker
+    // Enable audio amplifier to restore speaker output
     digitalWrite(PIN_AMP_EN, HIGH);
     volume = mute_vol_val;
     muted = false;
@@ -84,7 +84,7 @@ bool muteOn(int x)
     mute_vol_val = volume;
     volume = 0;
     rx.setVolume(volume);
-    // Enable audio amplifier to restore speaker output
+    // Disable audio amplifier to silence speaker
     digitalWrite(PIN_AMP_EN, LOW);
     muted = true;
   }
