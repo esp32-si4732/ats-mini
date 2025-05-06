@@ -85,7 +85,7 @@ bool muteOn(int x)
     volume = 0;
     rx.setVolume(volume);
     // Enable audio amplifier to restore speaker output
-    digitalWrite(PIN_AMP_EN, LOW;
+    digitalWrite(PIN_AMP_EN, LOW);
     muted = true;
   }
 
