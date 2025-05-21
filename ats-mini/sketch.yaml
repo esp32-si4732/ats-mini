@@ -10,5 +10,7 @@ profiles:
       - Async TCP (3.4.0)
       - ESP Async WebServer (3.7.7)
       - NTPClient (3.2.1)
+      - NimBLE-Arduino (2.3.0)
+      - NuS-NimBLE-Serial (3.3.4)
 
 default_profile: esp32s3

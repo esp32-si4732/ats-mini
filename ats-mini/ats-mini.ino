@@ -10,6 +10,8 @@
 #include "Menu.h"
 #include "Storage.h"
 #include "Themes.h"
+#include "NuSerial.hpp"
+#include "NimBLEDevice.h"
 
 // SI473/5 and UI
 #define MIN_ELAPSED_TIME         5  // 300
@@ -103,6 +105,10 @@ void setup()
 {
   // Enable serial port
   Serial.begin(115200);
+
+  NimBLEDevice::init("ATS-Mini");
+  NimBLEDevice::getAdvertising()->setName("ATS-Mini");
+  NuSerial.begin(115200);
 
   // Encoder pins. Enable internal pull-ups
   pinMode(ENCODER_PUSH_BUTTON, INPUT_PULLUP);
@@ -671,6 +677,12 @@ void loop()
   }
 #endif
 
+  if (NuSerial.isConnected()) {
+    if (NuSerial.available()) {
+      char bleChar = NuSerial.read();
+      Serial.print(bleChar);
+    }
+  }
   // Block encoder rotation when in the locked sleep mode
   if(encoderCount && sleepOn() && sleepModeIdx==SLEEP_LOCKED) encoderCount = 0;
 
