@@ -43,11 +43,18 @@ NTPClient ntpClient(ntpUDP, "pool.ntp.org");
 static bool wifiInitAP();
 static bool wifiConnect();
 static void webInit();
+
 static void webSetConfig(AsyncWebServerRequest *request);
+static void webReadEEPROM(AsyncWebServerRequest *request);
+static void webWriteEEPROM(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool lastChunk);
+
+static const String webStyleSheet();
+static const String webPage(const String &body);
+static const String webUtcOffsetSelector();
+static const String webThemeSelector();
 static const String webRadioPage();
 static const String webMemoryPage();
 static const String webConfigPage();
-
 
 //
 // Delayed WiFi connection
@@ -97,9 +104,9 @@ int8_t getWiFiStatus()
       return(WiFi.status()==WL_CONNECTED? 1 : -1);
     case WIFI_AP_STA:
       return(WiFi.softAPgetStationNum() || (WiFi.status()==WL_CONNECTED)? 1 : -1);
+    default:
+      return(-1);
   }
-
-  return(-1);
 }
 
 void drawWiFiIndicator(int x, int y)
@@ -229,7 +236,7 @@ bool ntpSyncTime()
 //
 // Initialize WiFi access point (AP)
 //
-bool wifiInitAP()
+static bool wifiInitAP()
 {
   // These are our own access point (AP) addresses
   IPAddress ip(10, 1, 1, 1);
@@ -252,7 +259,7 @@ bool wifiInitAP()
 //
 // Connect to a WiFi network
 //
-bool wifiConnect()
+static bool wifiConnect()
 {
   String status = "Connecting to WiFi network..";
 
@@ -320,7 +327,7 @@ bool wifiConnect()
 //
 // Initialize internal web server
 //
-void webInit()
+static void webInit()
 {
   server.on("/", HTTP_ANY, [] (AsyncWebServerRequest *request) {
     request->send(200, "text/html", webRadioPage());
@@ -341,8 +348,15 @@ void webInit()
     request->send(404, "text/plain", "Not found");
   });
 
-  // This method saved configuration form contents
+  // This method saves configuration form contents
   server.on("/setconfig", HTTP_ANY, webSetConfig);
+
+  // These methods let user read and write EEPROM
+  server.on("/ats-mini-eeprom.bin", HTTP_ANY, webReadEEPROM);
+  server.on("/writeeeprom", HTTP_POST,
+    [](AsyncWebServerRequest *request) { request->send(200); },
+    webWriteEEPROM
+  );
 
   // Start web server
   server.begin();
@@ -419,6 +433,38 @@ void webSetConfig(AsyncWebServerRequest *request)
   // and there is at least one SSID / PASS pair, request network connection
   if(haveSSID && (wifiModeIdx>NET_AP_ONLY) && (WiFi.status()!=WL_CONNECTED))
     netRequestConnect();
+}
+
+static void webReadEEPROM(AsyncWebServerRequest *request)
+{
+  uint8_t buf[EEPROM_SIZE];
+
+  if(!eepromReadBinary(buf, sizeof(buf)))
+    request->send(200, "text/plain", "Failed reading EEPROM");
+  else
+    request->send(200, "application/octet-stream", buf, sizeof(buf));
+}
+
+static void webWriteEEPROM(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool lastChunk)
+{
+  static uint8_t buf[EEPROM_SIZE];
+
+  // Combine chunks into complete EEPROM buffer
+  if(index + len <= sizeof(buf)) memcpy(buf + index, data, len);
+
+  // If received all chunks, verify and write into EEPROM
+  if(lastChunk && eepromVerify(buf)) eepromWriteBinary(buf, EEPROM_SIZE);
+
+#if 0
+  if(len!=EEPROM_SIZE)
+    request->send(200, "text/plain", "Wrong EEPROM size");
+  else if(!eepromVerify(data))
+    request->send(200, "text/plain", "Wrong EEPROM version");
+  else if(!eepromWriteBinary(data, EEPROM_SIZE))
+    request->send(200, "text/plain", "Failed writing EEPROM");
+  else
+    request->send(200, "text/plain", "Wrote EEPROM");
+#endif
 }
 
 static const String webStyleSheet()
@@ -624,7 +670,9 @@ const String webConfigPage()
   return webPage(
 "<H1>ATS-Mini Config</H1>"
 "<P ALIGN='CENTER'>"
-  "<A HREF='/'>Status</A>&nbsp;|&nbsp;<A HREF='/memory'>Memory</A>"
+  "<A HREF='/'>Status</A>"
+  "&nbsp;|&nbsp;<A HREF='/memory'>Memory</A>"
+  "&nbsp;|&nbsp;<A HREF='/ats-mini-eeprom.bin'>EEPROM</A>"
 "</P>"
 "<FORM ACTION='/setconfig' METHOD='POST'>"
   "<TABLE COLUMNS=2>"
@@ -689,6 +737,17 @@ const String webConfigPage()
   "</TR>"
   "<TR><TH COLSPAN=2 CLASS='HEADING'>"
     "<INPUT TYPE='SUBMIT' VALUE='Save'>"
+  "</TH></TR>"
+  "</TABLE>"
+"</FORM>"
+"<FORM ACTION='/writeeeprom' METHOD='POST'>"
+  "<TABLE COLUMNS=2>"
+  "<TR>"
+    "<TD CLASS='LABEL'>EEPROM Contents</TD>"
+    "<TD><INPUT TYPE='FILE' NAME='eeprom' ACCEPT='.bin'></TD>"
+  "</TR>"
+  "<TR><TH COLSPAN=2 CLASS='HEADING'>"
+    "<INPUT TYPE='SUBMIT' VALUE='Write EEPROM'>"
   "</TH></TR>"
   "</TABLE>"
 "</FORM>"

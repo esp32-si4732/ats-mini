@@ -4,7 +4,6 @@
 #include "Themes.h"
 #include "Menu.h"
 
-#define EEPROM_SIZE   512
 #define STORE_TIME    10000 // Time of inactivity to start writing EEPROM
 
 #define EEPROM_BASE_ADDR  0x000
@@ -15,6 +14,7 @@
 
 static bool showEepromFlag = false; // TRUE: Writing to EEPROM
 static bool itIsTimeToSave = false; // TRUE: Need to save to EEPROM
+static bool itIsTimeToLoad = false; // TRUE: Need to load from EEPROM
 static uint32_t storeTime  = millis();
 
 // To store any change into the EEPROM, we need at least STORE_TIME
@@ -22,12 +22,27 @@ static uint32_t storeTime  = millis();
 void eepromRequestSave(bool now)
 {
   // Underflow is ok here, see eepromTickTime
-  storeTime = millis() - (now ? STORE_TIME : 0);
+  storeTime = millis() - (now? STORE_TIME : 0);
   itIsTimeToSave = true;
+}
+
+void eepromRequestLoad()
+{
+  storeTime = millis();
+  itIsTimeToLoad = true;
 }
 
 void eepromTickTime()
 {
+  // Load configuration if requested
+  if(itIsTimeToLoad)
+  {
+    eepromLoadConfig();
+    selectBand(bandIdx, false);
+    rx.setVolume(volume);
+    itIsTimeToLoad = false;
+  }
+
   // Save configuration if requested
   if(itIsTimeToSave && ((millis() - storeTime) >= STORE_TIME))
   {
@@ -80,16 +95,25 @@ bool eepromFirstRun()
 }
 
 // Check EEPROM contents against EEPROM_VERSION
-bool eepromVerify()
+bool eepromVerify(const uint8_t *buf)
 {
   uint8_t  appId;
   uint16_t appVer;
 
-  EEPROM.begin(EEPROM_SIZE);
-  appId   = EEPROM.read(EEPROM_BASE_ADDR);
-  appVer  = EEPROM.read(EEPROM_VER_ADDR) << 8;
-  appVer |= EEPROM.read(EEPROM_VER_ADDR + 1);
-  EEPROM.end();
+  if(buf)
+  {
+    appId   = buf[EEPROM_BASE_ADDR];
+    appVer  = buf[EEPROM_VER_ADDR] << 8;
+    appVer |= buf[EEPROM_VER_ADDR + 1];
+  }
+  else
+  {
+    EEPROM.begin(EEPROM_SIZE);
+    appId   = EEPROM.read(EEPROM_BASE_ADDR);
+    appVer  = EEPROM.read(EEPROM_VER_ADDR) << 8;
+    appVer |= EEPROM.read(EEPROM_VER_ADDR + 1);
+    EEPROM.end();
+  }
 
   return(appId==EEPROM_VERSION);
 }
@@ -246,4 +270,42 @@ void eepromLoadConfig()
   }
 
   EEPROM.end();
+}
+
+bool eepromReadBinary(uint8_t *buf, uint32_t size)
+{
+  if(size<EEPROM_SIZE) return(false);
+
+  // Make sure nobody saves or loads
+  itIsTimeToSave = false;
+  itIsTimeToLoad = false;
+
+  EEPROM.begin(EEPROM_SIZE);
+
+  for(int j=0 ; j<EEPROM_SIZE ; ++j)
+    buf[j] = EEPROM.read(j);
+
+  EEPROM.end();
+  return(true);
+}
+
+
+bool eepromWriteBinary(const uint8_t *buf, uint32_t size)
+{
+  if(size>EEPROM_SIZE) return(false);
+
+  // Make sure nobody saves or loads
+  itIsTimeToSave = false;
+  itIsTimeToLoad = false;
+
+  EEPROM.begin(EEPROM_SIZE);
+
+  for(int j=0 ; j<EEPROM_SIZE ; ++j)
+    EEPROM.write(j, buf[j]);
+
+  EEPROM.end();
+
+  // Now we need to load new EEPROM config
+  eepromRequestLoad();
+  return(true);
 }
