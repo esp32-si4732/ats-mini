@@ -131,6 +131,7 @@ extern uint8_t sleepModeIdx;
 extern bool zoomMenu;
 extern int8_t scrollDirection;
 extern uint8_t utcOffsetIdx;
+extern uint8_t uiLayoutIdx;
 
 extern int8_t FmAgcIdx;
 extern int8_t AmAgcIdx;
@@ -162,6 +163,7 @@ void loadSSB(uint8_t bandwidth, bool draw = true);
 void unloadSSB();
 const char *getVersion(bool shorter = false);
 int getStrength(int rssi);
+int getInterpolatedStrength(int rssi);
 bool sleepOn(int x = 2);
 bool muteOn(int x = 2);
 void tempMuteOn(bool x);

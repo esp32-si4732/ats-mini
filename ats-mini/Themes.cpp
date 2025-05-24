@@ -11,14 +11,16 @@ ColorTheme theme[] =
     0xD69A, // smeter_icon
     0x07E0, // smeter_bar
     0xF800, // smeter_bar_plus
+    0x3186, // smeter_bar_empty
     0xF800, // save_icon
+    0xD69A, // stereo_icon
     0xF800, // wifi_icon
     0x07E0, // wifi_icon_conn
     0xFFFF, // batt_voltage
     0xFFFF, // batt_border
     0x07E0, // batt_full
     0xF800, // batt_low
-    0x001F, // batt_charge
+    0x0000, // batt_charge
     0xFFE0, // batt_icon
     0xD69A, // band_text
     0xD69A, // mode_text
@@ -54,14 +56,16 @@ ColorTheme theme[] =
     0xD69A, // smeter_icon
     0x07E0, // smeter_bar
     0xF800, // smeter_bar_plus
+    0x3AF3, // smeter_bar_empty
     0xF800, // save_icon
+    0xD69A, // stereo_icon
     0xF800, // wifi_icon
     0x07E0, // wifi_icon_conn
     0xFFFF, // batt_voltage
     0xFFFF, // batt_border
     0x07E0, // batt_full
     0xF800, // batt_low
-    0x001F, // batt_charge
+    0x2293, // batt_charge
     0xFFE0, // batt_icon
     0xD69A, // band_text
     0xD69A, // mode_text
@@ -97,7 +101,9 @@ ColorTheme theme[] =
     0x18C3, // smeter_icon
     0x632C, // smeter_bar
     0x18C3, // smeter_bar_plus
+    0xB594, // smeter_bar_empty
     0x632C, // save_icon
+    0x632C, // stereo_icon
     0x3A08, // wifi_icon
     0x632C, // wifi_icon_conn
     0x18C3, // batt_voltage
@@ -140,7 +146,9 @@ ColorTheme theme[] =
     0x18C3, // smeter_icon
     0x1165, // smeter_bar
     0x00C2, // smeter_bar_plus
+    0x3287, // smeter_bar_empty
     0x18C3, // save_icon
+    0x00C2, // stereo_icon
     0x00C2, // wifi_icon
     0x1165, // wifi_icon_conn
     0x18C3, // batt_voltage
@@ -183,7 +191,9 @@ ColorTheme theme[] =
     0x18C3, // smeter_icon
     0x4208, // smeter_bar
     0x2945, // smeter_bar_plus
+    0xE320, // smeter_bar_empty
     0x4208, // save_icon
+    0x2945, // stereo_icon
     0x2945, // wifi_icon
     0x4208, // wifi_icon_conn
     0x18C3, // batt_voltage
@@ -226,7 +236,9 @@ ColorTheme theme[] =
     0xB925, // smeter_icon
     0x8925, // smeter_bar
     0xF800, // smeter_bar_plus
+    0x2104, // smeter_bar_empty
     0xF800, // save_icon
+    0xB925, // stereo_icon
     0xF800, // wifi_icon
     0x8925, // wifi_icon_conn
     0xD986, // batt_voltage
@@ -269,7 +281,9 @@ ColorTheme theme[] =
     0x052D, // smeter_icon
     0x052D, // smeter_bar
     0x07AD, // smeter_bar_plus
+    0x00E0, // smeter_bar_empty
     0x2364, // save_icon
+    0x052D, // stereo_icon
     0x0309, // wifi_icon
     0x052D, // wifi_icon_conn
     0x052D, // batt_voltage
@@ -312,14 +326,16 @@ ColorTheme theme[] =
     0xD69A, // smeter_icon
     0x07E0, // smeter_bar
     0xF800, // smeter_bar_plus
+    0x3186, // smeter_bar_empty
     0xF800, // save_icon
+    0xD69A, // stereo_icon
     0xF800, // wifi_icon
     0x07E0, // wifi_icon_conn
     0xD69A, // batt_voltage
     0xD69A, // batt_border
     0x07E0, // batt_full
     0xF800, // batt_low
-    0x001F, // batt_charge
+    0x0004, // batt_charge
     0xFFE0, // batt_icon
     0xD69A, // band_text
     0xD69A, // mode_text
@@ -353,16 +369,18 @@ ColorTheme theme[] =
     0xFD95, // text_muted
     0xFD00, // text_warn
     0xC638, // smeter_icon
-    0xFD95, // smeter_bar
-    0x7007, // smeter_bar_plus
+    0xD3F2, // smeter_bar
+    0xFD95, // smeter_bar_plus
+    0x8829, // smeter_bar_empty
     0x5005, // save_icon
+    0xC638, // stereo_icon
     0x7007, // wifi_icon
     0xFD95, // wifi_icon_conn
     0xC638, // batt_voltage
     0xC638, // batt_border
     0xFD95, // batt_full
     0x7007, // batt_low
-    0xFD95, // batt_charge
+    0xA12B, // batt_charge
     0xFFE0, // batt_icon
     0xC638, // band_text
     0xC638, // mode_text
