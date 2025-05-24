@@ -22,12 +22,12 @@
 #define FUNIT_OFFSET_Y  45    // Frequency Unit vertical offset
 #define BAND_OFFSET_X  150    // Band horizontal offset
 #define BAND_OFFSET_Y    9    // Band vertical offset
-// #define MODE_OFFSET_X   95    // Mode horizontal offset
-// #define MODE_OFFSET_Y  114    // Mode vertical offset
 #define ALT_STEREO_OFFSET_X 232
 #define ALT_STEREO_OFFSET_Y 24
 #define RDS_OFFSET_X   165    // RDS horizontal offset
 #define RDS_OFFSET_Y    94    // RDS vertical offset
+#define STATUS_OFFSET_X 160   // Status & RDS text horizontal offset
+#define STATUS_OFFSET_Y 135   // Status & RDS text vertical offset
 #define BATT_OFFSET_X  288    // Battery meter x offset
 #define BATT_OFFSET_Y    0    // Battery meter y offset
 #define WIFI_OFFSET_X  237    // WiFi x offset
@@ -184,20 +184,6 @@ void drawLoadingSSB()
   spr.fillSmoothRoundRect(81, 41, 158, 38, 4, TH.menu_bg);
   spr.setTextColor(TH.text, TH.menu_bg);
   spr.drawString("Loading SSB", 160, 62, 4);
-  spr.pushSprite(0, 0);
-}
-
-//
-// Draw network status
-//
-void drawWiFiStatus(const char *line1, const char *line2)
-{
-  // Draw two lines of network status
-  spr.setTextDatum(TC_DATUM);
-  spr.setTextColor(TH.rds_text, TH.bg);
-  spr.fillRect(0, 135, 320, 35, TH.bg);
-  if(line1) spr.drawString(line1, 160, 135, 2);
-  if(line2) spr.drawString(line2, 160, 152, 2);
   spr.pushSprite(0, 0);
 }
 
@@ -524,7 +510,24 @@ static void drawStationName(const char *name, int x, int y)
   spr.drawString(name, x, y, 4);
 }
 
-void drawLayoutSmeter()
+//
+// Draw network status
+//
+static bool drawWiFiStatus(const char *statusLine1, const char *statusLine2, int x, int y)
+{
+  if(statusLine1 || statusLine2)
+  {
+    // Draw two lines of network status
+    spr.setTextDatum(TC_DATUM);
+    spr.setTextColor(TH.rds_text, TH.bg);
+    if(statusLine1) spr.drawString(statusLine1, x, y, 2);
+    if(statusLine2) spr.drawString(statusLine2, x, y+17, 2);
+    return(true);
+  }
+  return(false);
+}
+
+static void drawLayoutSmeter(const char *statusLine1, const char *statusLine2)
 {
   // Draw EEPROM write request icon
   drawEepromIndicator(SAVE_OFFSET_X, SAVE_OFFSET_Y);
@@ -574,19 +577,22 @@ void drawLayoutSmeter()
   // Indicate FM pilot detection (stereo indicator)
   drawAltStereoIndicator(ALT_STEREO_OFFSET_X, ALT_STEREO_OFFSET_Y, (currentMode==FM) && rx.getCurrentPilot());
 
-  // Show radio text if present, else show frequency scale
-  if(*getRadioText() || *getProgramInfo())
-    drawRadioText(135, 160);
-  else
+  if(!drawWiFiStatus(statusLine1, statusLine2, STATUS_OFFSET_X, STATUS_OFFSET_Y))
   {
-    // Draw SN-meter
-    drawLargeSNMeter(snr, ALT_METER_OFFSET_X, ALT_METER_OFFSET_Y);
-    // Draw S-meter
-    drawLargeSMeter(rssi, getInterpolatedStrength(rssi), ALT_METER_OFFSET_X, ALT_METER_OFFSET_Y);
+    // Show radio text if present, else show S & SN meters
+    if(*getRadioText() || *getProgramInfo())
+      drawRadioText(STATUS_OFFSET_Y, STATUS_OFFSET_Y + 25);
+    else
+    {
+      // Draw SN-meter
+      drawLargeSNMeter(snr, ALT_METER_OFFSET_X, ALT_METER_OFFSET_Y);
+      // Draw S-meter
+      drawLargeSMeter(rssi, getInterpolatedStrength(rssi), ALT_METER_OFFSET_X, ALT_METER_OFFSET_Y);
+    }
   }
 }
 
-void drawLayoutDefault()
+void drawLayoutDefault(const char *statusLine1, const char *statusLine2)
 {
   // Draw EEPROM write request icon
   drawEepromIndicator(SAVE_OFFSET_X, SAVE_OFFSET_Y);
@@ -636,17 +642,20 @@ void drawLayoutDefault()
   // Indicate FM pilot detection (stereo indicator)
   drawStereoIndicator(METER_OFFSET_X, METER_OFFSET_Y, (currentMode==FM) && rx.getCurrentPilot());
 
-  // Show radio text if present, else show frequency scale
-  if(*getRadioText() || *getProgramInfo())
-    drawRadioText(135, 160);
-  else
-    drawScale(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency);
+  if(!drawWiFiStatus(statusLine1, statusLine2, STATUS_OFFSET_X, STATUS_OFFSET_Y))
+  {
+    // Show radio text if present, else show frequency scale
+    if(*getRadioText() || *getProgramInfo())
+      drawRadioText(STATUS_OFFSET_Y, STATUS_OFFSET_Y + 25);
+    else
+      drawScale(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency);
+  }
 }
 
 //
 // Draw screen according to given command
 //
-void drawScreen()
+void drawScreen(const char *statusLine1, const char *statusLine2)
 {
   if(sleepOn()) return;
 
@@ -663,10 +672,10 @@ void drawScreen()
   switch(uiLayoutIdx)
   {
     case UI_SMETER:
-      drawLayoutSmeter();
+      drawLayoutSmeter(statusLine1, statusLine2);
       break;
     default:
-      drawLayoutDefault();
+      drawLayoutDefault(statusLine1, statusLine2);
       break;
   }
 

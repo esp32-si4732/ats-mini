@@ -240,7 +240,7 @@ bool wifiInitAP()
   WiFi.softAP(apSSID, apPWD, apChannel, apHideMe, apClients);
   WiFi.softAPConfig(ip, gateway, subnet);
 
-  drawWiFiStatus(
+  drawScreen(
     ("Use Access Point " + String(apSSID)).c_str(),
     ("IP : " + WiFi.softAPIP().toString()).c_str()
   );
@@ -280,7 +280,7 @@ bool wifiConnect()
         if(!(wifiCheck&7))
         {
           status += ".";
-          drawWiFiStatus(status.c_str());
+          drawScreen(status.c_str());
         }
         wifiCheck++;
         delay(500);
@@ -300,14 +300,14 @@ bool wifiConnect()
   if(WiFi.status()!=WL_CONNECTED)
   {
     // WiFi connection failed
-    drawWiFiStatus(status.c_str(), "No WiFi connection");
+    drawScreen(status.c_str(), "No WiFi connection");
     // Done
     return(false);
   }
   else
   {
     // WiFi connection succeeded
-    drawWiFiStatus(
+    drawScreen(
       ("Connected to WiFi network (" + WiFi.SSID() + ")").c_str(),
       ("IP : " + WiFi.localIP().toString()).c_str()
     );

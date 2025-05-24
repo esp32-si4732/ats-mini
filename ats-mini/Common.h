@@ -177,9 +177,8 @@ bool isMemoryInBand(const Band *band, const Memory *memory);
 
 // Draw.c
 void drawLoadingSSB();
-void drawWiFiStatus(const char *line1, const char *line2 = 0);
 void drawZoomedMenu(const char *text);
-void drawScreen();
+void drawScreen(const char *statusLine1 = 0, const char *statusLine2 = 0);
 void drawAboutHelp(uint8_t arrow);
 
 // Battery.c
