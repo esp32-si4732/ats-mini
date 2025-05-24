@@ -50,6 +50,7 @@ The menu can be invoked by clicking the encoder button and is closed automatical
 * **AVC** - Sets the maximum gain for automatic volume control (not applicable to FM mode).
 * **SoftMute** - Sets softmute max attenuation (only applicable to AM/SSB).
 * **Settings** - Settings submenu.
+* **FM Region** - FM Region setting. For setting FM de-emphasis time constant by region.
 
 ## Settings menu
 
