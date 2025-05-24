@@ -26,6 +26,8 @@ static uint16_t ajaxInterval = 2500;
 static bool itIsTimeToWiFi = false; // TRUE: Need to connect to WiFi
 static uint32_t connectTime = millis();
 
+static const char *eepromStatus = "No EEPROM data";
+
 // Settings
 String loginUsername = "";
 String loginPassword = "";
@@ -48,6 +50,7 @@ static void webSetConfig(AsyncWebServerRequest *request);
 static void webReadEEPROM(AsyncWebServerRequest *request);
 static void webWriteEEPROM(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool lastChunk);
 
+static const String webInputField(const String &name, const String &value, bool pass = false);
 static const String webStyleSheet();
 static const String webPage(const String &body);
 static const String webUtcOffsetSelector();
@@ -353,8 +356,10 @@ static void webInit()
 
   // These methods let user read and write EEPROM
   server.on("/ats-mini-eeprom.bin", HTTP_ANY, webReadEEPROM);
-  server.on("/writeeeprom", HTTP_POST,
-    [](AsyncWebServerRequest *request) { request->send(200); },
+  server.on("/writeeeprom", HTTP_POST, [](AsyncWebServerRequest *request) {
+      request->send(200, "text/plain", eepromStatus);
+      eepromStatus = "No EEPROM data";
+    },
     webWriteEEPROM
   );
 
@@ -449,25 +454,22 @@ static void webWriteEEPROM(AsyncWebServerRequest *request, const String &filenam
 {
   static uint8_t buf[EEPROM_SIZE];
 
-  // Combine chunks into complete EEPROM buffer
-  if(index + len <= sizeof(buf)) memcpy(buf + index, data, len);
+  // Fill in the buffer with incoming chunks
+  if(index+len <= sizeof(buf)) memcpy(buf+index, data, len);
 
-  // If received all chunks, verify and write into EEPROM
-  if(lastChunk && eepromVerify(buf)) eepromWriteBinary(buf, EEPROM_SIZE);
-
-#if 0
-  if(len!=EEPROM_SIZE)
-    request->send(200, "text/plain", "Wrong EEPROM size");
-  else if(!eepromVerify(data))
-    request->send(200, "text/plain", "Wrong EEPROM version");
-  else if(!eepromWriteBinary(data, EEPROM_SIZE))
-    request->send(200, "text/plain", "Failed writing EEPROM");
-  else
-    request->send(200, "text/plain", "Wrote EEPROM");
-#endif
+  // When last chunk received...
+  if(lastChunk)
+  {
+    if(!eepromVerify(buf))
+      eepromStatus = "Wrong EEPROM version";
+    else if(!eepromWriteBinary(buf, EEPROM_SIZE))
+      eepromStatus = "Failed writing EEPROM";
+    else
+      eepromStatus = "Wrote EEPROM";
+  }
 }
 
-static const String webInputField(const String &name, const String &value, bool pass = false)
+static const String webInputField(const String &name, const String &value, bool pass)
 {
   String newValue(value);
 
@@ -757,7 +759,7 @@ const String webConfigPage()
   "</TH></TR>"
   "</TABLE>"
 "</FORM>"
-"<FORM ACTION='/writeeeprom' METHOD='POST'>"
+"<FORM ACTION='/writeeeprom' METHOD='POST' ENCTYPE='multipart/form-data'>"
   "<TABLE COLUMNS=2>"
   "<TR>"
     "<TD CLASS='LABEL'>EEPROM Contents</TD>"
