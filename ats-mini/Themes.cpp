@@ -319,7 +319,7 @@ ColorTheme theme[] =
 
   {
     "Space",
-    0x0004, // bg
+    0x0000, // bg
     0x3FE0, // text
     0xD69A, // text_muted
     0xF800, // text_warn
@@ -340,12 +340,12 @@ ColorTheme theme[] =
     0xD69A, // band_text
     0xD69A, // mode_text
     0xD69A, // mode_border
-    0x0004, // box_bg
+    0x0000, // box_bg
     0xD69A, // box_border
     0xD69A, // box_text
     0xF800, // box_off_bg
     0xBEDF, // box_off_text
-    0x0004, // menu_bg
+    0x0000, // menu_bg
     0xF800, // menu_border
     0x3FE0, // menu_hdr
     0xBEDF, // menu_item
