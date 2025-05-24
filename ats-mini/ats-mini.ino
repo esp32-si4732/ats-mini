@@ -64,6 +64,7 @@ int8_t SsbSoftMuteIdx = 4;              // Default SSB = 4, range = 0 to 32
 uint8_t volume = DEFAULT_VOLUME;        // Volume, range = 0 (muted) - 63
 uint8_t currentSquelch = 0;             // Squelch, range = 0 (disabled) - 127
 bool squelchCutoff = false;             // True if the Squelch cutoff is in effect
+uint8_t FmRegionIdx = 0;                // FM Region
 
 uint16_t currentBrt = 130;              // Display brightness, range = 10 to 255 in steps of 5
 uint16_t currentSleep = DEFAULT_SLEEP;  // Display sleep timeout, range = 0 to 255 in steps of 5
@@ -275,7 +276,7 @@ void useBand(const Band *band)
     rx.setSeekFmRssiThreshold(5); // default is 20
     rx.setSeekFmSNRThreshold(3); // default is 3
 
-    rx.setFMDeEmphasis(1);
+    rx.setFMDeEmphasis(fmRegions[FmRegionIdx].value);
     rx.RdsInit();
     rx.setRdsConfig(1, 2, 2, 2, 2);
     rx.setGpioCtl(1, 0, 0);   // G8PTN: Enable GPIO1 as output

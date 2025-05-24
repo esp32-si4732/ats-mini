@@ -105,6 +105,14 @@ typedef struct
   const char *city;       // City name
 } UTCOffset;
 
+typedef struct
+{
+  // From https://www.skyworksinc.com/-/media/Skyworks/SL/documents/public/application-notes/AN332.pdf
+  // Property 0x1100. FM_DEEMPHASIS
+  uint8_t value;
+  const char* desc;
+} FMRegion;
+
 //
 // Global Variables
 //
@@ -141,6 +149,7 @@ extern int8_t AmSoftMuteIdx;
 extern int8_t SsbSoftMuteIdx;
 extern uint8_t rdsModeIdx;
 extern uint8_t wifiModeIdx;
+extern uint8_t FmRegionIdx;
 
 extern int8_t agcIdx;
 extern int8_t agcNdx;

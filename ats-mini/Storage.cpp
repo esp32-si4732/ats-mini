@@ -114,6 +114,7 @@ void eepromSaveConfig()
   EEPROM.write(addr++, currentMode);        // Stores the current mode (FM / AM / LSB / USB). Now per mode, leave for compatibility
   EEPROM.write(addr++, currentBFOs >> 8);   // G8PTN: Stores the current BFO % 1000 (HIGH byte)
   EEPROM.write(addr++, currentBFOs & 0XFF); // G8PTN: Stores the current BFO % 1000 (LOW byte)
+  EEPROM.write(addr++, FmRegionIdx);        // Stores the current FM region value
   EEPROM.commit();
 
   // G8PTN: Commented out the assignment
@@ -199,6 +200,7 @@ void eepromLoadConfig()
   currentMode = EEPROM.read(addr++);             // Reads stored mode. Now per mode, leave for compatibility
   currentBFO  = EEPROM.read(addr++) << 8;        // Reads stored BFO value (HIGH byte)
   currentBFO |= EEPROM.read(addr++);             // Reads stored BFO value (HIGH byte)
+  FmRegionIdx = EEPROM.read(addr++);             // Reads the current FM region value
 
   // Read current band settings
   for(int i=0 ; i<getTotalBands() ; i++)

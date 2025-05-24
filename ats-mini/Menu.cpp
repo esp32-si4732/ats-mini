@@ -79,6 +79,7 @@ Band *getCurrentBand() { return(&bands[bandIdx]); }
 #define MENU_AVC          9
 #define MENU_SOFTMUTE    10
 #define MENU_SETTINGS    11
+#define MENU_FM_REGION   12
 
 int8_t menuIdx = MENU_VOLUME;
 
@@ -96,6 +97,7 @@ static const char *menu[] =
   "AVC",
   "SoftMute",
   "Settings",
+  "FM Region",
 };
 
 //
@@ -129,6 +131,16 @@ static const char *settings[] =
   "Sleep Mode",
   "Wi-Fi",
   "About",
+};
+
+// 
+// FM Region Menu
+//
+const FMRegion fmRegions[] = {
+  // 50uS de-emphasis
+  { 0x1, "EU/JP/AU" },
+  // 75uS de-emphasis
+  { 0x2, "US" },
 };
 
 //
@@ -471,6 +483,15 @@ void doAvc(int dir)
   }
 }
 
+void doFmRegion(int dir)
+{
+  // Only allow for FM mode
+  if(currentCmd!=FM) return;
+
+  FmRegionIdx = wrap_range(FmRegionIdx, dir, 0, LAST_ITEM(fmRegion));
+  rx.setFMDeEmphasis(fmRegions[FmRegionIdx].value);
+}
+
 void doCal(int dir)
 {
   bands[bandIdx].bandCal = clamp_range(bands[bandIdx].bandCal, 10*dir, -MAX_CAL, MAX_CAL);
@@ -730,6 +751,10 @@ static void clickMenu(int cmd, bool shortPress)
       // No AVC in FM mode
       if(currentMode!=FM) currentCmd = CMD_AVC;
       break;
+    case MENU_FM_REGION:
+      // Only in FM mode
+      if(currentMode==FM) currentCmd = CMD_FM_REGION;
+      break;
   }
 }
 
@@ -778,6 +803,7 @@ bool doSideBar(uint16_t cmd, int dir)
     case CMD_SOFTMUTE:  doSoftMute(dir);break;
     case CMD_BAND:      doBand(scrollDirection * dir);break;
     case CMD_AVC:       doAvc(dir);break;
+    case CMD_FM_REGION: doFmRegion(scrollDirection * dir);break;
     case CMD_SETTINGS:  doSettings(scrollDirection * dir);break;
     case CMD_BRT:       doBrt(dir);break;
     case CMD_CAL:       doCal(dir);break;
@@ -1256,6 +1282,25 @@ static void drawAvc(int x, int y, int sx)
   }
 }
 
+static void drawFmRegion(int x, int y, int sx)
+{
+  drawCommon(menu[MENU_FM_REGION], x, y, sx, true);
+
+  int count = ITEM_COUNT(fmRegions);
+  for(int i=-2 ; i<3 ; i++)
+  {
+    if(i==0) {
+      drawZoomedMenu(fmRegions[abs((FmRegionIdx+count+i)%count)].desc);
+      spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
+    } else {
+      spr.setTextColor(TH.menu_item, TH.menu_bg);
+    }
+
+    spr.setTextDatum(MC_DATUM);
+    spr.drawString(fmRegions[abs((FmRegionIdx+count+i)%count)].desc, 40+x+(sx/2), 64+y+(i*16), 2);
+  }
+}
+
 static void drawBrt(int x, int y, int sx)
 {
   drawCommon(settings[MENU_BRIGHTNESS], x, y, sx);
@@ -1392,6 +1437,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_SOFTMUTE:  drawSoftMuteMaxAtt(x, y, sx);break;
     case CMD_CAL:       drawCal(x, y, sx);       break;
     case CMD_AVC:       drawAvc(x, y, sx);       break;
+    case CMD_FM_REGION: drawFmRegion(x, y, sx);  break;
     case CMD_BRT:       drawBrt(x, y, sx);       break;
     case CMD_RDS:       drawRDSMode(x, y, sx);   break;
     case CMD_MEMORY:    drawMemory(x, y, sx);    break;
