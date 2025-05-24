@@ -486,7 +486,7 @@ void doAvc(int dir)
 void doFmRegion(int dir)
 {
   // Only allow for FM mode
-  if(currentCmd!=FM) return;
+  if(currentMode!=FM) return;
 
   FmRegionIdx = wrap_range(FmRegionIdx, dir, 0, LAST_ITEM(fmRegions));
   rx.setFMDeEmphasis(fmRegions[FmRegionIdx].value);
@@ -1294,6 +1294,11 @@ static void drawFmRegion(int x, int y, int sx)
       spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
     } else {
       spr.setTextColor(TH.menu_item, TH.menu_bg);
+    }
+
+    // Prevent repeats for short menus
+    if (count < 5 && (i < 0 || i >= count)) {
+      continue;
     }
 
     spr.setTextDatum(MC_DATUM);
