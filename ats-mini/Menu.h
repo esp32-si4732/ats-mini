@@ -72,7 +72,7 @@ extern Band bands[];
 extern Memory memories[];
 extern const UTCOffset utcOffsets[];
 extern const char *bandModeDesc[];
-extern const FMRegion fmRegions[]
+extern const FMRegion fmRegions[];
 extern int bandIdx;
 
 // These are menu commands

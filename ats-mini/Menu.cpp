@@ -133,7 +133,7 @@ static const char *settings[] =
   "About",
 };
 
-// 
+//
 // FM Region Menu
 //
 const FMRegion fmRegions[] = {
@@ -488,7 +488,7 @@ void doFmRegion(int dir)
   // Only allow for FM mode
   if(currentCmd!=FM) return;
 
-  FmRegionIdx = wrap_range(FmRegionIdx, dir, 0, LAST_ITEM(fmRegion));
+  FmRegionIdx = wrap_range(FmRegionIdx, dir, 0, LAST_ITEM(fmRegions));
   rx.setFMDeEmphasis(fmRegions[FmRegionIdx].value);
 }
 
