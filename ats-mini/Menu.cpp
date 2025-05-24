@@ -79,7 +79,6 @@ Band *getCurrentBand() { return(&bands[bandIdx]); }
 #define MENU_AVC          9
 #define MENU_SOFTMUTE    10
 #define MENU_SETTINGS    11
-#define MENU_FM_REGION   12
 
 int8_t menuIdx = MENU_VOLUME;
 
@@ -97,7 +96,6 @@ static const char *menu[] =
   "AVC",
   "SoftMute",
   "Settings",
-  "FM Region",
 };
 
 //
@@ -114,7 +112,8 @@ static const char *menu[] =
 #define MENU_SLEEP        7
 #define MENU_SLEEPMODE    8
 #define MENU_WIFIMODE     9
-#define MENU_ABOUT        10
+#define MENU_FM_REGION    10
+#define MENU_ABOUT        11
 
 int8_t settingsIdx = MENU_BRIGHTNESS;
 
@@ -130,6 +129,7 @@ static const char *settings[] =
   "Sleep",
   "Sleep Mode",
   "Wi-Fi",
+  "FM Region",
   "About",
 };
 
@@ -751,10 +751,6 @@ static void clickMenu(int cmd, bool shortPress)
       // No AVC in FM mode
       if(currentMode!=FM) currentCmd = CMD_AVC;
       break;
-    case MENU_FM_REGION:
-      // Only in FM mode
-      if(currentMode==FM) currentCmd = CMD_FM_REGION;
-      break;
   }
 }
 
@@ -782,6 +778,10 @@ static void clickSettings(int cmd, bool shortPress)
     case MENU_SLEEPMODE:  currentCmd = CMD_SLEEPMODE; break;
     case MENU_UTCOFFSET:  currentCmd = CMD_UTCOFFSET; break;
     case MENU_WIFIMODE:   currentCmd = CMD_WIFIMODE;  break;
+    case MENU_FM_REGION:
+      // Only in FM mode
+      if(currentMode==FM) currentCmd = CMD_FM_REGION;
+      break;
     case MENU_ABOUT:      currentCmd = CMD_ABOUT;     break;
   }
 }
@@ -1284,7 +1284,7 @@ static void drawAvc(int x, int y, int sx)
 
 static void drawFmRegion(int x, int y, int sx)
 {
-  drawCommon(menu[MENU_FM_REGION], x, y, sx, true);
+  drawCommon(settings[MENU_FM_REGION], x, y, sx, true);
 
   int count = ITEM_COUNT(fmRegions);
   for(int i=-2 ; i<3 ; i++)
