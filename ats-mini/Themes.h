@@ -17,8 +17,11 @@ typedef struct __attribute__ ((packed))
   uint16_t smeter_icon;
   uint16_t smeter_bar;
   uint16_t smeter_bar_plus;
+  uint16_t smeter_bar_empty;
 
   uint16_t save_icon;
+
+  uint16_t stereo_icon;
 
   uint16_t wifi_icon;
   uint16_t wifi_icon_conn;
