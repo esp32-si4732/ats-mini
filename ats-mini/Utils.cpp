@@ -333,3 +333,37 @@ int getStrength(int rssi)
     return                 17; //>S9 +60
   }
 }
+
+
+int getInterpolatedStrength(int rssi) {
+  const int am_thresholds[] = {1, 2, 3, 4, 10, 16, 22, 28, 34, 44, 54, 64, 74, 84, 94, 95, 96};
+  const int am_values[] = {1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49};
+  const int fm_thresholds[] = {1, 2, 8, 14, 24, 34, 44, 54, 64, 74, 76, 77};
+  const int fm_values[] =  {1, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49};
+  int num_thresholds;
+  const int *thresholds;
+  const int *values;
+
+  if(currentMode!=FM) {
+    num_thresholds = ITEM_COUNT(am_thresholds);
+    thresholds = am_thresholds;
+    values = am_values;
+  } else {
+    num_thresholds = ITEM_COUNT(fm_thresholds);
+    thresholds = fm_thresholds;
+    values = fm_values;
+  }
+
+  for (int i = 0; i < num_thresholds; i++) {
+    if (rssi <= thresholds[i]) {
+      if (i == 0) return values[i];
+      int interval = thresholds[i] - thresholds[i-1];
+      if (interval == 0) return values[i];
+      float position = (float)(rssi - thresholds[i-1]) / interval;
+      float interpolated = values[i-1] + position * (values[i] - values[i-1]);
+      return (int)(interpolated + 0.5);
+    }
+  }
+
+  return values[num_thresholds - 1];
+}

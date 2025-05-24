@@ -7,9 +7,13 @@
 // Display position control
 #define MENU_OFFSET_X    0    // Menu horizontal offset
 #define MENU_OFFSET_Y   18    // Menu vertical offset
+#define ALT_MENU_OFFSET_X    0    // Menu horizontal offset
+#define ALT_MENU_OFFSET_Y    0    // Menu vertical offset
 #define MENU_DELTA_X    10    // Menu width delta
 #define METER_OFFSET_X   0    // Meter horizontal offset
 #define METER_OFFSET_Y   0    // Meter vertical offset
+#define ALT_METER_OFFSET_X  75    // Meter horizontal offset
+#define ALT_METER_OFFSET_Y 136    // Meter vertical offset
 #define SAVE_OFFSET_X   90    // EEPROM save icon horizontal offset
 #define SAVE_OFFSET_Y    0    // EEPROM save icon vertical offset
 #define FREQ_OFFSET_X  250    // Frequency horizontal offset
@@ -20,6 +24,8 @@
 #define BAND_OFFSET_Y    9    // Band vertical offset
 // #define MODE_OFFSET_X   95    // Mode horizontal offset
 // #define MODE_OFFSET_Y  114    // Mode vertical offset
+#define ALT_STEREO_OFFSET_X 232
+#define ALT_STEREO_OFFSET_Y 24
 #define RDS_OFFSET_X   165    // RDS horizontal offset
 #define RDS_OFFSET_Y    94    // RDS vertical offset
 #define BATT_OFFSET_X  288    // Battery meter x offset
@@ -400,6 +406,35 @@ static void drawScale(uint32_t freq)
 }
 
 //
+// Draw small tuner scale
+//
+static void drawSmallScale(uint32_t freq, int y)
+{
+  const Band *band = getCurrentBand();
+  const uint16_t scaleStart = 51;
+  const uint16_t scaleEnd = 269;
+
+  for(int i=scaleStart+3; i<=scaleEnd-3; i+=2) spr.drawPixel(i, y, TH.scale_line);
+  spr.drawCircle(scaleStart, y, 3, TH.scale_line);
+  spr.drawCircle(scaleEnd, y, 3, TH.scale_line);
+  spr.fillCircle(scaleStart + (scaleEnd-scaleStart) * (freq - band->minimumFreq) / (band->maximumFreq - band->minimumFreq), y, 3, TH.scale_pointer);
+
+  char lim[8];
+  spr.setTextColor(TH.scale_text, TH.bg);
+  spr.setTextDatum(MC_DATUM);
+  if(band->bandType==FM_BAND_TYPE)
+    sprintf(lim, "%0.2f", band->minimumFreq/100.00);
+  else
+    sprintf(lim, "%u", band->minimumFreq);
+  spr.drawString(lim, scaleStart-27, y, 2);
+  if(band->bandType==FM_BAND_TYPE)
+    sprintf(lim, "%0.2f", band->maximumFreq/100.00);
+  else
+    sprintf(lim, "%u", band->maximumFreq);
+  spr.drawString(lim, scaleEnd+27, y, 2);
+}
+
+//
 // Draw S-meter
 //
 static void drawSMeter(int strength, int x, int y)
@@ -416,6 +451,53 @@ static void drawSMeter(int strength, int x, int y)
   }
 }
 
+static void drawLargeSMeter(int rssi, int strength, int x, int y)
+{
+  // S-Meter legend
+  for(int i=x; i<=x+15*16 + 2; i+=2) spr.drawPixel(i, 28+y, TH.scale_line);
+  spr.setTextDatum(TC_DATUM);
+  spr.setTextColor(TH.scale_text, TH.bg);
+
+  for(int i=0; i<16; i++) {
+    if (i%2) {
+      if (i < 10) spr.drawNumber(i, x+(i*15)-13, 20+y, 2);
+      if (i == 11) spr.drawString("+20", x+(i*15)-13, 20+y, 2);
+      if (i == 13) spr.drawString("+40", x+(i*15)-13, 20+y, 2);
+      if (i == 15) spr.drawString("+60", x+(i*15)-13, 20+y, 2);
+    }
+  }
+  spr.setTextDatum(BL_DATUM);
+  spr.drawString("S", x - 10, 36 + y, 2);
+  spr.setTextDatum(BR_DATUM);
+  spr.drawNumber(rssi, x - 15, 40 + y, 4);
+
+  // S-Meter
+  for(int i=0; i<49; i++)
+    if (i<28 && i<strength)
+      spr.fillRect(x+(i*5), 11+y, 3, 10, TH.smeter_bar);
+    else if (i<strength)
+      spr.fillRect(x+(i*5), 11+y, 3, 10, TH.smeter_bar_plus);
+    else
+      spr.fillRect(x+(i*5), 11+y, 3, 10, TH.smeter_bar_empty);
+}
+
+static void drawLargeSNMeter(int snr, int x, int y)
+{
+  spr.setTextColor(TH.scale_text, TH.bg);
+  spr.setTextDatum(BL_DATUM);
+  spr.drawString("N", x - 10, 12 + y, 2);
+  spr.setTextDatum(BR_DATUM);
+  spr.drawNumber(snr, x - 15, 16 + y, 4);
+
+  // SN-Meter
+  int snrbars = snr * 45 / 128.0;
+  for(int i=0; i<49; i++)
+    if (i<snrbars)
+      spr.fillRect(x+(i*5), y - 1, 3, 10, TH.smeter_bar);
+    else
+      spr.fillRect(x+(i*5), y - 1, 3, 10, TH.smeter_bar_empty);
+}
+
 //
 // Draw stereo indicator
 //
@@ -430,6 +512,19 @@ static void drawStereoIndicator(int x, int y, bool stereo = true)
 }
 
 //
+// Draw alternative stereo indicator
+//
+static void drawAltStereoIndicator(int x, int y, bool stereo = true)
+{
+  if(stereo)
+  {
+    spr.drawCircle(x - 4, y, 7, TH.stereo_icon);
+    spr.drawCircle(x + 4, y, 7, TH.stereo_icon);
+  }
+  // Add an "else" statement here to draw a mono indicator
+}
+
+//
 // Draw RDS station name (also CB channel, etc)
 //
 static void drawStationName(const char *name, int x, int y)
@@ -439,23 +534,70 @@ static void drawStationName(const char *name, int x, int y)
   spr.drawString(name, x, y, 4);
 }
 
-//
-// Draw screen according to given command
-//
-void drawScreen()
+void drawLayoutSmeter()
 {
-  if(sleepOn()) return;
+  // Draw EEPROM write request icon
+  drawEepromIndicator(SAVE_OFFSET_X, SAVE_OFFSET_Y);
 
-  // Clear screen buffer
-  spr.fillSprite(TH.bg);
+  // Draw battery indicator & voltage
+  bool has_voltage = drawBattery(BATT_OFFSET_X, BATT_OFFSET_Y);
 
-  // About screen is a special case
-  if(currentCmd==CMD_ABOUT)
+  // Draw WiFi icon
+  drawWiFiIndicator(has_voltage ? WIFI_OFFSET_X : BATT_OFFSET_X - 13, WIFI_OFFSET_Y);
+
+  // Set font we are going to use
+  spr.setFreeFont(&Orbitron_Light_24);
+
+  // Draw band and mode
+  drawBandAndMode(
+    getCurrentBand()->bandName,
+    bandModeDesc[currentMode],
+    BAND_OFFSET_X, BAND_OFFSET_Y
+  );
+
+  if(switchThemeEditor())
   {
-    drawAbout();
-    return;
+    spr.setTextDatum(TR_DATUM);
+    spr.setTextColor(TH.text_warn, TH.bg);
+    spr.drawString(TH.name, 319, BATT_OFFSET_Y + 17, 2);
   }
 
+  // Draw frequency, units, and optionally highlight a digit
+  drawFrequency(
+    currentFrequency,
+    FREQ_OFFSET_X, FREQ_OFFSET_Y,
+    FUNIT_OFFSET_X, FUNIT_OFFSET_Y,
+    currentCmd == CMD_FREQ ? getFreqInputPos() + (pushAndRotate ? 0x80 : 0) : 100
+  );
+
+  // Show station or channel name, if present
+  if(*getStationName())
+    drawStationName(getStationName(), RDS_OFFSET_X, RDS_OFFSET_Y);
+
+  // Draw band scale
+  drawSmallScale(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency, 120);
+
+  // Draw left-side menu/info bar
+  // @@@ FIXME: Frequency display (above) intersects the side bar!
+  drawSideBar(currentCmd, ALT_MENU_OFFSET_X, ALT_MENU_OFFSET_Y, MENU_DELTA_X);
+
+  // Indicate FM pilot detection (stereo indicator)
+  drawAltStereoIndicator(ALT_STEREO_OFFSET_X, ALT_STEREO_OFFSET_Y, (currentMode==FM) && rx.getCurrentPilot());
+
+  // Show radio text if present, else show frequency scale
+  if(*getRadioText() || *getProgramInfo())
+    drawRadioText(135, 160);
+  else
+  {
+    // Draw SN-meter
+    drawLargeSNMeter(snr, ALT_METER_OFFSET_X, ALT_METER_OFFSET_Y);
+    // Draw S-meter
+    drawLargeSMeter(rssi, getInterpolatedStrength(rssi), ALT_METER_OFFSET_X, ALT_METER_OFFSET_Y);
+  }
+}
+
+void drawLayoutDefault()
+{
   // Draw EEPROM write request icon
   drawEepromIndicator(SAVE_OFFSET_X, SAVE_OFFSET_Y);
 
@@ -509,6 +651,34 @@ void drawScreen()
     drawRadioText(135, 160);
   else
     drawScale(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency);
+}
+
+//
+// Draw screen according to given command
+//
+void drawScreen()
+{
+  if(sleepOn()) return;
+
+  // Clear screen buffer
+  spr.fillSprite(TH.bg);
+
+  // About screen is a special case
+  if(currentCmd==CMD_ABOUT)
+  {
+    drawAbout();
+    return;
+  }
+
+  switch(uiLayoutIdx)
+  {
+    case UI_SMETER:
+      drawLayoutSmeter();
+      break;
+    default:
+      drawLayoutDefault();
+      break;
+  }
 
 #ifdef ENABLE_HOLDOFF
   // Update if not tuning
