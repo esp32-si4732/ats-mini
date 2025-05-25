@@ -113,8 +113,9 @@ static const char *menu[] =
 #define MENU_SCROLL       8
 #define MENU_SLEEP        9
 #define MENU_SLEEPMODE    10
-#define MENU_WIFIMODE     11
-#define MENU_ABOUT        12
+#define MENU_BTMODE       11
+#define MENU_WIFIMODE     12
+#define MENU_ABOUT        13
 
 int8_t settingsIdx = MENU_BRIGHTNESS;
 
@@ -131,6 +132,7 @@ static const char *settings[] =
   "Scroll Dir.",
   "Sleep",
   "Sleep Mode",
+  "Bluetooth",
   "Wi-Fi",
   "About",
 };
@@ -227,6 +229,14 @@ int getTotalUTCOffsets() { return(ITEM_COUNT(utcOffsets)); }
 uint8_t uiLayoutIdx = 0;
 static const char *uiLayoutDesc[] =
 { "Default", "S-Meter" };
+
+//
+// Bluetooth Mode Menu
+//
+
+uint8_t btModeIdx = BT_OFF;
+static const char *btModeDesc[] =
+{ "Off", "Bluefruit" };
 
 //
 // WiFi Mode Menu
@@ -533,6 +543,11 @@ static void doSleepMode(int dir)
   sleepModeIdx = wrap_range(sleepModeIdx, dir, 0, LAST_ITEM(sleepModeDesc));
 }
 
+static void doBtMode(int dir)
+{
+  btModeIdx = wrap_range(btModeIdx, dir, 0, LAST_ITEM(btModeDesc));
+}
+
 static void doWiFiMode(int dir)
 {
   wifiModeIdx = wrap_range(wifiModeIdx, dir, 0, LAST_ITEM(wifiModeDesc));
@@ -794,6 +809,7 @@ static void clickSettings(int cmd, bool shortPress)
     case MENU_SLEEP:      currentCmd = CMD_SLEEP;     break;
     case MENU_SLEEPMODE:  currentCmd = CMD_SLEEPMODE; break;
     case MENU_UTCOFFSET:  currentCmd = CMD_UTCOFFSET; break;
+    case MENU_BTMODE:     currentCmd = CMD_BTMODE;    break;
     case MENU_WIFIMODE:   currentCmd = CMD_WIFIMODE;  break;
     case MENU_FM_REGION:
       // Only in FM mode
@@ -830,6 +846,7 @@ bool doSideBar(uint16_t cmd, int dir)
     case CMD_MEMORY:    doMemory(scrollDirection * dir);break;
     case CMD_SLEEP:     doSleep(dir);break;
     case CMD_SLEEPMODE: doSleepMode(scrollDirection * dir);break;
+    case CMD_BTMODE:    doBtMode(scrollDirection * dir);break;
     case CMD_WIFIMODE:  doWiFiMode(scrollDirection * dir);break;
     case CMD_ZOOM:      doZoom(dir);break;
     case CMD_SCROLL:    doScrollDir(dir);break;
@@ -1082,6 +1099,30 @@ static void drawSleepMode(int x, int y, int sx)
 
     spr.setTextDatum(MC_DATUM);
     spr.drawString(sleepModeDesc[abs((sleepModeIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
+  }
+}
+
+static void drawBtMode(int x, int y, int sx)
+{
+  drawCommon(settings[MENU_BTMODE], x, y, sx, true);
+
+  int count = ITEM_COUNT(btModeDesc);
+  for(int i=-2 ; i<3 ; i++)
+  {
+    if(i==0) {
+      drawZoomedMenu(btModeDesc[abs((btModeIdx+count+i)%count)]);
+      spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
+    } else {
+      spr.setTextColor(TH.menu_item, TH.menu_bg);
+    }
+
+    // Prevent repeats for short menus
+    if (count < 5 && ((btModeIdx+i) < 0 || (btModeIdx+i) >= count)) {
+      continue;
+    }
+
+    spr.setTextDatum(MC_DATUM);
+    spr.drawString(btModeDesc[abs((btModeIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
   }
 }
 
@@ -1491,6 +1532,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_MEMORY:    drawMemory(x, y, sx);    break;
     case CMD_SLEEP:     drawSleep(x, y, sx);     break;
     case CMD_SLEEPMODE: drawSleepMode(x, y, sx); break;
+    case CMD_BTMODE:    drawBtMode(x, y, sx);    break;
     case CMD_WIFIMODE:  drawWiFiMode(x, y, sx);  break;
     case CMD_ZOOM:      drawZoom(x, y, sx);      break;
     case CMD_SCROLL:    drawScrollDir(x, y, sx); break;

@@ -67,6 +67,10 @@
 #define NET_CONNECT    3 // Connect to a network normally, if possible
 #define NET_SYNC       4 // Connect to sync time, then disconnect
 
+// Bluetooth modes
+#define BT_OFF        0 // Bluetooth is disabled
+#define BT_BLUEFRUIT  1 // Bluefruit Connect app mode
+
 //
 // Data Types
 //
