@@ -196,6 +196,7 @@ void eepromSaveConfig()
   EEPROM.write(addr++, rdsModeIdx);              // Stores the current RDS Mode value
   EEPROM.write(addr++, sleepModeIdx);            // Stores the current Sleep Mode value
   EEPROM.write(addr++, (uint8_t)zoomMenu);       // Stores the current Zoom Menu setting
+  EEPROM.write(addr++, (uint8_t)spectrumScan);   // Stores the current Spectrum Scan/Signal Survey setting
   EEPROM.write(addr++, scrollDirection<0? 1:0);  // Stores the current Scroll setting
   EEPROM.write(addr++, utcOffsetIdx);            // Stores the current UTC Offset
   EEPROM.write(addr++, currentSquelch);          // Stores the current Squelch value
@@ -272,6 +273,7 @@ void eepromLoadConfig()
   rdsModeIdx     = EEPROM.read(addr++);          // Reads stored RDS Mode value
   sleepModeIdx   = EEPROM.read(addr++);          // Reads stored Sleep Mode value
   zoomMenu       = (bool)EEPROM.read(addr++);    // Reads stored Zoom Menu setting
+  spectrumScan   = (bool)EEPROM.read(addr++);    // Reads the current Spectrum Scan/Signal Survey setting
   scrollDirection = EEPROM.read(addr++)? -1:1;   // Reads stored Scroll setting
   utcOffsetIdx   = EEPROM.read(addr++);          // Reads the current UTC Offset
   currentSquelch = EEPROM.read(addr++);          // Reads the current Squelch value
