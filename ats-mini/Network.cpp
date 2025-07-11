@@ -4,6 +4,7 @@
 #include "Utils.h"
 #include "Menu.h"
 #include "Draw.h"
+#include "WebApi.h"
 
 #include <WiFi.h>
 #include <WiFiUdp.h>
@@ -356,6 +357,8 @@ static void webInit()
     },
     webWriteEEPROM
   );
+
+  addApiListeners(server);
 
   // Start web server
   server.begin();
