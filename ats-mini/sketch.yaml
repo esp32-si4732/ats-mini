@@ -12,6 +12,7 @@ profiles:
       - NTPClient (3.2.1)
       - NimBLE-Arduino (2.3.2)
       - NuS-NimBLE-Serial (4.1.0)
+      - ArduinoJson (7.4.2)
 
   esp32s3-qspi:
     # If you change this line, change it in build.yml as well
@@ -26,5 +27,6 @@ profiles:
       - NTPClient (3.2.1)
       - NimBLE-Arduino (2.3.2)
       - NuS-NimBLE-Serial (4.1.0)
+      - ArduinoJson (7.4.2)
 
 default_profile: esp32s3-ospi
