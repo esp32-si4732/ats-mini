@@ -58,6 +58,7 @@ static const String webStyleSheet();
 static const String webPage(const String &body);
 static const String webUtcOffsetSelector();
 static const String webThemeSelector();
+static const String webVolumeSelector();
 static const String webRadioPage();
 static const String webMemoryPage();
 static const String webConfigPage();
@@ -414,6 +415,19 @@ void webSetConfig(AsyncWebServerRequest *request)
     eepromSave = true;
   }
 
+  // Save volume
+  if(request->hasParam("volume", true))
+  {
+    String volumeStr = request->getParam("volume", true)->value();
+    int newVolume = volumeStr.toInt();
+    if(newVolume >= 0 && newVolume <= 63)
+    {
+      volume = newVolume;
+      if(!muteOn()) rx.setVolume(volume);
+      eepromSave = true;
+    }
+  }
+
   // Save scroll direction and menu zoom
   scrollDirection = request->hasParam("scroll", true)? -1 : 1;
   zoomMenu        = request->hasParam("zoom", true);
@@ -543,6 +557,7 @@ static const String webPage(const String &body)
   "<META NAME='viewport' CONTENT='width=device-width, initial-scale=1.0'>"
   "<TITLE>ATS-Mini Config</TITLE>"
   "<STYLE>" + webStyleSheet() + "</STYLE>"
+  "<LINK REL='STYLESHEET' HREF='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'>" // TODO FIND A BETTER SOLUTION TO REDUCE SIZE
 "</HEAD>"
 "<BODY STYLE='font-family: sans-serif;'>" + body + "</BODY>"
 "</HTML>"
@@ -588,15 +603,32 @@ static const String webThemeSelector()
   return(result);
 }
 
+static const String webVolumeSelector()
+{
+  String result = "";
+
+  for(int i=0 ; i<=63 ; i++)
+  {
+    char text[64];
+
+    sprintf(text,
+      "<OPTION VALUE='%d'%s>%d</OPTION>",
+       i, volume==i? " SELECTED":"", i
+    );
+
+    result += text;
+  }
+
+  return(result);
+}
+
 static const String webRadioPage()
 {
+  // Get network information
   String ip = "";
   String ssid = "";
-  String freq = currentMode == FM?
-    String(currentFrequency / 100.0) + "MHz "
-  : String(currentFrequency + currentBFO / 1000.0) + "kHz ";
 
-  if(WiFi.status()==WL_CONNECTED)
+  if(WiFi.status() == WL_CONNECTED)
   {
     ip = WiFi.localIP().toString();
     ssid = WiFi.SSID();
@@ -607,46 +639,45 @@ static const String webRadioPage()
     ssid = String(apSSID);
   }
 
+  // Format frequency display
+  String freq = currentMode == FM?
+    String(currentFrequency / 100.0) + "MHz "
+  : String(currentFrequency + currentBFO / 1000.0) + "kHz ";
+
+  // Helper function to create table row
+  auto createRow = [](const String& label, const String& value) -> String {
+    return "<TR><TD CLASS='LABEL'>" + label + "</TD><TD>" + value + "</TD></TR>";
+  };
+
+  // Build status table
+  String statusTable =
+    createRow("IP Address", "<A HREF='http://" + ip + "'>" + ip + "</A> (" + ssid + ")") +
+    createRow("MAC Address", String(getMACAddress())) +
+    createRow("Firmware", String(getVersion(true))) +
+    createRow("Band", String(getCurrentBand()->bandName));
+
+  // Add station name if available
+  String stationName = String(getStationNameFull());
+  if(stationName.length() > 0)
+  {
+    statusTable += createRow("Station Name", stationName);
+  }
+
+  // Add remaining status information
+  statusTable +=
+    createRow("Volume", String(volume)) +
+    createRow("Frequency", freq + String(bandModeDesc[currentMode])) +
+    createRow("Signal Strength", String(rssi) + "dBuV") +
+    createRow("Signal to Noise", String(snr) + "dB") +
+    createRow("Battery Voltage", String(batteryMonitor()) + "V");
+
   return webPage(
-"<H1>ATS-Mini Pocket Receiver</H1>"
-"<P ALIGN='CENTER'>"
-  "<A HREF='/memory'>Memory</A>&nbsp;|&nbsp;<A HREF='/config'>Config</A>"
-"</P>"
-"<TABLE COLUMNS=2>"
-"<TR>"
-  "<TD CLASS='LABEL'>IP Address</TD>"
-  "<TD><A HREF='http://" + ip + "'>" + ip + "</A> (" + ssid + ")</TD>"
-"</TR>"
-"<TR>"
-  "<TD CLASS='LABEL'>MAC Address</TD>"
-  "<TD>" + String(getMACAddress()) + "</TD>"
-"</TR>"
-"<TR>"
-  "<TD CLASS='LABEL'>Firmware</TD>"
-  "<TD>" + String(getVersion(true)) + "</TD>"
-"</TR>"
-"<TR>"
-  "<TD CLASS='LABEL'>Band</TD>"
-  "<TD>" + String(getCurrentBand()->bandName) + "</TD>"
-"</TR>"
-"<TR>"
-  "<TD CLASS='LABEL'>Frequency</TD>"
-  "<TD>" + freq + String(bandModeDesc[currentMode]) + "</TD>"
-"</TR>"
-"<TR>"
-  "<TD CLASS='LABEL'>Signal Strength</TD>"
-  "<TD>" + String(rssi) + "dBuV</TD>"
-"</TR>"
-"<TR>"
-  "<TD CLASS='LABEL'>Signal to Noise</TD>"
-  "<TD>" + String(snr) + "dB</TD>"
-"</TR>"
-"<TR>"
-  "<TD CLASS='LABEL'>Battery Voltage</TD>"
-  "<TD>" + String(batteryMonitor()) + "V</TD>"
-"</TR>"
-"</TABLE>"
-);
+    "<H1>ATS-Mini Pocket Receiver</H1>"
+    "<P ALIGN='CENTER'>"
+      "<A HREF='/memory'>Memory</A>&nbsp;|&nbsp;<A HREF='/config'>Config</A>"
+    "</P>"
+    "<TABLE COLUMNS=2>" + statusTable + "</TABLE>"
+  );
 }
 
 static const String webMemoryPage()
@@ -745,6 +776,12 @@ const String webConfigPage()
     "<TD CLASS='LABEL'>Theme</TD>"
     "<TD>"
       "<SELECT NAME='theme'>" + webThemeSelector() + "</SELECT>"
+    "</TD>"
+  "</TR>"
+  "<TR>"
+    "<TD CLASS='LABEL'>Volume</TD>"
+    "<TD>"
+      "<SELECT NAME='volume'>" + webVolumeSelector() + "</SELECT>"
     "</TD>"
   "</TR>"
   "<TR>"

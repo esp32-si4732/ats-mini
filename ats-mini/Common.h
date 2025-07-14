@@ -183,6 +183,7 @@ float scanGetSNR(uint16_t freq);
 
 // Station.c
 const char *getStationName();
+const char *getStationNameFull();
 const char *getRadioText();
 const char *getProgramInfo();
 const char *getRdsTime();
