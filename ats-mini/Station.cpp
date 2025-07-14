@@ -208,8 +208,8 @@ static bool showRdsTime(const char *rdsTime)
   // If NTP time available, do not use RDS time
   if(!rdsTime || ntpIsAvailable()) return(false);
 
-  // The standard RDS time format is �HH:MM�.
-  // or sometimes more complex like �DD.MM.YY,HH:MM�.
+  // The standard RDS time format is “HH:MM”.
+  // or sometimes more complex like “DD.MM.YY,HH:MM”.
   const char *timeField = strstr(rdsTime, ":");
 
   // If we find a valid time format...
