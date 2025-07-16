@@ -557,7 +557,6 @@ static const String webPage(const String &body)
   "<META NAME='viewport' CONTENT='width=device-width, initial-scale=1.0'>"
   "<TITLE>ATS-Mini Config</TITLE>"
   "<STYLE>" + webStyleSheet() + "</STYLE>"
-  "<LINK REL='STYLESHEET' HREF='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'>" // TODO FIND A BETTER SOLUTION TO REDUCE SIZE
 "</HEAD>"
 "<BODY STYLE='font-family: sans-serif;'>" + body + "</BODY>"
 "</HTML>"
