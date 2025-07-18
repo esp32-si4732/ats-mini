@@ -710,7 +710,10 @@ void loop()
   int ble_event = bleDoCommand(bleModeIdx);
 
   // Block encoder rotation when in the locked sleep mode
-  if(encoderCount && sleepOn() && sleepModeIdx==SLEEP_LOCKED) encoderCount = 0;
+  if(encoderCount && sleepOn() && sleepModeIdx==SLEEP_LOCKED) {
+    encoderCount = 0;
+    sleepOn(!sleepOn());
+  }
 
   // Activate push and rotate mode (can span multiple loop iterations until the button is released)
   if (encoderCount && pb1st.isPressed) pushAndRotate = true;
