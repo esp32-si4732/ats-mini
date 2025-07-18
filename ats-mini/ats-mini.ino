@@ -466,6 +466,8 @@ bool updateFrequency(int newFreq, bool wrap)
 //
 bool doSeek(int8_t dir)
 {
+  // disable amp to avoid sound artifacts
+  tempMuteOn(true);
   if(seekMode() == SEEK_DEFAULT)
   {
     if(isSSB())
@@ -509,6 +511,8 @@ bool doSeek(int8_t dir)
   // Check for named frequencies
   identifyFrequency(currentFrequency + currentBFO / 1000);
   // Will need a redraw
+  // enable amp
+  tempMuteOn(false);
   return(true);
 }
 
