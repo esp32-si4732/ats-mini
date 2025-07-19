@@ -120,10 +120,13 @@ bool eepromVerify(const uint8_t *buf)
   return(appId==EEPROM_VERSION);
 }
 
+// Write to EEPROM only if contents differ
+inline void eepromUpdate(int addr, uint8_t value) {
+  if (EEPROM.read(addr) != value)
+    EEPROM.write(addr, value);
+}
+
 // Store current receiver configuration into the EEPROM.
-// @@@ FIXME: Use EEPROM.update() to avoid writing the same
-//            data in the same memory position. It will save
-//            unnecessary recording.
 void eepromSaveConfig()
 {
   // G8PTN: For SSB ensures BFO value is valid with respect to
@@ -133,13 +136,13 @@ void eepromSaveConfig()
 
   EEPROM.begin(EEPROM_SIZE);
 
-  EEPROM.write(addr++, EEPROM_VERSION);     // Stores the EEPROM_VERSION;
-  EEPROM.write(addr++, volume);             // Stores the current Volume
-  EEPROM.write(addr++, bandIdx);            // Stores the current band
-  EEPROM.write(addr++, wifiModeIdx);        // Stores WiFi connection mode
-  EEPROM.write(addr++, currentMode);        // Stores the current mode (FM / AM / LSB / USB). Now per mode, leave for compatibility
-  EEPROM.write(addr++, currentBFOs >> 8);   // G8PTN: Stores the current BFO % 1000 (HIGH byte)
-  EEPROM.write(addr++, currentBFOs & 0XFF); // G8PTN: Stores the current BFO % 1000 (LOW byte)
+  eepromUpdate(addr++, EEPROM_VERSION);     // Stores the EEPROM_VERSION;
+  eepromUpdate(addr++, volume);             // Stores the current Volume
+  eepromUpdate(addr++, bandIdx);            // Stores the current band
+  eepromUpdate(addr++, wifiModeIdx);        // Stores WiFi connection mode
+  eepromUpdate(addr++, currentMode);        // Stores the current mode (FM / AM / LSB / USB). Now per mode, leave for compatibility
+  eepromUpdate(addr++, currentBFOs >> 8);   // G8PTN: Stores the current BFO % 1000 (HIGH byte)
+  eepromUpdate(addr++, currentBFOs & 0XFF); // G8PTN: Stores the current BFO % 1000 (LOW byte)
   EEPROM.commit();
 
   // G8PTN: Commented out the assignment
@@ -152,10 +155,10 @@ void eepromSaveConfig()
   // Store current band settings
   for(int i=0 ; i<getTotalBands() ; i++)
   {
-    EEPROM.write(addr++, bands[i].currentFreq >> 8);   // Stores the current Frequency HIGH byte for the band
-    EEPROM.write(addr++, bands[i].currentFreq & 0xFF); // Stores the current Frequency LOW byte for the band
-    EEPROM.write(addr++, bands[i].currentStepIdx);     // Stores current step of the band
-    EEPROM.write(addr++, bands[i].bandwidthIdx);       // Stores bandwidth index
+    eepromUpdate(addr++, bands[i].currentFreq >> 8);   // Stores the current Frequency HIGH byte for the band
+    eepromUpdate(addr++, bands[i].currentFreq & 0xFF); // Stores the current Frequency LOW byte for the band
+    eepromUpdate(addr++, bands[i].currentStepIdx);     // Stores current step of the band
+    eepromUpdate(addr++, bands[i].bandwidthIdx);       // Stores bandwidth index
     EEPROM.commit();
   }
 
@@ -163,50 +166,50 @@ void eepromSaveConfig()
   addr = EEPROM_SETM_ADDR;
   for(int i=0 ; i<getTotalMemories() ; i++)
   {
-    EEPROM.write(addr++, memories[i].freq >> 8);       // Stores frequency HIGH byte
-    EEPROM.write(addr++, memories[i].freq & 0xFF);     // Stores frequency LOW byte
-    EEPROM.write(addr++, memories[i].mode);            // Stores modulation
-    EEPROM.write(addr++, memories[i].band);            // Stores band index
+    eepromUpdate(addr++, memories[i].freq >> 8);       // Stores frequency HIGH byte
+    eepromUpdate(addr++, memories[i].freq & 0xFF);     // Stores frequency LOW byte
+    eepromUpdate(addr++, memories[i].mode);            // Stores modulation
+    eepromUpdate(addr++, memories[i].band);            // Stores band index
     EEPROM.commit();
   }
 
   // G8PTN: Added
   addr = EEPROM_SET_ADDR;
-  EEPROM.write(addr++, currentBrt >> 8);         // Stores the current Brightness value (HIGH byte)
-  EEPROM.write(addr++, currentBrt & 0XFF);       // Stores the current Brightness value (LOW byte)
-  EEPROM.write(addr++, FmAgcIdx);                // Stores the current FM AGC/ATTN index value
-  EEPROM.write(addr++, AmAgcIdx);                // Stores the current AM AGC/ATTN index value
-  EEPROM.write(addr++, SsbAgcIdx);               // Stores the current SSB AGC/ATTN index value
-  EEPROM.write(addr++, AmAvcIdx);                // Stores the current AM AVC index value
-  EEPROM.write(addr++, SsbAvcIdx);               // Stores the current SSB AVC index value
-  EEPROM.write(addr++, AmSoftMuteIdx);           // Stores the current AM SoftMute index value
-  EEPROM.write(addr++, SsbSoftMuteIdx);          // Stores the current SSB SoftMute index value
-  EEPROM.write(addr++, currentSleep >> 8);       // Stores the current Sleep value (HIGH byte)
-  EEPROM.write(addr++, currentSleep & 0XFF);     // Stores the current Sleep value (LOW byte)
-  EEPROM.write(addr++, themeIdx);                // Stores the current Theme index value
-  EEPROM.write(addr++, rdsModeIdx);              // Stores the current RDS Mode value
-  EEPROM.write(addr++, sleepModeIdx);            // Stores the current Sleep Mode value
-  EEPROM.write(addr++, (uint8_t)zoomMenu);       // Stores the current Zoom Menu setting
-  EEPROM.write(addr++, scrollDirection<0? 1:0);  // Stores the current Scroll setting
-  EEPROM.write(addr++, utcOffsetIdx);            // Stores the current UTC Offset
-  EEPROM.write(addr++, currentSquelch);          // Stores the current Squelch value
-  EEPROM.write(addr++, FmRegionIdx);             // Stores the current FM region value
-  EEPROM.write(addr++, uiLayoutIdx);             // Stores the current UI Layout index value
-  EEPROM.write(addr++, bleModeIdx);              // Stores the current Bluetooth mode index value
+  eepromUpdate(addr++, currentBrt >> 8);         // Stores the current Brightness value (HIGH byte)
+  eepromUpdate(addr++, currentBrt & 0XFF);       // Stores the current Brightness value (LOW byte)
+  eepromUpdate(addr++, FmAgcIdx);                // Stores the current FM AGC/ATTN index value
+  eepromUpdate(addr++, AmAgcIdx);                // Stores the current AM AGC/ATTN index value
+  eepromUpdate(addr++, SsbAgcIdx);               // Stores the current SSB AGC/ATTN index value
+  eepromUpdate(addr++, AmAvcIdx);                // Stores the current AM AVC index value
+  eepromUpdate(addr++, SsbAvcIdx);               // Stores the current SSB AVC index value
+  eepromUpdate(addr++, AmSoftMuteIdx);           // Stores the current AM SoftMute index value
+  eepromUpdate(addr++, SsbSoftMuteIdx);          // Stores the current SSB SoftMute index value
+  eepromUpdate(addr++, currentSleep >> 8);       // Stores the current Sleep value (HIGH byte)
+  eepromUpdate(addr++, currentSleep & 0XFF);     // Stores the current Sleep value (LOW byte)
+  eepromUpdate(addr++, themeIdx);                // Stores the current Theme index value
+  eepromUpdate(addr++, rdsModeIdx);              // Stores the current RDS Mode value
+  eepromUpdate(addr++, sleepModeIdx);            // Stores the current Sleep Mode value
+  eepromUpdate(addr++, (uint8_t)zoomMenu);       // Stores the current Zoom Menu setting
+  eepromUpdate(addr++, scrollDirection<0? 1:0);  // Stores the current Scroll setting
+  eepromUpdate(addr++, utcOffsetIdx);            // Stores the current UTC Offset
+  eepromUpdate(addr++, currentSquelch);          // Stores the current Squelch value
+  eepromUpdate(addr++, FmRegionIdx);             // Stores the current FM region value
+  eepromUpdate(addr++, uiLayoutIdx);             // Stores the current UI Layout index value
+  eepromUpdate(addr++, bleModeIdx);              // Stores the current Bluetooth mode index value
   EEPROM.commit();
 
   addr = EEPROM_SETP_ADDR;
   for(int i=0 ; i<getTotalBands() ; i++)
   {
-    EEPROM.write(addr++, bands[i].bandCal >> 8);   // Stores the current Calibration value (HIGH byte) for the band
-    EEPROM.write(addr++, bands[i].bandCal & 0XFF); // Stores the current Calibration value (LOW byte) for the band
-    EEPROM.write(addr++, bands[i].bandMode);       // Stores the current Mode value for the band
+    eepromUpdate(addr++, bands[i].bandCal >> 8);   // Stores the current Calibration value (HIGH byte) for the band
+    eepromUpdate(addr++, bands[i].bandCal & 0XFF); // Stores the current Calibration value (LOW byte) for the band
+    eepromUpdate(addr++, bands[i].bandMode);       // Stores the current Mode value for the band
     EEPROM.commit();
   }
 
   addr = EEPROM_VER_ADDR;
-  EEPROM.write(addr++, APP_VERSION >> 8);        // Stores APP_VERSION (HIGH byte)
-  EEPROM.write(addr++, APP_VERSION & 0XFF);      // Stores APP_VERSION (LOW byte)
+  eepromUpdate(addr++, APP_VERSION >> 8);        // Stores APP_VERSION (HIGH byte)
+  eepromUpdate(addr++, APP_VERSION & 0XFF);      // Stores APP_VERSION (LOW byte)
   EEPROM.commit();
 
   EEPROM.end();
