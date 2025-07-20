@@ -9,6 +9,7 @@ recovery.md
 accessories.md
 mods.md
 hardware.md
+jsonapi.md
 development.md
 changelog.md
 ```
