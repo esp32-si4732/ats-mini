@@ -1,0 +1,263 @@
+openapi: 3.0.4
+info:
+  title: ATS-Mini - OpenAPI 3.0
+  description: |-
+    ATS-Mini JSON Api definition
+  version: 1.0.0
+servers:
+  - url: http://atsmini.local
+  - url: http://10.1.1.1
+tags:
+  - name: status
+    description: Radio status and information
+  - name: memory
+    description: Memory information
+  - name: config
+    description: Config information
+paths:
+  /api/status:
+    get:
+      tags:
+        - status
+      summary: Get ATS-Mini status
+      operationId: getStatus
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/memory:
+    get:
+      tags:
+        - memory
+      summary: Get ATS-Mini memories
+      operationId: getMemory
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Memory'
+                minItems: 32
+                maxItems: 32
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/config:
+    get:
+      tags:
+        - config
+      summary: Get ATS-Mini configs
+      operationId: getConfig
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - config_auth: []
+    post:
+      tags:
+        - config
+      summary: Set ATS-Mini configs
+      operationId: setConfig
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Config'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - config_auth: []
+
+  /api/configOptions:
+    get:
+      tags:
+        - config
+      summary: Get ATS-Mini config options
+      operationId: getConfigOptions
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigOptions'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    Status:
+      type: object
+      properties:
+        ip:
+          type: string
+          example: "10.1.1.1"
+        ssid:
+          type: string
+          example: "ATS-Mini"
+        mac:
+          type: string
+          example: "98:A3:16:C1:DA:9C"
+        version:
+          type: string
+          example: "F/W: v2.28d Jul 19 2025"
+        band:
+          type: string
+          example: "VHF"
+        freq:
+          type: number
+          example: 9420
+        mode:
+          type: string
+          example: "FM"
+        rssi:
+          type: number
+          example: 57
+        snr:
+          type: number
+          example: 35
+        battery:
+          type: number
+          example: 3.69197
+
+    Memory:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 1
+        freq:
+          type: number
+          example: 9420
+        band:
+          type: string
+          example: "VHF"
+
+    Config:
+      type: object
+      properties:
+        username:
+          type: string
+          example: "admin"
+        password:
+          type: string
+          example: "adminpsw"
+        wifissid1:
+          type: string
+          example: "somewifiap"
+        wifipass1:
+          type: string
+          example: "somepwd"
+        wifissid2:
+          type: string
+          example: ""
+        wifipass2:
+          type: string
+          example: ""
+        wifissid3:
+          type: string
+          example: ""
+        wifipass3:
+          type: string
+          example: ""
+        utcOffsetIdx:
+          type: number
+          example: 10
+        themeIdx:
+          type: number
+          example: 5
+        scrollDirection:
+          type: number
+          example: 1
+        zoomMenu:
+          type: boolean
+          example: false
+
+    ConfigOptions:
+      type: object
+      properties:
+        themes:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: number
+                example: 1
+              name:
+                type: string
+                example: "Default"
+        UTCOffsets:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: number
+                example: 3
+              offset:
+                type: number
+                example: -20
+              desc:
+                type: string
+                example: "UTC-5"
+              city:
+                type: string
+                example: "Houston"
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Invalid JSON"
+      required:
+        - message
+
+  securitySchemes:
+    config_auth:
+      type: http
+      scheme: basic
