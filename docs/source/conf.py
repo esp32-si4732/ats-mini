@@ -13,7 +13,11 @@ author = 'ATS Mini Community'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["myst_parser"]
+extensions = [
+  "myst_parser",
+  'swagger_plugin_for_sphinx',
+]
+
 myst_heading_anchors = 3
 myst_enable_extensions = [
     "attrs_inline",
