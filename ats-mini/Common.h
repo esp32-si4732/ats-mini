@@ -85,7 +85,8 @@ typedef struct
   uint16_t currentFreq;   // Default frequency or current frequency
   int8_t currentStepIdx;  // Default frequency step
   int8_t bandwidthIdx;    // Index of the table bandwidthFM, bandwidthAM or bandwidthSSB;
-  int16_t bandCal;        // Calibration value
+  int16_t usbCal;         // USB calibration value
+  int16_t lsbCal;         // LSB calibration value
 } Band;
 
 typedef struct __attribute__((packed))

@@ -198,8 +198,10 @@ void eepromSaveConfig()
   addr = EEPROM_SETP_ADDR;
   for(int i=0 ; i<getTotalBands() ; i++)
   {
-    EEPROM.write(addr++, bands[i].bandCal >> 8);   // Stores the current Calibration value (HIGH byte) for the band
-    EEPROM.write(addr++, bands[i].bandCal & 0XFF); // Stores the current Calibration value (LOW byte) for the band
+    EEPROM.write(addr++, bands[i].usbCal >> 8);    // Stores the current USB Calibration value (HIGH byte) for the band
+    EEPROM.write(addr++, bands[i].usbCal & 0xFF);  // Stores the current USB Calibration value (LOW byte) for the band
+    EEPROM.write(addr++, bands[i].lsbCal >> 8);    // Stores the current LSB Calibration value (HIGH byte) for the band
+    EEPROM.write(addr++, bands[i].lsbCal & 0xFF);  // Stores the current LSB Calibration value (LOW byte) for the band
     EEPROM.write(addr++, bands[i].bandMode);       // Stores the current Mode value for the band
     EEPROM.commit();
   }
@@ -276,8 +278,13 @@ void eepromLoadConfig()
   addr = EEPROM_SETP_ADDR;
   for(int i=0 ; i<getTotalBands() ; i++)
   {
-    bands[i].bandCal  = EEPROM.read(addr++) << 8; // Reads stored Calibration value (HIGH byte) per band
-    bands[i].bandCal |= EEPROM.read(addr++);      // Reads stored Calibration value (LOW byte) per band
+    bands[i].usbCal  = EEPROM.read(addr++) << 8;  // Reads stored USB Calibration value (HIGH byte) per band
+    bands[i].usbCal |= EEPROM.read(addr++);       // Reads stored USB Calibration value (LOW byte) per band
+    bands[i].lsbCal  = EEPROM.read(addr++) << 8;  // Reads stored LSB Calibration value (HIGH byte) per band
+    bands[i].lsbCal |= EEPROM.read(addr++);       // Reads stored LSB Calibration value (LOW byte) per band
+    // If either calibration value is uninitialised, set to 0
+    if (bands[i].usbCal == -1) bands[i].usbCal = 0;
+    if (bands[i].lsbCal == -1) bands[i].lsbCal = 0;
     bands[i].bandMode = EEPROM.read(addr++);      // Reads stored Mode value per band
   }
 

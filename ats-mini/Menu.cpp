@@ -552,7 +552,11 @@ void doFmRegion(int dir)
 
 void doCal(int dir)
 {
-  bands[bandIdx].bandCal = clamp_range(bands[bandIdx].bandCal, 10*dir, -MAX_CAL, MAX_CAL);
+  if (currentMode == USB)
+    bands[bandIdx].usbCal = clamp_range(bands[bandIdx].usbCal, 10*dir, -MAX_CAL, MAX_CAL);
+  else if (currentMode == LSB)
+    bands[bandIdx].lsbCal = clamp_range(bands[bandIdx].lsbCal, 10*dir, -MAX_CAL, MAX_CAL);
+  // else: no calibration change for other modes
 
   // If in SSB mode set the SI4732/5 BFO value
   // This adjusts the BFO while in the calibration menu
@@ -1402,7 +1406,13 @@ static void drawCal(int x, int y, int sx)
   spr.setTextDatum(MC_DATUM);
 
   spr.setTextColor(TH.menu_param, TH.menu_bg);
-  spr.drawNumber(getCurrentBand()->bandCal, 40+x+(sx/2), 60+y, 4);
+  if (currentMode == USB)
+    spr.drawNumber(getCurrentBand()->usbCal, 40+x+(sx/2), 60+y, 4);
+  else if (currentMode == LSB)
+    spr.drawNumber(getCurrentBand()->lsbCal, 40+x+(sx/2), 60+y, 4);
+  else
+    spr.drawNumber(0, 40+x+(sx/2), 60+y, 4);  // Display zero or nothing for other modes
+
   spr.drawString("Hz", 40+x+(sx/2), 90+y, 4);
 }
 
