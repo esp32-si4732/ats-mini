@@ -140,6 +140,23 @@ void tempMuteOn(bool x)
   }
 }
 
+//
+// Enable an RTC GPIO pin helper function
+//
+void enableRtcPin(gpio_num_t pin) {
+  rtc_gpio_pullup_en(pin);
+  rtc_gpio_pulldown_dis(pin);
+}
+
+//
+// Disable an RTC GPIO pin helper function
+//
+void disableRtcPin(gpio_num_t pin) {
+  rtc_gpio_pullup_dis(pin);
+  rtc_gpio_pulldown_dis(pin);
+  rtc_gpio_deinit(pin);
+  pinMode(pin, INPUT_PULLUP);
+}
 
 //
 // Turn sleep on (1) or off (0), or get current status (2)
@@ -169,9 +186,14 @@ bool sleepOn(int x)
 
       while(true)
       {
-        esp_sleep_enable_ext0_wakeup((gpio_num_t)ENCODER_PUSH_BUTTON, LOW);
-        rtc_gpio_pullup_en((gpio_num_t)ENCODER_PUSH_BUTTON);
-        rtc_gpio_pulldown_dis((gpio_num_t)ENCODER_PUSH_BUTTON);
+        uint64_t wakeupBitmask = ENCODER_PIN_BITMASK(ENCODER_PUSH_BUTTON);
+        enableRtcPin((gpio_num_t)ENCODER_PUSH_BUTTON);
+        if(currentSleep) {
+          wakeupBitmask |= ENCODER_PIN_BITMASK(ENCODER_PIN_A) | ENCODER_PIN_BITMASK(ENCODER_PIN_B);
+          enableRtcPin((gpio_num_t)ENCODER_PIN_A);
+          enableRtcPin((gpio_num_t)ENCODER_PIN_B);
+        }
+        esp_sleep_enable_ext1_wakeup(wakeupBitmask, ESP_EXT1_WAKEUP_ALL_LOW);
         esp_light_sleep_start();
 
         // Waking up here
@@ -192,10 +214,11 @@ bool sleepOn(int x)
         if(wasLongPressed) break;
       }
       // Reenable the pin as well as the display
-      rtc_gpio_pullup_dis((gpio_num_t)ENCODER_PUSH_BUTTON);
-      rtc_gpio_pulldown_dis((gpio_num_t)ENCODER_PUSH_BUTTON);
-      rtc_gpio_deinit((gpio_num_t)ENCODER_PUSH_BUTTON);
-      pinMode(ENCODER_PUSH_BUTTON, INPUT_PULLUP);
+      disableRtcPin((gpio_num_t)ENCODER_PUSH_BUTTON);
+      if(currentSleep) {
+        disableRtcPin((gpio_num_t)ENCODER_PIN_A);
+        disableRtcPin((gpio_num_t)ENCODER_PIN_B);
+      }
       if(squelchCutoff) tempMuteOn(true);
       sleepOn(false);
       // Enable WiFi

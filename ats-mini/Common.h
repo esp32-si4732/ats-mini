@@ -51,6 +51,7 @@
 #define ENCODER_PIN_A  2            // GPIO02
 #define ENCODER_PIN_B  1            // GPIO01
 #define ENCODER_PUSH_BUTTON 21      // GPIO21
+#define ENCODER_PIN_BITMASK(PIN) (1ULL << PIN)
 
 // Compute number of items in an array
 #define ITEM_COUNT(array) (sizeof(array) / sizeof((array)[0]))
