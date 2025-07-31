@@ -315,7 +315,12 @@ void useBand(const Band *band)
       // G8PTN: Commented out
       //rx.setSsbSoftMuteMaxAttenuation(softMuteMaxAttIdx);
       // To move frequency forward, need to move the BFO backwards
-      rx.setSSBBfo(-(currentBFO + band->bandCal));
+      if (currentMode == USB)
+        rx.setSSBBfo(-(currentBFO + band->usbCal));
+      else if (currentMode == LSB)
+        rx.setSSBBfo(-(currentBFO + band->lsbCal));
+      else
+        rx.setSSBBfo(-currentBFO);  // No calibration if not USB/LSB
     }
 
     // Set the tuning capacitor for SW or MW/LW
@@ -422,7 +427,12 @@ bool updateBFO(int newBFO, bool wrap)
   currentBFO = newBFO;
 
   // To move frequency forward, need to move the BFO backwards
-  rx.setSSBBfo(-(currentBFO + band->bandCal));
+  if (currentMode == USB)
+    rx.setSSBBfo(-(currentBFO + band->usbCal));
+  else if (currentMode == LSB)
+    rx.setSSBBfo(-(currentBFO + band->lsbCal));
+  else
+    rx.setSSBBfo(-currentBFO);  // No calibration if not USB/LSB
 
   // Save current band frequency, w.r.t. new BFO value
   band->currentFreq = currentFrequency + currentBFO / 1000;
