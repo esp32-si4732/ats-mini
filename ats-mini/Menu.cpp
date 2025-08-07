@@ -564,16 +564,17 @@ void doAvc(int dir)
   // Only allow for AM and SSB modes
   if(currentMode==FM) return;
 
+  // wrap_range expects to wrap a range of incremental numbers. avc instead is a range of all even numbers
+  int8_t newAvcIdx = wrap_range((isSSB() ? SsbAvcIdx : AmAvcIdx) / 2, dir, 12 / 2, 90 / 2) * 2;
   if(isSSB())
   {
-    SsbAvcIdx = wrap_range(SsbAvcIdx, 2*dir, 12, 90);
-    rx.setAvcAmMaxGain(SsbAvcIdx);
+    SsbAvcIdx = newAvcIdx;
   }
   else
   {
-    AmAvcIdx = wrap_range(AmAvcIdx, 2*dir, 12, 90);
-    rx.setAvcAmMaxGain(AmAvcIdx);
+    AmAvcIdx = newAvcIdx;
   }
+  rx.setAvcAmMaxGain(newAvcIdx);
 }
 
 void doFmRegion(int dir)
