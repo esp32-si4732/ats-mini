@@ -121,7 +121,7 @@ void setup()
   // Enable SI4732 VDD
   pinMode(PIN_POWER_ON, OUTPUT);
   digitalWrite(PIN_POWER_ON, HIGH);
-  delay(100);
+  delay(50);
 
   // The line below may be necessary to setup I2C pins on ESP32
   Wire.begin(ESP32_I2C_SDA, ESP32_I2C_SCL);
