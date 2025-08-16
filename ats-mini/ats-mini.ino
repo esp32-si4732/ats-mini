@@ -726,6 +726,12 @@ void loop()
   // Block encoder rotation when in the locked sleep mode
   if(encoderCount && sleepOn() && sleepModeIdx==SLEEP_LOCKED) encoderCount = 0;
 
+  // Don't wake in unlocked sleep mode
+  if(encoderCount && currentSleep && sleepOn() && sleepModeIdx!=SLEEP_UNLOCKED) {
+    sleepOn(false);
+    needRedraw = true;
+  }
+
   // Activate push and rotate mode (can span multiple loop iterations until the button is released)
   if (encoderCount && pb1st.isPressed) pushAndRotate = true;
 
