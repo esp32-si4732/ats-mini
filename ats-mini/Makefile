@@ -23,13 +23,14 @@ OPTIONS = \
 
 HEADERS = \
 	Common.h Themes.h Menu.h Storage.h tft_setup.h Rotary.h \
-	Utils.h Button.h EIBI.h SI4735-fixed.h patch_init.h
+	Utils.h Button.h EIBI.h SI4735-fixed.h patch_init.h \
+	WebApi.h
 
 SRC = \
 	$(INO) Utils.cpp Rotary.cpp Button.cpp Draw.cpp Menu.cpp \
 	Station.cpp Battery.cpp Storage.cpp Themes.cpp Remote.cpp \
 	Network.cpp EIBI.cpp Scan.cpp About.cpp Ble.cpp \
-	Layout-Default.cpp Layout-SMeter.cpp
+	Layout-Default.cpp Layout-SMeter.cpp WebApi.cpp
 
 all: build
 
