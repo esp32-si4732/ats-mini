@@ -278,7 +278,8 @@ void remotePrintStatus()
                 VER_APP,
                 currentFrequency,
                 currentBFO,
-                getCurrentBand()->bandCal,
+                ((currentMode == USB) ? getCurrentBand()->usbCal :
+                 (currentMode == LSB) ? getCurrentBand()->lsbCal : 0),
                 getCurrentBand()->bandName,
                 bandModeDesc[currentMode],
                 getCurrentStep()->desc,
