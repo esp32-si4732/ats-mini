@@ -64,7 +64,8 @@ struct SavedBand
   uint16_t currentFreq;   // Current frequency
   int8_t currentStepIdx;  // Current frequency step
   int8_t bandwidthIdx;    // Index of the table bandwidthFM, bandwidthAM or bandwidthSSB;
-  int16_t bandCal;        // Calibration value
+  int16_t usbCal;         // USB calibration value
+  int16_t lsbCal;         // LSB calibration value
 };
 
 void prefsSaveBand(uint8_t idx, bool openPrefs)
@@ -81,7 +82,8 @@ void prefsSaveBand(uint8_t idx, bool openPrefs)
   value.bandMode       = bands[idx].bandMode;        // Modulation
   value.currentStepIdx = bands[idx].currentStepIdx;  // Step
   value.bandwidthIdx   = bands[idx].bandwidthIdx;    // Bandwidth
-  value.bandCal        = bands[idx].bandCal;         // Calibration
+  value.usbCal         = bands[idx].usbCal;          // USB Calibration
+  value.lsbCal         = bands[idx].lsbCal;          // LSB Calibration
 
   // Write a preference
   prefs.putBytes(name, &value, sizeof(value));
@@ -109,7 +111,8 @@ bool prefsLoadBand(uint8_t idx, bool openPrefs)
     bands[idx].bandMode       = value.bandMode;       // Modulation
     bands[idx].currentStepIdx = value.currentStepIdx; // Step
     bands[idx].bandwidthIdx   = value.bandwidthIdx;   // Bandwidth
-    bands[idx].bandCal        = value.bandCal;        // Calibration
+    bands[idx].usbCal         = value.usbCal;         // USB Calibration
+    bands[idx].lsbCal         = value.lsbCal;         // LSB Calibration
   }
 
   // Done with band preferences
