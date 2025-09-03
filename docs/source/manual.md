@@ -171,7 +171,9 @@ To reset the receiver settings (current band, frequency, favorite stations, down
 
 ## Serial interface
 
-A USB-serial interface is available to control and monitor the receiver. Use [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) or Picocom to connect to the serial port. Alernatively, open the following web terminal in Google Chrome: <https://www.serialterminal.com/>. A list of commands:
+A USB-serial interface is available to control and monitor the receiver. Use [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) or Picocom to connect to the serial port.
+Alternatively, open the following web terminal in Google Chrome: <https://www.serialterminal.com/>. A list of commands:
+[ESP32 documentation](https://docs.espressif.com/projects/esp-idf/en/v5.0/esp32/get-started/establish-serial-connection.html#verify-serial-connection) notes that the default serial settings are 115200 8N1, though 9600 8N1 may be a bit more reliable.
 
 | Button       | Function            | Comments                                                                                     |
 |--------------|---------------------|----------------------------------------------------------------------------------------------|

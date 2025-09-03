@@ -82,10 +82,10 @@ Works on: Windows, macOS, Linux
 3. A new serial port should appear. On Windows check the USB Serial COM port in the Windows Device Manager, on macOS it will look like `/dev/tty.usbmodemXXXX`, on Linux like `/dev/ttyACMX`.
 3. Run **just one** of the two following commands (the first one uses three separate firmware files, the second one uses the single merged firmware file):
    ```shell
-   uvx --from esptool esptool.py --chip esp32s3 --port SERIAL_PORT --baud 921600 --before default_reset --after hard_reset write_flash  -z --flash_mode keep --flash_freq keep --flash_size keep 0x0 ats-mini.ino.bootloader.bin 0x8000 ats-mini.ino.partitions.bin 0x10000 ats-mini.ino.bin
+   uvx --from esptool esptool.py --chip esp32s3 --port SERIAL_PORT --baud 921600 --before default-reset --after hard-reset write_flash  -z --flash-mode keep --flash-freq keep --flash-size keep 0x0 ats-mini.ino.bootloader.bin 0x8000 ats-mini.ino.partitions.bin 0x10000 ats-mini.ino.bin
 
    # OR
 
-   uvx --from esptool esptool.py --chip esp32s3 --port SERIAL_PORT --baud 921600 --before default_reset --after hard_reset write_flash  -z --flash_mode keep --flash_freq keep --flash_size keep 0x0 ats-mini.ino.merged.bin
+   uvx --from esptool esptool.py --chip esp32s3 --port SERIAL_PORT --baud 921600 --before default-reset --after hard-reset write-flash  -z --flash-mode keep --flash-freq keep --flash-size keep 0x0 ats-mini.ino.merged.bin
    ```
 4. Check out the firmware version in Menu -> Settings -> About on the receiver.
