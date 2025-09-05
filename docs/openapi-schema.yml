@@ -1,0 +1,412 @@
+openapi: 3.0.4
+info:
+  title: ATS-Mini - OpenAPI 3.0
+  description: |-
+    ATS-Mini JSON Api definition for radio control and configuration
+  version: 1.0.0
+servers:
+  - url: http://atsmini.local
+  - url: http://10.1.1.1
+tags:
+  - name: status
+    description: Radio status and information
+  - name: memory
+    description: Memory slot information
+  - name: config
+    description: Device configuration management
+paths:
+  /api/status:
+    get:
+      tags:
+        - status
+      summary: Get ATS-Mini status
+      description: Returns current radio status including frequency, mode, signal strength, and RDS data
+      operationId: getStatus
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/memory:
+    get:
+      tags:
+        - memory
+      summary: Get ATS-Mini memories
+      description: Returns all memory slots. Empty objects represent unused slots.
+      operationId: getMemory
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Memory'
+                description: Array of memory slots, empty objects for unused slots
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/config:
+    get:
+      tags:
+        - config
+      summary: Get ATS-Mini configuration
+      description: Returns current device configuration including WiFi, display, and radio settings
+      operationId: getConfig
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+        '401':
+          description: Authentication required
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - config
+      summary: Update ATS-Mini configuration
+      description: Updates device configuration. Only provided fields will be updated.
+      operationId: setConfig
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigUpdate'
+      responses:
+        '200':
+          description: Configuration updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+        '400':
+          description: Invalid JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: Authentication required
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/configOptions:
+    get:
+      tags:
+        - config
+      summary: Get available configuration options
+      description: Returns all available options for configuration fields like themes, UTC offsets, etc.
+      operationId: getConfigOptions
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigOptions'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+
+  schemas:
+    Status:
+      type: object
+      required:
+        - ip
+        - ssid
+        - mac
+        - version
+        - band
+        - freq
+        - mode
+        - rssi
+        - snr
+        - battery
+      properties:
+        ip:
+          type: string
+          description: Current IP address
+          example: "10.1.1.1"
+        ssid:
+          type: string
+          description: WiFi SSID or device name in AP mode
+          example: "ATS-Mini"
+        mac:
+          type: string
+          description: Device MAC address
+          example: "98:A3:16:C1:DA:9C"
+        version:
+          type: string
+          description: Firmware version string
+          example: "F/W: v2.28d Jul 27 2025"
+        band:
+          type: string
+          description: Current band
+          example: "VHF"
+        freq:
+          type: number
+          description: Current frequency in Hz (includes BFO offset for non-FM modes)
+          example: 94200000
+        mode:
+          type: string
+          description: Current modulation mode
+          example: "FM"
+        rssi:
+          type: number
+          description: Received signal strength indicator
+          example: 44
+        snr:
+          type: number
+          description: Signal-to-noise ratio in dB
+          example: 20
+        battery:
+          type: number
+          format: float
+          description: Battery voltage in volts
+          example: 3.878347
+
+    Memory:
+      type: object
+      description: Memory slot data. Empty objects represent unused slots.
+      properties:
+        id:
+          type: integer
+          description: Memory slot ID
+          example: 0
+        freq:
+          type: number
+          description: Frequency in Hz
+          example: 94200000
+        band:
+          type: string
+          description: Band name
+          example: "VHF"
+        mode:
+          type: string
+          description: Modulation mode
+          example: "FM"
+        name:
+          type: string
+          description: Memory name
+          example: "Example"
+
+    Config:
+      type: object
+      required:
+        - username
+        - password
+        - wifissid1
+        - wifipass1
+        - wifissid2
+        - wifipass2
+        - wifissid3
+        - wifipass3
+        - utcOffsetIdx
+        - themeIdx
+        - scrollDirection
+        - tuneHoldOff
+        - zoomMenu
+      properties:
+        username:
+          type: string
+          description: Web interface login username (empty string means no authentication)
+          example: ""
+        password:
+          type: string
+          description: Web interface login password (empty string means no authentication)
+          example: ""
+        wifissid1:
+          type: string
+          description: First WiFi network SSID
+          example: ""
+        wifipass1:
+          type: string
+          description: First WiFi network password
+          example: ""
+        wifissid2:
+          type: string
+          description: Second WiFi network SSID
+          example: ""
+        wifipass2:
+          type: string
+          description: Second WiFi network password
+          example: ""
+        wifissid3:
+          type: string
+          description: Third WiFi network SSID
+          example: ""
+        wifipass3:
+          type: string
+          description: Third WiFi network password
+          example: ""
+        utcOffsetIdx:
+          type: integer
+          description: UTC offset index (references UTCOffsets array from configOptions)
+          example: 8
+        themeIdx:
+          type: integer
+          description: Theme index (references themes array from configOptions)
+          example: 0
+        scrollDirection:
+          type: integer
+          description: Scroll direction (-1 or 1)
+          example: 1
+        tuneHoldOff:
+          type: integer
+          description: Display hold off in ms
+          example: 0
+        zoomMenu:
+          type: boolean
+          description: Whether menu zoom is enabled
+          example: false
+
+    ConfigUpdate:
+      type: object
+      description: Configuration update request. All fields are optional - only provided fields will be updated.
+      properties:
+        username:
+          type: string
+          description: Web interface login username
+        password:
+          type: string
+          description: Web interface login password
+        wifissid1:
+          type: string
+          description: First WiFi network SSID
+        wifipass1:
+          type: string
+          description: First WiFi network password
+        wifissid2:
+          type: string
+          description: Second WiFi network SSID
+        wifipass2:
+          type: string
+          description: Second WiFi network password
+        wifissid3:
+          type: string
+          description: Third WiFi network SSID
+        wifipass3:
+          type: string
+          description: Third WiFi network password
+        utcOffsetIdx:
+          type: integer
+          description: UTC offset index
+        themeIdx:
+          type: integer
+          description: Theme index
+        scrollDirection:
+          type: integer
+          description: Scroll direction (-1 or 1)
+          enum: [-1, 1]
+        tuneHoldOff:
+          type: integer
+          description: Display tune hold off in ms
+        zoomMenu:
+          type: boolean
+          description: Zoom menu setting
+
+    ConfigOptions:
+      type: object
+      required:
+        - themes
+        - UTCOffsets
+      properties:
+        themes:
+          type: array
+          description: Available themes
+          items:
+            $ref: '#/components/schemas/Theme'
+        UTCOffsets:
+          type: array
+          description: Available UTC offsets
+          items:
+            $ref: '#/components/schemas/UTCOffset'
+
+    Theme:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          description: Theme index
+          example: 0
+        name:
+          type: string
+          description: Theme name
+          example: "Default"
+
+    UTCOffset:
+      type: object
+      required:
+        - id
+        - offset
+        - desc
+        - city
+      properties:
+        id:
+          type: integer
+          description: UTC offset index
+          example: 0
+        offset:
+          type: integer
+          description: UTC offset in quarter hours
+          example: -32
+        desc:
+          type: string
+          description: UTC offset description
+          example: "UTC-8"
+        city:
+          type: string
+          description: Representative city
+          example: "Fairbanks"
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message describing what went wrong
+          example: "Invalid JSON"
