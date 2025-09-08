@@ -142,7 +142,7 @@ static const char *settings[] =
   "Sleep",
   "Sleep Mode",
   "Load EiBi",
-//  "Bluetooth",
+  "Bluetooth",
   "Wi-Fi",
   "About",
 };
@@ -247,9 +247,9 @@ static const char *uiLayoutDesc[] =
 // Bluetooth Mode Menu
 //
 
-uint8_t bleModeIdx = BLE_OFF;
+uint8_t bleModeIdx = BLE_ON;
 static const char *bleModeDesc[] =
-{ "Off", "DummyEcho" };
+{ "On", "DummyEcho" };
 
 int getTotalBleModes() { return(ITEM_COUNT(bleModeDesc)); }
 
@@ -400,8 +400,8 @@ static const Bandwidth fmBandwidths[] =
   { 0, "Auto" }, // Automatic - default
   { 1, "110k" }, // Force wide (110 kHz) channel filter.
   { 2, "84k"  },
-  { 3, "60k"  },
-  { 4, "40k"  }
+  { 3, "20k"  },
+  { 4, "12k"  }
 };
 
 static const Bandwidth ssbBandwidths[] =
