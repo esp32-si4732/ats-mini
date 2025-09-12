@@ -10,6 +10,7 @@ dependencies = [
   "furo",
   "myst_parser",
   "sphinx-autobuild",
+  "swagger-plugin-for-sphinx>=5.1.2",
 ]
 
 [tool.uv]

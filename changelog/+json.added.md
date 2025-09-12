@@ -1,0 +1,1 @@
+-Add [JSON Api](https://esp32-si4732.github.io/ats-mini/jsonapi.html) for retrieving radio status or memories and updating configs (OpenAPI 3.0 spec [here](https://esp32-si4732.github.io/ats-mini/_static/dot-dot/openapi-schema.yml));
