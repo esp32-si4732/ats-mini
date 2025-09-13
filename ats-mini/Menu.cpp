@@ -142,7 +142,7 @@ static const char *settings[] =
   "Sleep",
   "Sleep Mode",
   "Load EiBi",
-  //  "Bluetooth",
+  "Bluetooth",
   "Wi-Fi",
   "About",
 };
