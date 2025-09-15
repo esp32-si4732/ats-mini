@@ -243,6 +243,7 @@ static bool wifiInitAP()
 static bool wifiConnect()
 {
   String status = "Connecting to WiFi network..";
+  wifi_mode_t mode = WiFi.getMode();
 
   // Get the preferences
   prefs.begin("network", true, STORAGE_PARTITION);
@@ -261,6 +262,10 @@ static bool wifiConnect()
 
     if(ssid != "")
     {
+      // Workaround for https://github.com/espressif/arduino-esp32/issues/11742
+      WiFi.mode(WIFI_MODE_NULL);
+      WiFi.mode(mode);
+
       WiFi.begin(ssid, password);
       for(int j=0 ; (WiFi.status()!=WL_CONNECTED) && (j<24) ; j++)
       {
