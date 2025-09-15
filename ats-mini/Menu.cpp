@@ -1341,9 +1341,7 @@ static void drawMemory(int x, int y, int sx)
     char buf[16];
     const char *text = buf;
 
-    if(i==0 && !memories[j].freq)
-      text = "Add";
-    else if(!memories[j].freq)
+    if(!memories[j].freq)
       text = "- - -";
     else if(memories[j].mode==FM)
       sprintf(buf, "%3.2f %s", memories[j].freq / 1000000.0, bandModeDesc[memories[j].mode]);
