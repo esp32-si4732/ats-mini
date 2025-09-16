@@ -4,6 +4,25 @@ The user manual is available at <https://esp32-si4732.github.io/ats-mini/manual.
 
 <!-- towncrier release notes start -->
 
+## 2.32 (2025-09-16)
+
+
+### Removed
+
+- Remove the dynamic CPU frequecy feature introduced in v2.31 (it caused sound artifacts when rotating the encoder). [#244](https://github.com/esp32-si4732/ats-mini/issues/244)
+- Do not show the "Add" hint on an empty memory slot to prevent confusion with click vs short press.
+
+
+### Changed
+
+- Avoid drawing background color when drawing text. This dramatically helps UI customization modding efforts (like setting a background image instead of a plain color, [for example](https://github.com/esp32-si4732/ats-mini/discussions/240)). [#239](https://github.com/esp32-si4732/ats-mini/issues/239)
+- Move the Web UI credentials form fields below the Wi-Fi settings. [#241](https://github.com/esp32-si4732/ats-mini/issues/241)
+
+
+### Fixed
+
+- Fix Wi-Fi connection issue to 2nd or 3rd access point configured on the settings web page. [#244](https://github.com/esp32-si4732/ats-mini/issues/244)
+
 ## 2.31 (2025-09-13)
 
 

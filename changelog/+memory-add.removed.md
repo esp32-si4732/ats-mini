@@ -1,1 +1,0 @@
-Do not show the "Add" hint on an empty memory slot to prevent confusion with click vs short press.
