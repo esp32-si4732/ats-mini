@@ -723,7 +723,7 @@ void loop()
   // Periodically print status to serial
   remoteTickTime();
 
-  if(encCount) setCpuFrequencyMhz(240);
+  // if(encCount && getCpuFrequencyMhz()!=240) setCpuFrequencyMhz(240);
 
   // Receive and execute serial command
   if(Serial.available()>0)
@@ -887,7 +887,7 @@ void loop()
   // Disable commands control
   if((currentTime - elapsedCommand) > ELAPSED_COMMAND)
   {
-    setCpuFrequencyMhz(80);
+    // if(getCpuFrequencyMhz()!=80) setCpuFrequencyMhz(80);
     if(currentCmd != CMD_NONE && currentCmd != CMD_SEEK && currentCmd != CMD_SCAN && currentCmd != CMD_MEMORY)
     {
       currentCmd = CMD_NONE;

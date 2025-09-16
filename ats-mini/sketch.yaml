@@ -1,7 +1,7 @@
 profiles:
   esp32s3-ospi:
     # If you change this line, change it in build.yml as well
-    fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=8M,PSRAM=opi,CPUFreq=240,USBMode=hwcdc,FlashMode=qio,PartitionScheme=custom,DebugLevel=none
+    fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=8M,PSRAM=opi,CPUFreq=80,USBMode=hwcdc,FlashMode=qio,PartitionScheme=custom,DebugLevel=none
     platforms:
       - platform: esp32:esp32 (3.3.0)
     libraries:
@@ -13,7 +13,7 @@ profiles:
 
   esp32s3-qspi:
     # If you change this line, change it in build.yml as well
-    fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=8M,PSRAM=enabled,CPUFreq=240,USBMode=hwcdc,FlashMode=qio,PartitionScheme=custom,DebugLevel=none
+    fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=8M,PSRAM=enabled,CPUFreq=80,USBMode=hwcdc,FlashMode=qio,PartitionScheme=custom,DebugLevel=none
     platforms:
       - platform: esp32:esp32 (3.3.0)
     libraries:
