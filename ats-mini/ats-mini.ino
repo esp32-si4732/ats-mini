@@ -134,11 +134,23 @@ void setup()
 
   // Detect and fix the mirrored & inverted display
   // https://github.com/esp32-si4732/ats-mini/issues/41
-  if(tft.readcommand8(ST7789_RDDID, 3) == 0x93)
+  uint8_t did3 = tft.readcommand8(ST7789_RDDID, 3);
+  // 0x048181B3 - the original display
+  // 0x04858552 - high gamma display
+  // 0x00009307 - inverted & mirrored display
+  if(did3 == 0x93)
   {
     tft.invertDisplay(0);
     tft.writecommand(TFT_MADCTL);
     tft.writedata(TFT_MAD_MV | TFT_MAD_MX | TFT_MAD_MY | TFT_MAD_BGR);
+  }
+  else if(did3 == 0x85)
+  {
+    tft.writecommand(0x26); // GAMSET
+    tft.writedata(8);       // Gamma Curve 3
+
+    tft.writecommand(0x55); // WRCACE (content adaptive brightness and color)
+    tft.writedata(0xB1);    // High enhancement, UI mode
   }
 
   tft.fillScreen(TH.bg);
