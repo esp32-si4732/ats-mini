@@ -33,6 +33,7 @@
 // Special Mode settings
 #define SPECIAL_MODE_TIMEOUT 2000  // Time window for triple click (2 seconds)
 #define SPECIAL_MODE_CLICKS 3      // Number of clicks needed to enter special mode
+#define SPECIAL_MODE_ROTATIONS 10   // Number of encoder rotations needed to enter special mode
 
 int8_t agcIdx = 0;
 uint8_t disableAgc = 0;
@@ -41,8 +42,8 @@ int8_t softMuteMaxAttIdx = 4;
 
 // Special mode variables
 bool specialMode = false;
-unsigned long lastButtonPress = 0;
-int buttonPressCount = 0;
+unsigned long lastRotationTime = 0;
+int16_t rotationCount = 0;
 
 bool seekStop = false;        // G8PTN: Added flag to abort seeking on rotary encoder detection
 bool pushAndRotate = false;   // Push and rotate is active, ignore the long press
@@ -702,24 +703,26 @@ void handleSpecialMode() {
   }
 }
 
-void checkSpecialModeEntry(ButtonTracker::State pb1st) {
-  unsigned long currentTime = millis();
+void checkSpecialModeEntry(int16_t encCount) {
+    unsigned long currentTime = millis();
+    
+    if (encCount != 0) {
+        // If this is first rotation or we timed out, reset counter
+        if (currentTime - lastRotationTime > SPECIAL_MODE_TIMEOUT) {
+            rotationCount = 0;
+        }
+        
+        // Update rotation count and time
+        rotationCount += abs(encCount);
+        lastRotationTime = currentTime;
 
-  if (pb1st.wasClicked || pb1st.wasShortPressed) {
-    if (currentTime - lastButtonPress > SPECIAL_MODE_TIMEOUT) {
-      buttonPressCount = 1;
-    } else {
-      buttonPressCount++;
+        // Check if we've reached the required number of rotations
+        if (rotationCount >= SPECIAL_MODE_ROTATIONS) {
+            specialMode = true;
+            rotationCount = 0;
+            tft.fillScreen(TH.bg);
+        }
     }
-
-    lastButtonPress = currentTime;
-
-    if (buttonPressCount >= SPECIAL_MODE_CLICKS) {
-      specialMode = true;
-      buttonPressCount = 0;
-      tft.fillScreen(TH.bg);
-    }
-  }
 }
 
 bool processRssiSnr()
@@ -892,7 +895,7 @@ void loop()
     else if(pb1st.wasClicked || pb1st.wasShortPressed)
     {
       // Check for special mode entry first
-      checkSpecialModeEntry(pb1st);
+      checkSpecialModeEntry(encCount);
       if (specialMode) {
         return;
       }

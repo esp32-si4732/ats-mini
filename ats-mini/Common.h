@@ -26,8 +26,8 @@
 #define AM            3
 
 // Special Mode settings
-#define SPECIAL_MODE_TIMEOUT 2000  // Time window for triple click (2 seconds)
-#define SPECIAL_MODE_CLICKS 3      // Number of clicks needed to enter special mode
+#define SPECIAL_MODE_TIMEOUT 2000    // Time window for full rotation (2 seconds)
+#define SPECIAL_MODE_ROTATIONS 8     // Number of encoder steps needed for special mode
 
 // RDS Modes
 #define RDS_PS        0b00000001  // Station name
