@@ -41,10 +41,6 @@ jobs:
             # If you change this line, change it in sketch.yaml as well
             fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=8M,PSRAM=opi,CPUFreq=80,USBMode=hwcdc,FlashMode=qio,PartitionScheme=custom,DebugLevel=none
             artifact-suffix: ospi
-          - profile: esp32s3-qspi
-            # If you change this line, change it in sketch.yaml as well
-            fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=8M,PSRAM=enabled,CPUFreq=80,USBMode=hwcdc,FlashMode=qio,PartitionScheme=custom,DebugLevel=none
-            artifact-suffix: qspi
 
     outputs:
       slug: ${{ steps.slug.outputs.slug }}
