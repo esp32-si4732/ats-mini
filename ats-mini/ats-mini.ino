@@ -30,10 +30,19 @@
 // CONSTANTS AND VARIABLES
 // =================================
 
+// Special Mode settings
+#define SPECIAL_MODE_TIMEOUT 2000  // Time window for triple click (2 seconds)
+#define SPECIAL_MODE_CLICKS 3      // Number of clicks needed to enter special mode
+
 int8_t agcIdx = 0;
 uint8_t disableAgc = 0;
 int8_t agcNdx = 0;
 int8_t softMuteMaxAttIdx = 4;
+
+// Special mode variables
+bool specialMode = false;
+unsigned long lastButtonPress = 0;
+int buttonPressCount = 0;
 
 bool seekStop = false;        // G8PTN: Added flag to abort seeking on rotary encoder detection
 bool pushAndRotate = false;   // Push and rotate is active, ignore the long press
@@ -673,6 +682,46 @@ bool clickFreq(bool shortPress)
   return false;
 }
 
+void handleSpecialMode() {
+  tft.fillScreen(TH.bg);
+  tft.setTextSize(2);
+  tft.setTextColor(TH.text, TH.bg);
+  tft.setCursor(10, 100);
+  tft.println("Special Mode Active!");
+  tft.setCursor(10, 130);
+  tft.println("Press encoder to exit");
+
+  // Check for single encoder press to exit
+  if (digitalRead(ENCODER_PUSH_BUTTON) == LOW) {
+    delay(50); // debounce
+    if (digitalRead(ENCODER_PUSH_BUTTON) == LOW) {
+      specialMode = false;
+      tft.fillScreen(TH.bg);
+      delay(200);
+    }
+  }
+}
+
+void checkSpecialModeEntry(ButtonTracker::State pb1st) {
+  unsigned long currentTime = millis();
+
+  if (pb1st.wasClicked || pb1st.wasShortPressed) {
+    if (currentTime - lastButtonPress > SPECIAL_MODE_TIMEOUT) {
+      buttonPressCount = 1;
+    } else {
+      buttonPressCount++;
+    }
+
+    lastButtonPress = currentTime;
+
+    if (buttonPressCount >= SPECIAL_MODE_CLICKS) {
+      specialMode = true;
+      buttonPressCount = 0;
+      tft.fillScreen(TH.bg);
+    }
+  }
+}
+
 bool processRssiSnr()
 {
   static uint32_t updateCounter = 0;
@@ -729,6 +778,13 @@ void loop()
   uint32_t encCounts = consumeEncoderCounts();
   int16_t encCount = (int16_t)(encCounts & 0xFFFF);
   int16_t encCountAccel = (int16_t)(encCounts >> 16);
+
+
+  // Check for special mode before normal operation
+  if (specialMode) {
+    handleSpecialMode();
+    return;
+  }
 
   ButtonTracker::State pb1st = pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW);
 
@@ -835,6 +891,12 @@ void loop()
     }
     else if(pb1st.wasClicked || pb1st.wasShortPressed)
     {
+      // Check for special mode entry first
+      checkSpecialModeEntry(pb1st);
+      if (specialMode) {
+        return;
+      }
+
       // Encoder click or short press
       // Reset timeouts
       elapsedSleep = elapsedCommand = currentTime;
