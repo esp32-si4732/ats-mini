@@ -16,7 +16,7 @@
 
 ---
 
-* 3D-printed knobs: [1](https://www.thingiverse.com/thing:6966471), [2](https://cults3d.com/en/3d-model/gadget/ats-mini-si4732-radio-knob)
+* 3D-printed knobs: [1](https://www.thingiverse.com/thing:6966471)
 * Also check out the [Knob Zone](https://www.ebay.co.uk/str/knobzone).
 
 ## Carrying cases
@@ -87,6 +87,7 @@ It is also possible to build one yourself ([schematics](https://electronics.stac
 
 ## Cases
 
+* <https://www.thingiverse.com/thing:7057083>
 * <https://cults3d.com/en/3d-model/gadget/ats-mini-shell-knob-switch-mrhu-2>
 * <https://makerworld.com/en/models/785921-esp32s3-si4732-receivershou-yin-ji-wai-ke>
 * <https://cults3d.com/ru/3d-model/gadzhet/si4732-ats-mini-shell-v-3>
