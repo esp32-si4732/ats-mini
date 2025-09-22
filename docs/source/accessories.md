@@ -25,10 +25,6 @@ The simplest and cheapest option is an eyeglasses case:
 
 ![](_static/case-eyeglasses.jpg)
 
-A small Tin HiFi headphones case ([amazon.com](https://www.amazon.com/Linsoul-Portable-Leather-Storage-Earphones/dp/B07RXRQ3YJ/), [aliexpress.com](https://www.aliexpress.com/item/33020170906.html), [aliexpress.ru](https://aliexpress.ru/item/1005005318265815.html)):
-
-![](_static/case-tinhifi.jpg)
-
 A rugged option is the [Pelican/Peli 1010](https://www.pelican.com/us/en/product/cases/micro/1010/) waterproof case:
 
 ![](_static/case-pelican.jpg)
