@@ -19,9 +19,10 @@ A short video tutorial on how to build a custom firmware version:
 arduino-cli compile --clean -e -p COM_PORT -u ats-mini
 ```
 
-When a library gets upgraded in the `sketch.yaml` project configuration file, it might be necessary to run the following command to ensure that the Arduino CLI has the most current information about available libraries:
+When a library gets upgraded in the `sketch.yaml` project configuration file, it might be necessary to run the following commands to ensure that the Arduino CLI has the most current information about available platforms and libraries:
 
 ```shell
+arduino-cli core update-index
 arduino-cli lib update-index
 ```
 
