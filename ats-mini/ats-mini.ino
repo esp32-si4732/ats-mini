@@ -180,6 +180,19 @@ void setup()
   // Initialize flash file system
   diskInit();
 
+  if(!ESP.getPsramSize()) {
+    ledcWrite(PIN_LCD_BL, 255);       // Default value 255 = 100%
+    tft.setTextSize(2);
+    tft.setTextColor(TH.text_warn, TH.bg);
+    tft.println("PSRAM not detected");
+#ifdef CONFIG_SPIRAM_MODE_OCT
+    tft.println("(try the QSPI f/w version)");
+#else
+    tft.println("(try the OSPI f/w version)");
+#endif
+  while(1);
+  }
+
   // Check for SI4732 connected on I2C interface
   // If the SI4732 is not detected, then halt with no further processing
   rx.setI2CFastModeCustom(800000UL);

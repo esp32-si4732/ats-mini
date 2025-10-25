@@ -1,0 +1,1 @@
+"PSRAM not detected" fatal error screen (shown if a wrong f/w variant was flashed).
