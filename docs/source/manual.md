@@ -203,7 +203,7 @@ Alternatively, open the following web terminal in Google Chrome: <https://www.se
 | <kbd>#</kbd> | Set Memory Slot     | Example `#01,VHF,107900000,FM` (slot, band, frequency, mode). Set freq to 0 to clear a slot. |
 | <kbd>T</kbd> | Theme Editor        | Toggle the [theme editor](development.md#theme-editor) on and off                            |
 | <kbd>@</kbd> | Get Theme           | Print the current color theme                                                                |
-| <kbd>!</kbd> | Set Theme           | Set the current color theme as a list of HEX numbers (effective until a power cycle)         |
+| <kbd>^</kbd> | Set Theme           | Set the current color theme as a list of HEX numbers (effective until a power cycle)         |
 
 ```{hint}
 To edit/backup/restore the Memory slots, you can open this [web based tool](memory.md) in Google Chrome.

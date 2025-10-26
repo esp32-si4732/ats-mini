@@ -3,10 +3,8 @@
 #include "Utils.h"
 #include "Menu.h"
 #include "Draw.h"
+#include "Remote.h"
 
-static uint32_t remoteTimer = millis();
-static uint8_t remoteSeqnum = 0;
-static bool remoteLogOn = false;
 
 static uint8_t char2nibble(char key)
 {
@@ -19,64 +17,64 @@ static uint8_t char2nibble(char key)
 //
 // Capture current screen image to the remote
 //
-static void remoteCaptureScreen()
+static void remoteCaptureScreen(Stream* stream)
 {
   uint16_t width  = spr.width();
   uint16_t height = spr.height();
 
   // 14 bytes of BMP header
-  Serial.println("");
-  Serial.print("424d"); // BM
+  stream->println("");
+  stream->print("424d"); // BM
   // Image size
-  Serial.printf("%08x", (unsigned int)htonl(14 + 40 + 12 + width * height * 2));
-  Serial.print("00000000");
+  stream->printf("%08x", (unsigned int)htonl(14 + 40 + 12 + width * height * 2));
+  stream->print("00000000");
   // Offset to image data
-  Serial.printf("%08x", (unsigned int)htonl(14 + 40 + 12));
+  stream->printf("%08x", (unsigned int)htonl(14 + 40 + 12));
   // Image header
-  Serial.print("28000000"); // Header size
-  Serial.printf("%08x", (unsigned int)htonl(width));
-  Serial.printf("%08x", (unsigned int)htonl(height));
-  Serial.print("01001000"); // 1 plane, 16 bpp
-  Serial.print("03000000"); // Compression
-  Serial.print("00000000"); // Compressed image size
-  Serial.print("00000000"); // X res
-  Serial.print("00000000"); // Y res
-  Serial.print("00000000"); // Color map
-  Serial.print("00000000"); // Colors
-  Serial.print("00f80000"); // Red mask
-  Serial.print("e0070000"); // Green mask
-  Serial.println("1f000000"); // Blue mask
+  stream->print("28000000"); // Header size
+  stream->printf("%08x", (unsigned int)htonl(width));
+  stream->printf("%08x", (unsigned int)htonl(height));
+  stream->print("01001000"); // 1 plane, 16 bpp
+  stream->print("03000000"); // Compression
+  stream->print("00000000"); // Compressed image size
+  stream->print("00000000"); // X res
+  stream->print("00000000"); // Y res
+  stream->print("00000000"); // Color map
+  stream->print("00000000"); // Colors
+  stream->print("00f80000"); // Red mask
+  stream->print("e0070000"); // Green mask
+  stream->println("1f000000"); // Blue mask
 
   // Image data
   for(int y=height-1 ; y>=0 ; y--)
   {
     for(int x=0 ; x<width ; x++)
     {
-      Serial.printf("%04x", htons(spr.readPixel(x, y)));
+      stream->printf("%04x", htons(spr.readPixel(x, y)));
     }
-    Serial.println("");
+    stream->println("");
   }
 }
 
-char readSerialChar()
+char remoteReadChar(Stream* stream)
 {
   char key;
 
-  while (!Serial.available());
-  key = Serial.read();
-  Serial.print(key);
+  while (!stream->available());
+  key = stream->read();
+  stream->print(key);
   return key;
 }
 
-long int readSerialInteger()
+long int remoteReadInteger(Stream* stream)
 {
   long int result = 0;
   while (true) {
-    char ch = Serial.peek();
+    char ch = stream->peek();
     if (ch == 0xFF) {
       continue;
     } else if ((ch >= '0') && (ch <= '9')) {
-      ch = readSerialChar();
+      ch = remoteReadChar(stream);
       // Can overflow, but it's ok
       result = result * 10 + (ch - '0');
     } else {
@@ -85,18 +83,18 @@ long int readSerialInteger()
   }
 }
 
-void readSerialString(char *bufStr, uint8_t bufLen)
+void remoteReadString(Stream* stream, char *bufStr, uint8_t bufLen)
 {
   uint8_t length = 0;
   while (true) {
-    char ch = Serial.peek();
+    char ch = stream->peek();
     if (ch == 0xFF) {
       continue;
     } else if (ch == ',' || ch < ' ') {
       bufStr[length] = '\0';
       return;
     } else {
-      ch = readSerialChar();
+      ch = remoteReadChar(stream);
       bufStr[length] = ch;
       if (++length >= bufLen - 1) {
         bufStr[length] = '\0';
@@ -106,51 +104,50 @@ void readSerialString(char *bufStr, uint8_t bufLen)
   }
 }
 
-static bool expectNewline()
+static bool expectNewline(Stream* stream)
 {
   char ch;
-  while ((ch = Serial.peek()) == 0xFF);
+  while ((ch = stream->peek()) == 0xFF);
   if (ch == '\r') {
-    Serial.read();
+    stream->read();
     return true;
   }
   return false;
 }
 
-static bool showError(const char *message)
+static bool remoteShowError(Stream* stream, const char *message)
 {
   // Consume the remaining input
-  while (Serial.available()) readSerialChar();
-  Serial.printf("\r\nError: %s\r\n", message);
+  while (stream->available()) remoteReadChar(stream);
+  stream->printf("\r\nError: %s\r\n", message);
   return false;
 }
 
-static void remoteGetMemories()
+static void remoteGetMemories(Stream* stream)
 {
   for (uint8_t i = 0; i < getTotalMemories(); i++) {
     if (memories[i].freq) {
-      Serial.printf("#%02d,%s,%ld,%s\r\n", i + 1, bands[memories[i].band].bandName, memories[i].freq, bandModeDesc[memories[i].mode]);
+      stream->printf("#%02d,%s,%ld,%s\r\n", i + 1, bands[memories[i].band].bandName, memories[i].freq, bandModeDesc[memories[i].mode]);
     }
   }
 }
 
-
-static bool remoteSetMemory()
+static bool remoteSetMemory(Stream* stream)
 {
-  Serial.print('#');
+  stream->print('#');
   Memory mem;
   uint32_t freq = 0;
 
-  long int slot = readSerialInteger();
-  if (readSerialChar() != ',')
-    return showError("Expected ','");
+  long int slot = remoteReadInteger(stream);
+  if (remoteReadChar(stream) != ',')
+    return remoteShowError(stream, "Expected ','");
   if (slot < 1 || slot > getTotalMemories())
-    return showError("Invalid memory slot number");
+    return remoteShowError(stream, "Invalid memory slot number");
 
   char band[8];
-  readSerialString(band, 8);
-  if (readSerialChar() != ',')
-    return showError("Expected ','");
+  remoteReadString(stream, band, 8);
+  if (remoteReadChar(stream) != ',')
+    return remoteShowError(stream, "Expected ','");
   mem.band = 0xFF;
   for (int i = 0; i < getTotalBands(); i++) {
     if (strcmp(bands[i].bandName, band) == 0) {
@@ -159,17 +156,17 @@ static bool remoteSetMemory()
     }
   }
   if (mem.band == 0xFF)
-    return showError("No such band");
+    return remoteShowError(stream, "No such band");
 
-  freq = readSerialInteger();
-  if (readSerialChar() != ',')
-    return showError("Expected ','");
+  freq = remoteReadInteger(stream);
+  if (remoteReadChar(stream) != ',')
+    return remoteShowError(stream, "Expected ','");
 
   char mode[4];
-  readSerialString(mode, 4);
-  if (!expectNewline())
-    return showError("Expected newline");
-  Serial.println();
+  remoteReadString(stream, mode, 4);
+  if (!expectNewline(stream))
+    return remoteShowError(stream, "Expected newline");
+  stream->println();
   mem.mode = 15;
   for (int i = 0; i < getTotalModes(); i++) {
     if (strcmp(bandModeDesc[i], mode) == 0) {
@@ -178,7 +175,7 @@ static bool remoteSetMemory()
     }
   }
   if (mem.mode == 15)
-    return showError("No such mode");
+    return remoteShowError(stream, "No such mode");
 
   mem.freq = freq;
 
@@ -197,9 +194,9 @@ static bool remoteSetMemory()
         }
       }
       if (mem.band == 0xFF)
-        return showError("No such band");
+        return remoteShowError(stream, "No such band");
       if (!isMemoryInBand(&bands[mem.band], &mem))
-        return showError("Invalid frequency or mode");
+        return remoteShowError(stream, "Invalid frequency or mode");
     }
   }
 
@@ -210,9 +207,9 @@ static bool remoteSetMemory()
 //
 // Set current color theme from the remote
 //
-static void remoteSetColorTheme()
+static void remoteSetColorTheme(Stream* stream)
 {
-  Serial.print("Enter a string of hex colors (x0001x0002...): ");
+  stream->print("Enter a string of hex colors (x0001x0002...): ");
 
   uint8_t *p = (uint8_t *)&(TH.bg);
 
@@ -220,20 +217,20 @@ static void remoteSetColorTheme()
   {
     if(i >= sizeof(ColorTheme)-offsetof(ColorTheme, bg))
     {
-      Serial.println(" Ok");
+      stream->println(" Ok");
       break;
     }
 
-    if(readSerialChar() != 'x')
+    if(remoteReadChar(stream) != 'x')
     {
-      Serial.println(" Err");
+      stream->println(" Err");
       break;
     }
 
-    p[i + 1]  = char2nibble(readSerialChar()) * 16;
-    p[i + 1] |= char2nibble(readSerialChar());
-    p[i]      = char2nibble(readSerialChar()) * 16;
-    p[i]     |= char2nibble(readSerialChar());
+    p[i + 1]  = char2nibble(remoteReadChar(stream)) * 16;
+    p[i + 1] |= char2nibble(remoteReadChar(stream));
+    p[i]      = char2nibble(remoteReadChar(stream)) * 16;
+    p[i]     |= char2nibble(remoteReadChar(stream));
   }
 
   // Redraw screen
@@ -243,23 +240,23 @@ static void remoteSetColorTheme()
 //
 // Print current color theme to the remote
 //
-static void remoteGetColorTheme()
+static void remoteGetColorTheme(Stream* stream)
 {
-  Serial.printf("Color theme %s: ", TH.name);
+  stream->printf("Color theme %s: ", TH.name);
   const uint8_t *p = (uint8_t *)&(TH.bg);
 
   for(int i=0 ; i<sizeof(ColorTheme)-offsetof(ColorTheme, bg) ; i+=sizeof(uint16_t))
   {
-    Serial.printf("x%02X%02X", p[i+1], p[i]);
+    stream->printf("x%02X%02X", p[i+1], p[i]);
   }
 
-  Serial.println();
+  stream->println();
 }
 
 //
 // Print current status to the remote
 //
-void remotePrintStatus()
+void remotePrintStatus(Stream* stream, RemoteState* state)
 {
   // Prepare information ready to be sent
   float remoteVoltage = batteryMonitor();
@@ -274,7 +271,7 @@ void remotePrintStatus()
   uint16_t tuningCapacitor = rx.getAntennaTuningCapacitor();
 
   // Remote serial
-  Serial.printf("%u,%u,%d,%d,%s,%s,%s,%s,%hu,%hu,%hu,%hu,%hu,%.2f,%hu\r\n",
+  stream->printf("%u,%u,%d,%d,%s,%s,%s,%s,%hu,%hu,%hu,%hu,%hu,%.2f,%hu\r\n",
                 VER_APP,
                 currentFrequency,
                 currentBFO,
@@ -290,29 +287,29 @@ void remotePrintStatus()
                 remoteSnr,
                 tuningCapacitor,
                 remoteVoltage,
-                remoteSeqnum
+                state->remoteSeqnum
                 );
 }
 
 //
 // Tick remote time, periodically printing status
 //
-void remoteTickTime()
+void remoteTickTime(Stream* stream, RemoteState* state)
 {
-  if(remoteLogOn && (millis() - remoteTimer >= 500))
+  if(state->remoteLogOn && (millis() - state->remoteTimer >= 500))
   {
     // Mark time and increment diagnostic sequence number
-    remoteTimer = millis();
-    remoteSeqnum++;
+    state->remoteTimer = millis();
+    state->remoteSeqnum++;
     // Show status
-    remotePrintStatus();
+    remotePrintStatus(stream, state);
   }
 }
 
 //
 // Recognize and execute given remote command
 //
-int remoteDoCommand(char key)
+int remoteDoCommand(Stream* stream, RemoteState* state, char key)
 {
   int event = 0;
 
@@ -400,29 +397,29 @@ int remoteDoCommand(char key)
       event |= REMOTE_PREFS;
       break;
     case 'C':
-      remoteLogOn = false;
-      remoteCaptureScreen();
+      state->remoteLogOn = false;
+      remoteCaptureScreen(stream);
       break;
     case 't':
-      remoteLogOn = !remoteLogOn;
+      state->remoteLogOn = !state->remoteLogOn;
       break;
 
     case '$':
-      remoteGetMemories();
+      remoteGetMemories(stream);
       break;
     case '#':
-      if (remoteSetMemory())
+      if (remoteSetMemory(stream))
         event |= REMOTE_PREFS;
       break;
 
     case 'T':
-      Serial.println(switchThemeEditor(!switchThemeEditor()) ? "Theme editor enabled" : "Theme editor disabled");
+      stream->println(switchThemeEditor(!switchThemeEditor()) ? "Theme editor enabled" : "Theme editor disabled");
       break;
-    case '!':
-      if(switchThemeEditor()) remoteSetColorTheme();
+    case '^':
+      if(switchThemeEditor()) remoteSetColorTheme(stream);
       break;
     case '@':
-      if(switchThemeEditor()) remoteGetColorTheme();
+      if(switchThemeEditor()) remoteGetColorTheme(stream);
       break;
 
     default:

@@ -12,6 +12,7 @@
 #include "Themes.h"
 #include "Utils.h"
 #include "EIBI.h"
+#include "Remote.h"
 
 // SI473/5 and UI
 #define MIN_ELAPSED_TIME         5  // 300
@@ -89,6 +90,11 @@ uint8_t  rssi = 0;
 uint8_t  snr  = 0;
 
 //
+// Remotes
+//
+RemoteState remoteSerialState;
+
+//
 // Devices
 //
 Rotary encoder  = Rotary(ENCODER_PIN_B, ENCODER_PIN_A);
@@ -96,6 +102,7 @@ ButtonTracker pb1 = ButtonTracker();
 TFT_eSPI tft    = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
 SI4735_fixed rx;
+
 
 //
 // Hardware initialization and setup
@@ -746,14 +753,14 @@ void loop()
   ButtonTracker::State pb1st = pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW);
 
   // Periodically print status to serial
-  remoteTickTime();
+  remoteTickTime(&Serial, &remoteSerialState);
 
   // if(encCount && getCpuFrequencyMhz()!=240) setCpuFrequencyMhz(240);
 
   // Receive and execute serial command
   if(Serial.available()>0)
   {
-    int revent = remoteDoCommand(Serial.read());
+    int revent = remoteDoCommand(&Serial, &remoteSerialState, Serial.read());
     needRedraw |= !!(revent & REMOTE_CHANGED);
     pb1st.wasClicked |= !!(revent & REMOTE_CLICK);
     int direction = revent >> REMOTE_DIRECTION;

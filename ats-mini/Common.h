@@ -217,8 +217,5 @@ int8_t getBleStatus();
 #define REMOTE_CLICK     2
 #define REMOTE_PREFS     4
 #define REMOTE_DIRECTION 8
-void remoteTickTime();
-int remoteDoCommand(char key);
-char readSerialChar();
 
 #endif // COMMON_H

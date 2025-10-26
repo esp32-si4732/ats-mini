@@ -23,7 +23,7 @@ OPTIONS = \
 
 HEADERS = \
 	Common.h Themes.h Menu.h Storage.h tft_setup.h Rotary.h \
-	Utils.h Button.h EIBI.h Ble.h SI4735-fixed.h patch_init.h
+	Utils.h Button.h EIBI.h Remote.h Ble.h SI4735-fixed.h patch_init.h
 
 SRC = \
 	$(INO) Utils.cpp Rotary.cpp Button.cpp Draw.cpp Menu.cpp \
