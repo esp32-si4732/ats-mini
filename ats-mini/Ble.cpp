@@ -1,8 +1,7 @@
 #include "Common.h"
 #include "Themes.h"
+#include "Remote.h"
 #include "Ble.h"
-
-NordicUART BLESerial = NordicUART(RECEIVER_NAME);
 
 //
 // Get current connection status
@@ -31,15 +30,21 @@ void bleInit(uint8_t bleMode)
   BLESerial.start();
 }
 
-int bleDoCommand(uint8_t bleMode)
+int bleDoCommand(Stream* stream, RemoteState* state, uint8_t bleMode)
 {
   if(bleMode == BLE_OFF) return 0;
 
   if (BLEDevice::getServer()->getConnectedCount() > 0) {
-    if (BLESerial.available()) {
-      char bleChar = BLESerial.read();
-      BLESerial.write(bleChar);
-    }
+    if (BLESerial.available())
+      return remoteDoCommand(stream, state, BLESerial.read());
   }
   return 0;
+}
+
+void remoteBLETickTime(Stream* stream, RemoteState* state, uint8_t bleMode)
+{
+  if(bleMode == BLE_OFF) return;
+
+  if (BLEDevice::getServer()->getConnectedCount() > 0)
+    remoteTickTime(stream, state);
 }

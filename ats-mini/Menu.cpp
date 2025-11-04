@@ -2,9 +2,10 @@
 #include "Common.h"
 #include "Themes.h"
 #include "Utils.h"
-#include "Menu.h"
 #include "Draw.h"
 #include "EIBI.h"
+#include "Ble.h"
+#include "Menu.h"
 
 //
 // Bands Menu
@@ -121,9 +122,9 @@ static const char *menu[] =
 #define MENU_SLEEP        9
 #define MENU_SLEEPMODE    10
 #define MENU_LOADEIBI     11
-#define MENU_BLEMODE      14
-#define MENU_WIFIMODE     12
-#define MENU_ABOUT        13
+#define MENU_BLEMODE      12
+#define MENU_WIFIMODE     13
+#define MENU_ABOUT        14
 
 
 int8_t settingsIdx = MENU_BRIGHTNESS;
@@ -142,7 +143,7 @@ static const char *settings[] =
   "Sleep",
   "Sleep Mode",
   "Load EiBi",
-  //  "Bluetooth",
+  "Bluetooth",
   "Wi-Fi",
   "About",
 };
@@ -249,7 +250,7 @@ static const char *uiLayoutDesc[] =
 
 uint8_t bleModeIdx = BLE_OFF;
 static const char *bleModeDesc[] =
-{ "Off", "DummyEcho" };
+{ "Off", "Ad hoc" };
 
 int getTotalBleModes() { return(ITEM_COUNT(bleModeDesc)); }
 

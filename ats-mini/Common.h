@@ -206,12 +206,6 @@ bool ntpSyncTime();
 void netRequestConnect();
 void netTickTime();
 
-// Ble.cpp
-int bleDoCommand(uint8_t bleModeIdx);
-void bleInit(uint8_t bleMode);
-void bleStop();
-int8_t getBleStatus();
-
 // Remote.c
 #define REMOTE_CHANGED   1
 #define REMOTE_CLICK     2

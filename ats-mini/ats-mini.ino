@@ -13,6 +13,7 @@
 #include "Utils.h"
 #include "EIBI.h"
 #include "Remote.h"
+#include "Ble.h"
 
 // SI473/5 and UI
 #define MIN_ELAPSED_TIME         5  // 300
@@ -20,7 +21,6 @@
 #define ELAPSED_COMMAND      10000  // time to turn off the last command controlled by encoder. Time to goes back to the VFO control // G8PTN: Increased time and corrected comment
 #define DEFAULT_VOLUME          35  // change it for your favorite sound volume
 #define DEFAULT_SLEEP            0  // Default sleep interval, range = 0 (off) to 255 in steps of 5
-#define STRENGTH_CHECK_TIME   1500  // Not used
 #define RDS_CHECK_TIME         250  // Increased from 90
 #define SEEK_TIMEOUT        600000  // Max seek timeout (ms)
 #define NTP_CHECK_TIME       60000  // NTP time refresh period (ms)
@@ -93,6 +93,7 @@ uint8_t  snr  = 0;
 // Remotes
 //
 RemoteState remoteSerialState;
+RemoteState remoteBLEState;
 
 //
 // Devices
@@ -102,7 +103,7 @@ ButtonTracker pb1 = ButtonTracker();
 TFT_eSPI tft    = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
 SI4735_fixed rx;
-
+NordicUART BLESerial = NordicUART(RECEIVER_NAME);
 
 //
 // Hardware initialization and setup
@@ -752,8 +753,9 @@ void loop()
 
   ButtonTracker::State pb1st = pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW);
 
-  // Periodically print status to serial
+  // Periodically print status to remote interfaces
   remoteTickTime(&Serial, &remoteSerialState);
+  remoteBLETickTime(&BLESerial, &remoteBLEState, bleModeIdx);
 
   // if(encCount && getCpuFrequencyMhz()!=240) setCpuFrequencyMhz(240);
 
@@ -769,7 +771,14 @@ void loop()
     if(revent & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
   }
 
-  int ble_event = bleDoCommand(bleModeIdx);
+  // Receive and execute BLE command
+  int ble_event = bleDoCommand(&BLESerial, &remoteBLEState, bleModeIdx);
+  needRedraw |= !!(ble_event & REMOTE_CHANGED);
+  pb1st.wasClicked |= !!(ble_event & REMOTE_CLICK);
+  int direction = ble_event >> REMOTE_DIRECTION;
+  encCount = direction? direction : encCount;
+  encCountAccel = direction? direction : encCountAccel;
+  if(ble_event & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
 
   // Block encoder rotation when in the locked sleep mode
   if(encCount && sleepOn() && sleepModeIdx==SLEEP_LOCKED) encCount = encCountAccel = 0;

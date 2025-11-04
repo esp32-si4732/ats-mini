@@ -7,11 +7,13 @@
 #include <BLE2902.h>
 #include <semaphore>
 
+#include "Remote.h"
+
 #define NORDIC_UART_SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
 #define NORDIC_UART_CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 #define NORDIC_UART_CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 
-class NordicUART : public BLEServerCallbacks, public BLECharacteristicCallbacks {
+class NordicUART : public Stream, public BLEServerCallbacks, public BLECharacteristicCallbacks {
 private:
   // BLE components
   BLEServer* pServer;
@@ -53,7 +55,7 @@ public:
     pServer->getAdvertising()->addServiceUUID(NORDIC_UART_SERVICE_UUID);
     pService = pServer->createService(NORDIC_UART_SERVICE_UUID);
     pTxCharacteristic = pService->createCharacteristic(NORDIC_UART_CHARACTERISTIC_UUID_TX, BLECharacteristic::PROPERTY_NOTIFY);
-    pTxCharacteristic->setCallbacks(this); // onSubscribe
+    pTxCharacteristic->setCallbacks(this); // onSubscribe/onStatus
     pRxCharacteristic = pService->createCharacteristic(NORDIC_UART_CHARACTERISTIC_UUID_RX, BLECharacteristic::PROPERTY_WRITE);
     pRxCharacteristic->setCallbacks(this); // onWrite
     pService->start();
@@ -109,9 +111,24 @@ public:
     }
   }
 
+  void onStatus(BLECharacteristic *pCharacteristic, Status s, uint32_t code)
+  {
+    // if(code) Serial.println(code);
+  }
+
   int available()
   {
     return unreadByteCount;
+  }
+
+  int peek()
+  {
+    if (unreadByteCount > 0)
+    {
+        size_t index = incomingPacket.length() - unreadByteCount;
+        return incomingPacket[index];
+    }
+    return -1;
   }
 
   int read()
@@ -128,22 +145,90 @@ public:
     return -1;
   }
 
-  size_t write(uint8_t *data, size_t size)
+  // It is hard to achieve max throughput witout using delays...
+  //
+  // https://github.com/nkolban/esp32-snippets/issues/773
+  // https://github.com/espressif/arduino-esp32/issues/8413
+  // https://github.com/espressif/esp-idf/issues/9097
+  // https://github.com/espressif/esp-idf/issues/16889
+  // https://github.com/espressif/esp-nimble/issues/75
+  // https://github.com/espressif/esp-nimble/issues/106
+  // https://github.com/h2zero/esp-nimble-cpp/issues/347
+  size_t write(const uint8_t *data, size_t size)
   {
-   if (pTxCharacteristic)
-   {
-     pTxCharacteristic->setValue(data, size);
-     pTxCharacteristic->notify();
-     return size;
-   }
-   else
+    if (pTxCharacteristic)
+    {
+      // Data is sent in chunks of MTU size to avoid data loss
+      // as each chunk is notified separately
+      size_t chunkSize = BLEDevice::getMTU();
+      size_t remainingByteCount = size;
+      while (remainingByteCount >= chunkSize)
+      {
+        delay(20);
+        pTxCharacteristic->setValue(data, chunkSize);
+        pTxCharacteristic->notify();
+        data += chunkSize;
+        remainingByteCount -= chunkSize;
+      }
+      if (remainingByteCount > 0)
+      {
+        delay(20);
+        pTxCharacteristic->setValue(data, remainingByteCount);
+        pTxCharacteristic->notify();
+      }
+      return size;
+    }
+    else
       return 0;
   }
 
   size_t write(uint8_t byte)
   {
     return write(&byte, 1);
-  };
+  }
+
+  size_t print(std::string str)
+  {
+    return write((const uint8_t *)str.data(), str.length());
+  }
+
+  size_t printf(const char *format, ...)
+  {
+    char dummy;
+    va_list args;
+    va_start(args, format);
+    int requiredSize = vsnprintf(&dummy, 1, format, args);
+    va_end(args);
+    if (requiredSize == 0)
+    {
+      return write((uint8_t *)&dummy, 1);
+    }
+    else if (requiredSize > 0)
+    {
+      char *buffer = (char *)malloc(requiredSize + 1);
+      if (buffer)
+      {
+        va_start(args, format);
+        int result = vsnprintf(buffer, requiredSize + 1, format, args);
+        va_end(args);
+        if ((result >= 0) && (result <= requiredSize))
+        {
+          size_t writtenBytesCount = write((uint8_t *)buffer, result + 1);
+          free(buffer);
+          return writtenBytesCount;
+        }
+        free(buffer);
+      }
+    }
+    return 0;
+  }
 };
+
+void bleInit(uint8_t bleMode);
+void bleStop();
+int8_t getBleStatus();
+void remoteBLETickTime(Stream* stream, RemoteState* state, uint8_t bleMode);
+int bleDoCommand(Stream* stream, RemoteState* state, uint8_t bleMode);
+extern NordicUART BLESerial;
 
 #endif
