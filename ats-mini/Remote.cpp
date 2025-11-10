@@ -430,3 +430,19 @@ int remoteDoCommand(Stream* stream, RemoteState* state, char key)
   // Command recognized
   return(event | REMOTE_CHANGED);
 }
+
+int serialDoCommand(Stream* stream, RemoteState* state, uint8_t serialMode)
+{
+  if(serialMode == SERIAL_OFF) return 0;
+
+  if (Serial.available())
+    return remoteDoCommand(stream, state, Serial.read());
+  return 0;
+}
+
+void serialTickTime(Stream* stream, RemoteState* state, uint8_t serialMode)
+{
+  if(serialMode == SERIAL_OFF) return;
+
+  remoteTickTime(stream, state);
+}

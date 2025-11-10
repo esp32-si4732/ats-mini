@@ -72,7 +72,11 @@
 
 // Bluetooth modes
 #define BLE_OFF        0 // Bluetooth is disabled
-#define BLE_BLUEFRUIT  1 // Bluefruit Connect app mode
+#define BLE_ADHOC      1 // Ad hoc BLE serial protocol
+
+// Serial modes
+#define SERIAL_OFF     0 // Serial is disabled
+#define SERIAL_ADHOC   1 // Ad hoc serial protocol
 
 //
 // Data Types
@@ -156,6 +160,7 @@ extern int8_t SsbAvcIdx;
 extern int8_t AmSoftMuteIdx;
 extern int8_t SsbSoftMuteIdx;
 extern uint8_t rdsModeIdx;
+extern uint8_t serialModeIdx;
 extern uint8_t bleModeIdx;
 extern uint8_t wifiModeIdx;
 extern uint8_t FmRegionIdx;

@@ -754,30 +754,27 @@ void loop()
   ButtonTracker::State pb1st = pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW);
 
   // Periodically print status to remote interfaces
-  remoteTickTime(&Serial, &remoteSerialState);
+  serialTickTime(&Serial, &remoteSerialState, serialModeIdx);
   remoteBLETickTime(&BLESerial, &remoteBLEState, bleModeIdx);
 
   // if(encCount && getCpuFrequencyMhz()!=240) setCpuFrequencyMhz(240);
 
   // Receive and execute serial command
-  if(Serial.available()>0)
-  {
-    int revent = remoteDoCommand(&Serial, &remoteSerialState, Serial.read());
-    needRedraw |= !!(revent & REMOTE_CHANGED);
-    pb1st.wasClicked |= !!(revent & REMOTE_CLICK);
-    int direction = revent >> REMOTE_DIRECTION;
-    encCount = direction? direction : encCount;
-    encCountAccel = direction? direction : encCountAccel;
-    if(revent & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
-  }
+  int ser_event = serialDoCommand(&Serial, &remoteSerialState, serialModeIdx);
+  needRedraw |= !!(ser_event & REMOTE_CHANGED);
+  pb1st.wasClicked |= !!(ser_event & REMOTE_CLICK);
+  int ser_direction = ser_event >> REMOTE_DIRECTION;
+  encCount = ser_direction? ser_direction : encCount;
+  encCountAccel = ser_direction? ser_direction : encCountAccel;
+  if(ser_event & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
 
   // Receive and execute BLE command
   int ble_event = bleDoCommand(&BLESerial, &remoteBLEState, bleModeIdx);
   needRedraw |= !!(ble_event & REMOTE_CHANGED);
   pb1st.wasClicked |= !!(ble_event & REMOTE_CLICK);
-  int direction = ble_event >> REMOTE_DIRECTION;
-  encCount = direction? direction : encCount;
-  encCountAccel = direction? direction : encCountAccel;
+  int ble_direction = ble_event >> REMOTE_DIRECTION;
+  encCount = ble_direction? ble_direction : encCount;
+  encCountAccel = ble_direction? ble_direction : encCountAccel;
   if(ble_event & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
 
   // Block encoder rotation when in the locked sleep mode

@@ -9,5 +9,7 @@ typedef struct {
 
 void remoteTickTime(Stream* stream, RemoteState* state);
 int remoteDoCommand(Stream* stream, RemoteState* state, char key);
+int serialDoCommand(Stream* stream, RemoteState* state, uint8_t serialMode);
+void serialTickTime(Stream* stream, RemoteState* state, uint8_t serialMode);
 
 #endif
