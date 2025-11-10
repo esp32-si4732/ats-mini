@@ -1,0 +1,1 @@
+Fix out of range menu controls due to fast encoder rotation.

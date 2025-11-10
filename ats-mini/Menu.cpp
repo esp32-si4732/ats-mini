@@ -475,7 +475,7 @@ static inline int min(int x, int y) { return(x<y? x:y); }
 static inline int wrap_range(int v, int enc, int vMin, int vMax)
 {
   v += enc;
-  v  = v>vMax? vMin + (v - vMax - 1) : v<vMin? vMax - (vMin - v - 1) : v;
+  v  = v>vMax? vMin + (v - vMax - 1) % (vMax - vMin + 1) : v<vMin? vMax - (vMin - v - 1) % (vMax - vMin + 1) : v;
   return(v);
 }
 
