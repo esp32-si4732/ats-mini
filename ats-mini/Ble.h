@@ -5,6 +5,7 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
+#include "host/ble_gap.h"
 #include <semaphore>
 
 #include "Remote.h"
@@ -46,6 +47,10 @@ public:
     BLEDevice::init(deviceName);
     BLEDevice::setPower(ESP_PWR_LVL_N0); // N12, N9, N6, N3, N0, P3, P6, P9
     BLEDevice::getAdvertising()->setName(deviceName);
+
+    BLEDevice::setMTU(517);
+    ble_gap_set_prefered_default_le_phy(BLE_GAP_LE_PHY_ANY_MASK, BLE_GAP_LE_PHY_ANY_MASK);
+    ble_gap_write_sugg_def_data_len(251, (251 + 14) * 8);
 
     pServer = BLEDevice::getServer();
     if (pServer == nullptr)
@@ -89,10 +94,13 @@ public:
     return started;
   }
 
-  void onConnect(BLEServer *pServer) {
+  void onConnect(BLEServer *pServer, ble_gap_conn_desc *desc) {
+    ble_gap_set_prefered_le_phy(desc->conn_handle, BLE_GAP_LE_PHY_ANY_MASK, BLE_GAP_LE_PHY_ANY_MASK, BLE_GAP_LE_PHY_CODED_ANY);
+    ble_gap_set_data_len(desc->conn_handle, 251, (251 + 14) * 8);
+    pServer->updateConnParams(desc->conn_handle, 6, 12, 0, 200);
   }
 
-  void onDisconnect(BLEServer *pServer) {
+  void onDisconnect(BLEServer *pServer, ble_gap_conn_desc *desc) {
     dataConsumed.release();
     pServer->getAdvertising()->start();
   }
