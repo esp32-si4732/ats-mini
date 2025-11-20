@@ -1,0 +1,1 @@
+Drop workaround for https://github.com/espressif/arduino-esp32/issues/11742. Use faster method (WiFiMulti) to connect to 2-nd or 3-rd configured access point.

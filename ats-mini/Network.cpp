@@ -6,6 +6,7 @@
 #include "Draw.h"
 
 #include <WiFi.h>
+#include <WiFiMulti.h>
 #include <WiFiUdp.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
@@ -13,6 +14,8 @@
 #include <ESPmDNS.h>
 
 #define CONNECT_TIME  3000  // Time of inactivity to start connecting WiFi
+
+WiFiMulti wifiMulti;
 
 //
 // Access Point (AP) mode settings
@@ -242,8 +245,10 @@ static bool wifiInitAP()
 //
 static bool wifiConnect()
 {
-  String status = "Connecting to WiFi network..";
-  wifi_mode_t mode = WiFi.getMode();
+  String status = "Connecting to WiFi network...";
+
+  // Clean credentials
+  wifiMulti.APlistClean();
 
   // Get the preferences
   prefs.begin("network", true, STORAGE_PARTITION);
@@ -251,7 +256,7 @@ static bool wifiConnect()
   loginPassword = prefs.getString("loginpassword", "");
 
   // Try connecting to known WiFi networks
-  for(int j=0 ; (j<3) && (WiFi.status()!=WL_CONNECTED) ; j++)
+  for(int j=0 ; (j<3) ; j++)
   {
     char nameSSID[16], namePASS[16];
     sprintf(nameSSID, "wifissid%d", j+1);
@@ -261,34 +266,16 @@ static bool wifiConnect()
     String password = prefs.getString(namePASS, "");
 
     if(ssid != "")
-    {
-      // Workaround for https://github.com/espressif/arduino-esp32/issues/11742
-      WiFi.mode(WIFI_MODE_NULL);
-      WiFi.mode(mode);
-
-      WiFi.begin(ssid, password);
-      for(int j=0 ; (WiFi.status()!=WL_CONNECTED) && (j<24) ; j++)
-      {
-        if(!(j&7))
-        {
-          status += ".";
-          drawScreen(status.c_str());
-        }
-        delay(500);
-        if(digitalRead(ENCODER_PUSH_BUTTON)==LOW)
-        {
-          WiFi.disconnect();
-          break;
-        }
-      }
-    }
+      wifiMulti.addAP(ssid.c_str(), password.c_str());
   }
 
   // Done with preferences
   prefs.end();
 
+  drawScreen(status.c_str());
+
   // If failed connecting to WiFi network...
-  if(WiFi.status()!=WL_CONNECTED)
+  if (wifiMulti.run() != WL_CONNECTED)
   {
     // WiFi connection failed
     drawScreen(status.c_str(), "No WiFi connection");
