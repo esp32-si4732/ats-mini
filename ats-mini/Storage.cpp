@@ -193,7 +193,7 @@ void prefsSave(uint32_t items)
     prefs.putUChar("FmRegion",    FmRegionIdx);    // FM region
     prefs.putUChar("UILayout",    uiLayoutIdx);    // UI Layout
     prefs.putUChar("BLEMode",     bleModeIdx);     // Bluetooth mode
-    prefs.putUChar("SerialMode",  serialModeIdx);  // Serial mode
+    prefs.putUChar("USBMode",     usbModeIdx);     // USB mode
 
     // Done with global settings
     prefs.end();
@@ -267,7 +267,7 @@ bool prefsLoad(uint32_t items)
     FmRegionIdx    = prefs.getUChar("FmRegion", FmRegionIdx);   // FM region
     uiLayoutIdx    = prefs.getUChar("UILayout", uiLayoutIdx);   // UI Layout
     bleModeIdx     = prefs.getUChar("BLEMode", bleModeIdx);     // Bluetooth mode
-    serialModeIdx  = prefs.getUChar("SerialMode", serialModeIdx); // Serial mode
+    usbModeIdx     = prefs.getUChar("USBMode", usbModeIdx);     // USB mode
 
     // Done with global settings
     prefs.end();

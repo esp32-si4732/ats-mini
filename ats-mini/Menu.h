@@ -41,7 +41,7 @@
 #define CMD_SLEEP      0x2A00 // |
 #define CMD_SLEEPMODE  0x2B00 // |
 #define CMD_LOADEIBI   0x2C00 // |
-#define CMD_SERIALMODE 0x2D00 // |
+#define CMD_USBMODE    0x2D00 // |
 #define CMD_BLEMODE    0x2E00 // |
 #define CMD_WIFIMODE   0x2F00 // |
 #define CMD_ABOUT      0x3000 //-+

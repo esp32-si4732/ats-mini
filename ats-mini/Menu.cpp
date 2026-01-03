@@ -122,7 +122,7 @@ static const char *menu[] =
 #define MENU_SLEEP        9
 #define MENU_SLEEPMODE    10
 #define MENU_LOADEIBI     11
-#define MENU_SERIALMODE   12
+#define MENU_USBMODE      12
 #define MENU_BLEMODE      13
 #define MENU_WIFIMODE     14
 #define MENU_ABOUT        15
@@ -144,7 +144,7 @@ static const char *settings[] =
   "Sleep",
   "Sleep Mode",
   "Load EiBi",
-  "USB Serial",
+  "USB Port",
   "Bluetooth",
   "Wi-Fi",
   "About",
@@ -247,14 +247,14 @@ static const char *uiLayoutDesc[] =
 { "Default", "S-Meter" };
 
 //
-// USB Serial Mode Menu
+// USB Port Mode Menu
 //
 
-uint8_t serialModeIdx = SERIAL_OFF;
-static const char *serialModeDesc[] =
+uint8_t usbModeIdx = USB_OFF;
+static const char *usbModeDesc[] =
 { "Off", "Ad hoc" };
 
-int getTotalSerialModes() { return(ITEM_COUNT(serialModeDesc)); }
+int getTotalUSBModes() { return(ITEM_COUNT(usbModeDesc)); }
 
 //
 // Bluetooth Mode Menu
@@ -596,9 +596,9 @@ static void doSleepMode(int16_t enc)
   sleepModeIdx = wrap_range(sleepModeIdx, enc, 0, LAST_ITEM(sleepModeDesc));
 }
 
-static void doSerialMode(int16_t enc)
+static void doUSBMode(int16_t enc)
 {
-  serialModeIdx = wrap_range(serialModeIdx, enc, 0, LAST_ITEM(serialModeDesc));
+  usbModeIdx = wrap_range(usbModeIdx, enc, 0, LAST_ITEM(usbModeDesc));
 }
 
 static void doBleMode(int16_t enc)
@@ -888,7 +888,7 @@ static void clickSettings(int cmd, bool shortPress)
     case MENU_SLEEP:      currentCmd = CMD_SLEEP;      break;
     case MENU_SLEEPMODE:  currentCmd = CMD_SLEEPMODE;  break;
     case MENU_UTCOFFSET:  currentCmd = CMD_UTCOFFSET;  break;
-    case MENU_SERIALMODE: currentCmd = CMD_SERIALMODE; break;
+    case MENU_USBMODE:    currentCmd = CMD_USBMODE;    break;
     case MENU_BLEMODE:    currentCmd = CMD_BLEMODE;    break;
     case MENU_WIFIMODE:   currentCmd = CMD_WIFIMODE;   break;
     case MENU_FM_REGION:
@@ -930,7 +930,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_MEMORY:     doMemory(scrollDirection * enca);break;
     case CMD_SLEEP:      doSleep(enca);break;
     case CMD_SLEEPMODE:  doSleepMode(scrollDirection * enc);break;
-    case CMD_SERIALMODE: doSerialMode(scrollDirection * enc);break;
+    case CMD_USBMODE:    doUSBMode(scrollDirection * enc);break;
     case CMD_BLEMODE:    doBleMode(scrollDirection * enc);break;
     case CMD_WIFIMODE:   doWiFiMode(scrollDirection * enc);break;
     case CMD_ZOOM:       doZoom(enc);break;
@@ -1219,27 +1219,27 @@ static void drawSleepMode(int x, int y, int sx)
   }
 }
 
-static void drawSerialMode(int x, int y, int sx)
+static void drawUSBMode(int x, int y, int sx)
 {
-  drawCommon(settings[MENU_SERIALMODE], x, y, sx, true);
+  drawCommon(settings[MENU_USBMODE], x, y, sx, true);
 
-  int count = ITEM_COUNT(serialModeDesc);
+  int count = ITEM_COUNT(usbModeDesc);
   for(int i=-2 ; i<3 ; i++)
   {
     if(i==0) {
-      drawZoomedMenu(serialModeDesc[abs((serialModeIdx+count+i)%count)]);
+      drawZoomedMenu(usbModeDesc[abs((usbModeIdx+count+i)%count)]);
       spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
     } else {
       spr.setTextColor(TH.menu_item);
     }
 
     // Prevent repeats for short menus
-    if (count < 5 && ((serialModeIdx+i) < 0 || (serialModeIdx+i) >= count)) {
+    if (count < 5 && ((usbModeIdx+i) < 0 || (usbModeIdx+i) >= count)) {
       continue;
     }
 
     spr.setTextDatum(MC_DATUM);
-    spr.drawString(serialModeDesc[abs((serialModeIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
+    spr.drawString(usbModeDesc[abs((usbModeIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
   }
 }
 
@@ -1684,7 +1684,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_MEMORY:     drawMemory(x, y, sx);     break;
     case CMD_SLEEP:      drawSleep(x, y, sx);      break;
     case CMD_SLEEPMODE:  drawSleepMode(x, y, sx);  break;
-    case CMD_SERIALMODE: drawSerialMode(x, y, sx); break;
+    case CMD_USBMODE:    drawUSBMode(x, y, sx);    break;
     case CMD_BLEMODE:    drawBleMode(x, y, sx);    break;
     case CMD_WIFIMODE:   drawWiFiMode(x, y, sx);   break;
     case CMD_ZOOM:       drawZoom(x, y, sx);       break;

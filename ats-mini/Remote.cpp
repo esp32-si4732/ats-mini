@@ -431,18 +431,18 @@ int remoteDoCommand(Stream* stream, RemoteState* state, char key)
   return(event | REMOTE_CHANGED);
 }
 
-int serialDoCommand(Stream* stream, RemoteState* state, uint8_t serialMode)
+int serialDoCommand(Stream* stream, RemoteState* state, uint8_t usbMode)
 {
-  if(serialMode == SERIAL_OFF) return 0;
+  if(usbMode == USB_OFF) return 0;
 
   if (Serial.available())
     return remoteDoCommand(stream, state, Serial.read());
   return 0;
 }
 
-void serialTickTime(Stream* stream, RemoteState* state, uint8_t serialMode)
+void serialTickTime(Stream* stream, RemoteState* state, uint8_t usbMode)
 {
-  if(serialMode == SERIAL_OFF) return;
+  if(usbMode == USB_OFF) return;
 
   remoteTickTime(stream, state);
 }

@@ -1,1 +1,1 @@
-Remote control over USB serial port is disabled by default. To enable it, go to Settings->USB Serial and set it to Ad hoc mode.
+Remote control over USB serial port is disabled by default. To enable it, go to Settings->USB Port and set it to Ad hoc mode.

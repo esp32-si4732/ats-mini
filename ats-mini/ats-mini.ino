@@ -754,13 +754,13 @@ void loop()
   ButtonTracker::State pb1st = pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW);
 
   // Periodically print status to remote interfaces
-  serialTickTime(&Serial, &remoteSerialState, serialModeIdx);
+  serialTickTime(&Serial, &remoteSerialState, usbModeIdx);
   remoteBLETickTime(&BLESerial, &remoteBLEState, bleModeIdx);
 
   // if(encCount && getCpuFrequencyMhz()!=240) setCpuFrequencyMhz(240);
 
   // Receive and execute serial command
-  int ser_event = serialDoCommand(&Serial, &remoteSerialState, serialModeIdx);
+  int ser_event = serialDoCommand(&Serial, &remoteSerialState, usbModeIdx);
   needRedraw |= !!(ser_event & REMOTE_CHANGED);
   pb1st.wasClicked |= !!(ser_event & REMOTE_CLICK);
   int ser_direction = ser_event >> REMOTE_DIRECTION;
