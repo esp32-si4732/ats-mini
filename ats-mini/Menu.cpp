@@ -209,31 +209,52 @@ static const char *sleepModeDesc[] =
 
 //
 // UTC Offset Menu
-// FIXME: add more offsets https://en.wikipedia.org/wiki/List_of_UTC_offsets
+// https://en.wikipedia.org/wiki/List_of_UTC_offsets
+// https://www.timeanddate.com/time/time-zones-interesting.html
 //
 uint8_t utcOffsetIdx = 8;
 const UTCOffset utcOffsets[] =
 {
-  { -8 * 4, "UTC-8", "Fairbanks" },
-  { -7 * 4, "UTC-7", "San Francisco" },
-  { -6 * 4, "UTC-6", "Denver" },
-  { -5 * 4, "UTC-5", "Houston" },
-  { -4 * 4, "UTC-4", "New York" },
-  { -3 * 4, "UTC-3", "Rio de Janeiro" },
-  { -2 * 4, "UTC-2", "Sandwich Islands" },
-  { -1 * 4, "UTC-1", "Nuuk" },
-  {  0 * 4, "UTC+0", "Reykjavik" },
-  {  1 * 4, "UTC+1", "London" },
-  {  2 * 4, "UTC+2", "Berlin" },
-  {  3 * 4, "UTC+3", "Moscow" },
-  {  4 * 4, "UTC+4", "Yerevan" },
-  {  5 * 4, "UTC+5", "Astana" },
-  {  5 * 4 + 2, "UTC+5:30", "Kolkata" },
-  {  6 * 4, "UTC+6", "Omsk" },
-  {  7 * 4, "UTC+7", "Novosibirsk" },
-  {  8 * 4, "UTC+8", "Beijing" },
-  {  9 * 4, "UTC+9", "Yakutsk" },
-  { 10 * 4, "UTC+10", "Vladivostok" },
+  { -12 * 4, "UTC-12" },
+  { -11 * 4, "UTC-11" },
+  { -10 * 4, "UTC-10" },
+  { -9 * 4 - 2, "UTC-9:30" },
+  { -9 * 4, "UTC-9" },
+  { -8 * 4, "UTC-8" },
+  { -7 * 4, "UTC-7" },
+  { -6 * 4, "UTC-6" },
+  { -5 * 4, "UTC-5" },
+  { -4 * 4, "UTC-4" },
+  { -3 * 4 - 2, "UTC-3:30" },
+  { -3 * 4, "UTC-3" },
+  { -2 * 4 - 2, "UTC-2:30" },
+  { -2 * 4, "UTC-2" },
+  { -1 * 4, "UTC-1" },
+  {  0 * 4, "UTC+0" },
+  {  1 * 4, "UTC+1" },
+  {  2 * 4, "UTC+2" },
+  {  3 * 4, "UTC+3" },
+  {  3 * 4 + 2, "UTC+3:30" },
+  {  4 * 4, "UTC+4" },
+  {  4 * 4 + 2, "UTC+4:30" },
+  {  5 * 4, "UTC+5" },
+  {  5 * 4 + 2, "UTC+5:30" },
+  {  5 * 4 + 3, "UTC+5:45" },
+  {  6 * 4, "UTC+6" },
+  {  6 * 4 + 2, "UTC+6:30" },
+  {  7 * 4, "UTC+7" },
+  {  8 * 4, "UTC+8" },
+  {  8 * 4 + 3, "UTC+8:45" },
+  {  9 * 4, "UTC+9" },
+  {  9 * 4 + 2, "UTC+9:30" },
+  { 10 * 4, "UTC+10" },
+  { 10 * 4 + 2, "UTC+10:30" },
+  { 11 * 4, "UTC+11" },
+  { 12 * 4, "UTC+12" },
+  { 12 * 4 + 3, "UTC+12:45" },
+  { 13 * 4, "UTC+13" },
+  { 13 * 4 + 3, "UTC+13:45" },
+  { 14 * 4, "UTC+14" },
 };
 
 int getCurrentUTCOffset() { return(utcOffsets[utcOffsetIdx].offset); }

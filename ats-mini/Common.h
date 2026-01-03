@@ -114,7 +114,6 @@ typedef struct
 {
   int8_t offset;          // UTC offset in 15 minute intervals
   const char *desc;       // Short description
-  const char *city;       // City name
 } UTCOffset;
 
 typedef struct

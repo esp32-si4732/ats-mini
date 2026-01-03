@@ -69,7 +69,7 @@ The menu can be invoked by clicking the encoder button and is closed automatical
 * **Brightness** - Display brightness level (10...255). The minimal one draws about 80mA of the battery power, the default one about 100mA, the max level about 120mA.
 * **Calibration** - SSB calibration offset (-2000...2000, per mode/band).
 * **RDS** - Radio Data System options: PS - radio station name, CT - time, RT - text, PTY - genre, ALL (EU/US) - everything. Note that the time can be transmitted either in UTC or in local timezone, as well as be completely bogus. The clock is synchronized only once, so you can pick the right time source (switch the receiver power off and on to resync it again).
-* **UTC Offset** - Affects the displayed time, whether it was received via RDS or NTP.
+* **UTC Offset** - Affects the displayed time, whether it was received via RDS or NTP. Please note that automatic DST transitions are not supported, the offset needs to be adjusted manually.
 * **FM Region** - FM de-emphasis time constant by region (50µs for EU/JP/AU and 70µs for the US).
 * **Theme** - Color theme.
 * **UI Layout** - Alternative UI layouts. For now there is just one alternative UI with large S-meter and S/N-meter.

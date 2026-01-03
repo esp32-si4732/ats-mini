@@ -488,9 +488,9 @@ static const String webUtcOffsetSelector()
     char text[64];
 
     sprintf(text,
-      "<OPTION VALUE='%d'%s>%s (%s)</OPTION>",
+      "<OPTION VALUE='%d'%s>%s</OPTION>",
       i, utcOffsetIdx==i? " SELECTED":"",
-      utcOffsets[i].city, utcOffsets[i].desc
+      utcOffsets[i].desc
     );
 
     result += text;
