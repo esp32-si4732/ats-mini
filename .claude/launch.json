@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Sphinx Docs (autobuild)",
+      "runtimeExecutable": "C:/Users/nitin/AppData/Local/Microsoft/WinGet/Packages/astral-sh.uv_Microsoft.Winget.Source_8wekyb3d8bbwe/uv.exe",
+      "runtimeArgs": ["run", "sphinx-autobuild", "docs/source", "docs/build"],
+      "port": 8000
+    }
+  ]
+}
