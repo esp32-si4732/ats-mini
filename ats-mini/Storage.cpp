@@ -47,7 +47,7 @@ bool prefsAreWritten()
 void prefsInvalidate()
 {
   static const char *sections[] =
-  { "settings", "memories", "bands", "network", 0 };
+  { "settings", "memories", "bands", "network", "scanch", 0 };
 
   // Clear all applicable sections
   for(int j = 0 ; sections[j] ; ++j)
@@ -67,6 +67,26 @@ struct SavedBand
   int16_t usbCal;         // USB calibration value
   int16_t lsbCal;         // LSB calibration value
 };
+
+void prefsSaveScanChannels(uint8_t bandIdx)
+{
+  char name[32];
+  sprintf(name, "SCh-%d", bandIdx);
+  prefs.begin("scanch", false, STORAGE_PARTITION);
+  prefs.putBytes(name, &scanChannels, sizeof(scanChannels));
+  prefs.end();
+}
+
+bool prefsLoadScanChannels(uint8_t bandIdx)
+{
+  char name[32];
+  sprintf(name, "SCh-%d", bandIdx);
+  prefs.begin("scanch", true, STORAGE_PARTITION);
+  bool ok = !!prefs.getBytes(name, &scanChannels, sizeof(scanChannels));
+  prefs.end();
+  if(!ok) scanChannels.count = 0;
+  return ok;
+}
 
 void prefsSaveBand(uint8_t idx, bool openPrefs)
 {
