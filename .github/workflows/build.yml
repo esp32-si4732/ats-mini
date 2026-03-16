@@ -11,10 +11,8 @@ on:
       - '.github/workflows/build.yml'
       - '.pre-commit-config.yaml'
   push:
-    # tags:
-    #   - 'v*'
-    # branches:
-    #   - main
+    branches:
+      - '**'   # every branch push produces a downloadable artifact
     paths:
       - 'ats-mini/**'
       - 'changelog/**'
@@ -101,6 +99,29 @@ jobs:
           mkdir -p artifact/ats-mini-${{ steps.slug.outputs.slug }}-${{ matrix.board.artifact-suffix }}
           mv ats-mini/build/esp32.esp32.esp32s3/*.ino.bin ats-mini/build/esp32.esp32.esp32s3/*.ino.*.bin artifact/ats-mini-${{ steps.slug.outputs.slug }}-${{ matrix.board.artifact-suffix }}/
           cp CHANGELOG.md artifact/ats-mini-${{ steps.slug.outputs.slug }}-${{ matrix.board.artifact-suffix }}/
+
+      - name: Merge all partitions into a single flashable binary
+        run: |
+          ARTIFACT=artifact/ats-mini-${{ steps.slug.outputs.slug }}-${{ matrix.board.artifact-suffix }}
+
+          # Use the esptool bundled with the installed ESP32 Arduino package
+          # so the version is guaranteed to match the toolchain.
+          ESPTOOL=$(find ~/.arduino15/packages/esp32/tools/esptool_py -name "esptool.py" | sort -V | tail -1)
+
+          # boot_app0.bin is shipped with the ESP32 Arduino core and marks
+          # partition 0 as the OTA boot target (required for a clean first flash).
+          BOOT_APP0=$(find ~/.arduino15/packages/esp32/hardware/esp32 -name "boot_app0.bin" -path "*/tools/partitions/*" | sort -V | tail -1)
+
+          python3 "$ESPTOOL" \
+            --chip esp32s3 merge_bin \
+            --output "$ARTIFACT/ats-mini-${{ steps.slug.outputs.slug }}-${{ matrix.board.artifact-suffix }}-flash.bin" \
+            --flash_mode qio \
+            --flash_freq 80m \
+            --flash_size 8MB \
+            0x0    "$ARTIFACT"/*.ino.bootloader.bin \
+            0x8000 "$ARTIFACT"/*.ino.partitions.bin \
+            0xe000 "$BOOT_APP0" \
+            0x10000 "$ARTIFACT"/*.ino.bin
 
       - name: Upload compiled artifact
         uses: actions/upload-artifact@v4
