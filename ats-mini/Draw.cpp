@@ -379,6 +379,9 @@ void drawLongStationName(const char *name, int x, int y)
 //
 void drawScanGraphs(uint32_t freq)
 {
+  // Save original center frequency before it is modified below
+  uint32_t centerFreq = freq;
+
   // Scale offset
   int16_t offset = (freq % 10) / 10.0 * 8;
 
@@ -419,7 +422,33 @@ void drawScanGraphs(uint32_t freq)
       }
     }
   }
-  // Scale pointer
+  // Draw a marker for every detected channel.
+  // Selected channel gets an arrow; others get a small tick.
+  for(int ch = 0; ch < scanChannels.count; ch++)
+  {
+    // Map channel frequency to screen X (same formula as the scale loop above)
+    int16_t chX = ((int)(scanChannels.freq[ch] - centerFreq) / 10 + 20) * 8 - offset;
+    if(chX < 2 || chX >= 318) continue;
+
+    bool selected = (scanChannelIdx >= 0 && ch == scanChannelIdx);
+    uint16_t color = selected ? TH.scale_pointer : TH.band_text;
+
+    // Vertical line from graph baseline up to the marker head
+    spr.drawLine(chX, 130, chX, 169, color);
+
+    if(selected)
+    {
+      // Downward-pointing triangle for the currently-selected channel
+      spr.fillTriangle(chX - 3, 124, chX + 3, 124, chX, 130, color);
+    }
+    else
+    {
+      // Small square tick for unselected channels
+      spr.fillRect(chX - 1, 126, 3, 4, color);
+    }
+  }
+
+  // Scale pointer showing the current tuned position
   spr.fillTriangle(156, 125, 160, 130, 164, 125, TH.scale_pointer);
   spr.drawLine(160, 130, 160, 169, TH.scale_pointer);
 }

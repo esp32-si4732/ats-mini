@@ -6,6 +6,7 @@
 #include "EIBI.h"
 #include "Ble.h"
 #include "Menu.h"
+#include "Storage.h"
 
 //
 // Bands Menu
@@ -547,8 +548,50 @@ static void clickScan(bool shortPress)
     drawScreen();
     drawMessage("Scanning...");
     scanRun(currentFrequency, 10);
+
+    // Build a channel list from the scan peaks and save it per-band
+    scanExtractChannels();
+    prefsSaveScanChannels(bandIdx);
+
+    // Jump to the channel nearest to the pre-scan frequency
+    scanChannelIdx = -1;
+    if(scanChannels.count > 0)
+    {
+      int closest = 0;
+      int minDist = 0x7FFF;
+      for(int i = 0; i < (int)scanChannels.count; i++)
+      {
+        int dist = abs((int)scanChannels.freq[i] - (int)currentFrequency);
+        if(dist < minDist) { minDist = dist; closest = i; }
+      }
+      scanChannelIdx = closest;
+      updateFrequency(scanChannels.freq[scanChannelIdx], true);
+      clearStationInfo();
+      identifyFrequency(currentFrequency + currentBFO / 1000);
+    }
   }
   else currentCmd = CMD_NONE;
+}
+
+// Cycle through scanned channels with the encoder while CMD_SCAN is active
+static bool doScanChannel(int16_t enc)
+{
+  if(scanChannels.count == 0 || !enc) return false;
+
+  muteOn(MUTE_TEMP, true);
+
+  if(scanChannelIdx < 0)
+    scanChannelIdx = 0;
+  else
+    scanChannelIdx = ((int)scanChannelIdx + (int)scanChannels.count + (int)enc) % (int)scanChannels.count;
+
+  updateFrequency(scanChannels.freq[scanChannelIdx], true);
+  clearStationInfo();
+  identifyFrequency(currentFrequency + currentBFO / 1000);
+  prefsRequestSave(SAVE_CUR_BAND);
+
+  muteOn(MUTE_TEMP, false);
+  return true;
 }
 
 static void doTheme(int16_t enc)
@@ -959,6 +1002,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_UTCOFFSET:  doUTCOffset(scrollDirection * enc);break;
     case CMD_SQUELCH:    doSquelch(enca);break;
     case CMD_ABOUT:      doAbout(enc);break;
+    case CMD_SCAN:       return doScanChannel(scrollDirection * enc);
     default:             return(false);
   }
 
@@ -1014,6 +1058,10 @@ void selectBand(uint8_t idx, bool drawLoadingSSB)
 
   // Clear current station info (RDS/CB)
   clearStationInfo();
+
+  // Load any previously-scanned channels for the new band
+  prefsLoadScanChannels(bandIdx);
+  scanChannelIdx = -1;
 
   // Check for named frequencies
   identifyFrequency(currentFrequency + currentBFO / 1000);

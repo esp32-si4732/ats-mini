@@ -20,6 +20,10 @@ static struct
   uint8_t snr;
 } scanData[SCAN_POINTS];
 
+// Per-band scan channel list and selected index (persisted to NVS)
+ScanChannelList scanChannels = {0, {0}};
+int8_t scanChannelIdx = -1;
+
 static uint32_t scanTime = millis();
 static uint8_t  scanStatus = SCAN_OFF;
 
@@ -131,6 +135,53 @@ static bool scanTickTime()
 
   // Return current scan status
   return(scanStatus==SCAN_RUN);
+}
+
+//
+// Extract station channels from completed scan data.
+// Finds local RSSI peaks above a noise threshold and stores
+// their frequencies into the global scanChannels list.
+//
+void scanExtractChannels()
+{
+  scanChannels.count = 0;
+
+  if(scanStatus != SCAN_DONE || scanCount < 3) return;
+
+  // Need enough RSSI range to distinguish stations from noise
+  uint8_t range = scanMaxRSSI - scanMinRSSI;
+  if(range < 4) return;
+
+  // Threshold: 25% above the noise floor
+  uint8_t threshold = scanMinRSSI + range / 4;
+
+  for(int i = 1; i < (int)scanCount - 1; i++)
+  {
+    uint8_t r = scanData[i].rssi;
+    if(r <= threshold) continue;
+
+    // Must be a local maximum (strictly higher than both neighbours)
+    if(r < scanData[i-1].rssi || r < scanData[i+1].rssi) continue;
+
+    uint16_t freq = scanStartFreq + scanStep * (uint16_t)i;
+
+    // Merge with previous entry if they are fewer than 3 steps apart,
+    // keeping the one with the stronger signal
+    if(scanChannels.count > 0)
+    {
+      uint16_t prevFreq = scanChannels.freq[scanChannels.count - 1];
+      if((int)freq - (int)prevFreq < (int)scanStep * 3)
+      {
+        int prevIdx = ((int)prevFreq - (int)scanStartFreq) / (int)scanStep;
+        if(prevIdx >= 0 && prevIdx < (int)scanCount && r > scanData[prevIdx].rssi)
+          scanChannels.freq[scanChannels.count - 1] = freq;
+        continue;
+      }
+    }
+
+    if(scanChannels.count < SCAN_CH_MAX)
+      scanChannels.freq[scanChannels.count++] = freq;
+  }
 }
 
 //

@@ -110,6 +110,15 @@ typedef struct
   const char *name;       // Frequency name
 } NamedFreq;
 
+// Scan channel list (stored per band)
+#define SCAN_CH_MAX 32
+
+typedef struct
+{
+  uint8_t  count;
+  uint16_t freq[SCAN_CH_MAX];
+} ScanChannelList;
+
 typedef struct
 {
   int8_t offset;          // UTC offset in 15 minute intervals
@@ -127,6 +136,9 @@ typedef struct
 //
 // Global Variables
 //
+
+extern ScanChannelList scanChannels;  // Current band's scanned channel list
+extern int8_t scanChannelIdx;          // Currently selected channel index (-1 = none)
 
 extern SI4735_fixed rx;
 extern TFT_eSprite spr;
@@ -175,6 +187,7 @@ static inline bool isSSB() { return(currentMode>FM && currentMode<AM); }
 
 void useBand(const Band *band);
 bool updateBFO(int newBFO, bool wrap = true);
+bool updateFrequency(int newFreq, bool wrap = true);
 bool doSeek(int16_t enc);
 bool clickFreq(bool shortPress);
 uint8_t doAbout(int16_t enc);
@@ -186,6 +199,7 @@ bool drawBattery(int x, int y);
 
 // Scan.c
 void scanRun(uint16_t centerFreq, uint16_t step);
+void scanExtractChannels();
 float scanGetRSSI(uint16_t freq);
 float scanGetSNR(uint16_t freq);
 

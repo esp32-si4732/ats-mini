@@ -820,7 +820,6 @@ void loop()
       switch(currentCmd)
       {
         case CMD_NONE:
-        case CMD_SCAN:
           // Tuning
           needRedraw |= doTune(encCountAccel);
           // Current frequency may have changed
