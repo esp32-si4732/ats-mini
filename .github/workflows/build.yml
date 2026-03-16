@@ -82,18 +82,6 @@ jobs:
           path: sketches-reports
           name: sketches-report-${{ matrix.board.artifact-suffix }}
 
-      - name: Install uv and python
-        uses: astral-sh/setup-uv@v5
-        with:
-          pyproject-file: "pyproject.toml"
-          enable-cache: true
-          cache-dependency-glob: "**/pyproject.toml"
-
-      - name: Compile the unreleased changelog
-        run: |
-          # shellcheck disable=SC2015
-          ls changelog/*.md && uv run towncrier build --keep --version Unreleased || true
-
       - name: Prepare compiled artifact
         run: |
           mkdir -p artifact/ats-mini-${{ steps.slug.outputs.slug }}-${{ matrix.board.artifact-suffix }}
