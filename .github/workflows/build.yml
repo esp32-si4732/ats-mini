@@ -214,4 +214,4 @@ jobs:
             --title "Latest Build" \
             --notes-file release-notes.md \
             artifact/*.zip \
-            *-flash.bin
+            ./*-flash.bin
