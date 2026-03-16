@@ -162,3 +162,68 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           gh release upload "$SLUG" $FILENAMES --repo '${{ github.repository }}' --clobber
+
+  latest-release:
+    # Overwrites the rolling "latest" release on every push to main so the
+    # Releases page always has a ready-to-flash binary without tagging.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: 'ats-mini-*'
+          merge-multiple: true
+          path: artifact
+
+      - name: Package artifacts and collect flash binaries
+        run: |
+          # Create per-variant zip archives (same format as versioned releases)
+          cd artifact
+          find . -mindepth 1 -maxdepth 1 -type d -exec sh -c \
+            'zip -r "../${1#./}.zip" "$1"' _ {} \;
+          cd ..
+          # Copy merged flash binaries to the top level for direct one-click download
+          find artifact -name '*-flash.bin' -exec cp {} . \;
+
+      - name: Write release notes
+        run: |
+          cat > release-notes.md << 'EOF'
+          > **Auto-updated on every push to `main`.**
+
+          ## Flashing
+
+          Download the `*-flash.bin` for your board variant and run:
+
+          ```
+          esptool.py --chip esp32s3 write_flash 0x0 <name>-flash.bin
+          ```
+
+          | File suffix | Board PSRAM type |
+          |-------------|-----------------|
+          | `ospi`      | Octal SPI (most common) |
+          | `qspi`      | Quad SPI |
+
+          The `.zip` files contain the individual partition images for OTA / partial updates.
+          EOF
+
+      - name: Update latest release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          # Delete the previous "latest" release and its tag cleanly
+          gh release delete latest \
+            --repo '${{ github.repository }}' \
+            --yes --cleanup-tag 2>/dev/null || true
+
+          # Recreate with the fresh binaries from this commit
+          gh release create latest \
+            --repo '${{ github.repository }}' \
+            --prerelease \
+            --title "Latest Build" \
+            --notes-file release-notes.md \
+            artifact/*.zip \
+            *-flash.bin
