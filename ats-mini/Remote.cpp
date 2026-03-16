@@ -4,6 +4,7 @@
 #include "Menu.h"
 #include "Draw.h"
 #include "Remote.h"
+#include "Storage.h"
 
 
 static uint8_t char2nibble(char key)
