@@ -599,6 +599,25 @@ static void doTheme(int16_t enc)
   themeIdx = wrap_range(themeIdx, enc, 0, getTotalThemes() - 1);
 }
 
+// Rotate the custom theme hue with the encoder; live-updates the theme slot
+static void doCustomTheme(int16_t enc)
+{
+  if(!enc) return;
+  int16_t h = (int16_t)customThemeHue + enc;
+  if(h < 0)   h += 360;
+  if(h >= 360) h -= 360;
+  customThemeHue = (uint16_t)h;
+  applyCustomTheme(customThemeHue);
+}
+
+// Click while the color wheel is open: confirm and close
+static void clickCustomTheme(bool shortPress)
+{
+  (void)shortPress;
+  prefsRequestSave(SAVE_SETTINGS);
+  currentCmd = CMD_NONE;
+}
+
 static void doUILayout(int16_t enc)
 {
   uiLayoutIdx = uiLayoutIdx > LAST_ITEM(uiLayoutDesc) ? UI_DEFAULT : wrap_range(uiLayoutIdx, enc, 0, LAST_ITEM(uiLayoutDesc));
@@ -1001,8 +1020,9 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_SCROLL:     doScrollDir(enc);break;
     case CMD_UTCOFFSET:  doUTCOffset(scrollDirection * enc);break;
     case CMD_SQUELCH:    doSquelch(enca);break;
-    case CMD_ABOUT:      doAbout(enc);break;
-    case CMD_SCAN:       return doScanChannel(scrollDirection * enc);
+    case CMD_ABOUT:        doAbout(enc);break;
+    case CMD_SCAN:         return doScanChannel(scrollDirection * enc);
+    case CMD_CUSTOM_THEME: doCustomTheme(scrollDirection * enc);break;
     default:             return(false);
   }
 
@@ -1014,16 +1034,25 @@ bool clickHandler(uint16_t cmd, bool shortPress)
 {
   switch(cmd)
   {
-    case CMD_MENU:     clickMenu(menuIdx, shortPress);break;
-    case CMD_SETTINGS: clickSettings(settingsIdx, shortPress);break;
-    case CMD_MEMORY:   clickMemory(memoryIdx, shortPress);break;
-    case CMD_WIFIMODE: clickWiFiMode(wifiModeIdx, shortPress);break;
-    case CMD_VOLUME:   clickVolume(shortPress);break;
-    case CMD_SQUELCH:  clickSquelch(shortPress);break;
-    case CMD_SEEK:     clickSeek(shortPress);break;
-    case CMD_SCAN:     clickScan(shortPress);break;
-    case CMD_FREQ:     return(clickFreq(shortPress));
-    default:           return(false);
+    case CMD_MENU:          clickMenu(menuIdx, shortPress);break;
+    case CMD_SETTINGS:      clickSettings(settingsIdx, shortPress);break;
+    case CMD_MEMORY:        clickMemory(memoryIdx, shortPress);break;
+    case CMD_WIFIMODE:      clickWiFiMode(wifiModeIdx, shortPress);break;
+    case CMD_VOLUME:        clickVolume(shortPress);break;
+    case CMD_SQUELCH:       clickSquelch(shortPress);break;
+    case CMD_SEEK:          clickSeek(shortPress);break;
+    case CMD_SCAN:          clickScan(shortPress);break;
+    case CMD_FREQ:          return(clickFreq(shortPress));
+    // When clicking while scrolling through themes, enter the color
+    // wheel if the Custom slot is selected; otherwise just close.
+    case CMD_THEME:
+      if(themeIdx == getTotalThemes() - 1)
+        currentCmd = CMD_CUSTOM_THEME;
+      else
+        currentCmd = CMD_NONE;
+      break;
+    case CMD_CUSTOM_THEME:  clickCustomTheme(shortPress);break;
+    default:                return(false);
   }
 
   // Encoder input handled

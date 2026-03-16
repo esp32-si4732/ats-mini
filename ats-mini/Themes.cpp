@@ -1,6 +1,7 @@
 #include "Common.h"
 #include "Themes.h"
 #include "Draw.h"
+#include <math.h>
 
 ColorTheme theme[] =
 {
@@ -389,6 +390,55 @@ ColorTheme theme[] =
   },
 
   {
+    // NOTE: This entry is dynamically overwritten by applyCustomTheme() at startup.
+    "Custom",
+    0x0000, // bg           (placeholder)
+    0xFFFF, // text
+    0xD69A, // text_muted
+    0xF800, // text_warn
+    0xD69A, // smeter_icon
+    0x07E0, // smeter_bar
+    0xF800, // smeter_bar_plus
+    0x3186, // smeter_bar_empty
+    0xF800, // save_icon
+    0xD69A, // stereo_icon
+    0xF800, // rf_icon
+    0x07E0, // rf_icon_conn
+    0xFFFF, // batt_voltage
+    0xFFFF, // batt_border
+    0x07E0, // batt_full
+    0xF800, // batt_low
+    0x0000, // batt_charge
+    0xFFE0, // batt_icon
+    0xD69A, // band_text
+    0xD69A, // mode_text
+    0xD69A, // mode_border
+    0x0000, // box_bg
+    0xD69A, // box_border
+    0xD69A, // box_text
+    0xF800, // box_off_bg
+    0xBEDF, // box_off_text
+    0x0000, // menu_bg
+    0xF800, // menu_border
+    0xFFFF, // menu_hdr
+    0xBEDF, // menu_item
+    0x105B, // menu_hl_bg
+    0xBEDF, // menu_hl_text
+    0xBEDF, // menu_param
+    0xFFFF, // freq_text
+    0xD69A, // funit_text
+    0xF800, // freq_hl
+    0xFFE0, // freq_hl_sel
+    0xD69A, // rds_text
+    0xFFFF, // scale_text
+    0xF800, // scale_pointer
+    0xC638, // scale_line
+    0x94B2, // scan_grid
+    0x0659, // scan_snr
+    0x07E0, // scan_rssi
+  },
+
+  {
     "Magenta",
     0xA12B, // bg
     0xFFFF, // text
@@ -448,4 +498,110 @@ bool switchThemeEditor(int8_t state)
   static bool themeEditor = false;
   themeEditor = state == 0 ? false : (state == 1 ? true : themeEditor);
   return themeEditor;
+}
+
+// Current hue (0-359) for the Custom theme slot
+uint16_t customThemeHue = 200;
+
+// Convert HSV (h=0..360, s=0..1, v=0..1) to RGB565
+uint16_t hsvToRgb565(float h, float s, float v)
+{
+  float r, g, b;
+  if(s <= 0.0f) { r = g = b = v; }
+  else
+  {
+    float hh = h / 60.0f;
+    int   i  = (int)hh;
+    float ff = hh - (float)i;
+    float p  = v * (1.0f - s);
+    float q  = v * (1.0f - s * ff);
+    float t  = v * (1.0f - s * (1.0f - ff));
+    switch(i % 6)
+    {
+      case 0:  r = v; g = t; b = p; break;
+      case 1:  r = q; g = v; b = p; break;
+      case 2:  r = p; g = v; b = t; break;
+      case 3:  r = p; g = q; b = v; break;
+      case 4:  r = t; g = p; b = v; break;
+      default: r = v; g = p; b = q; break;
+    }
+  }
+  uint8_t r8 = (uint8_t)(r * 255.0f);
+  uint8_t g8 = (uint8_t)(g * 255.0f);
+  uint8_t b8 = (uint8_t)(b * 255.0f);
+  return (uint16_t)(((r8 >> 3) << 11) | ((g8 >> 2) << 5) | (b8 >> 3));
+}
+
+// Return white (0xFFFF) or black (0x0000) depending on bg luminance
+uint16_t contrastingTextColor(uint16_t bg565)
+{
+  uint8_t r = (bg565 >> 11) << 3;
+  uint8_t g = ((bg565 >> 5) & 0x3F) << 2;
+  uint8_t b = (bg565 & 0x1F) << 3;
+  // Weighted luminance (sRGB approximation, scaled to 0-65535)
+  uint32_t lum = (uint32_t)r * 77u + (uint32_t)g * 150u + (uint32_t)b * 29u;
+  return (lum > 128u * 256u) ? 0x0000u : 0xFFFFu;
+}
+
+// Rebuild the Custom theme slot from a single hue (0-359)
+void applyCustomTheme(uint16_t hue)
+{
+  customThemeHue = hue;
+
+  float fh = (float)hue;
+  uint16_t bg    = hsvToRgb565(fh, 0.70f, 0.15f);  // Dark saturated background
+  uint16_t txt   = contrastingTextColor(bg);          // Auto-contrasting text
+  uint16_t muted = hsvToRgb565(fh, 0.25f, 0.55f);   // Mid-tone muted text
+  uint16_t acc   = hsvToRgb565(fh, 1.00f, 0.85f);   // Bright accent
+  uint16_t hlbg  = hsvToRgb565(fh, 0.55f, 0.35f);   // Highlight / menu selection bg
+  uint16_t hltxt = contrastingTextColor(hlbg);        // Auto-contrasting text for hl bg
+  uint16_t brt   = hsvToRgb565(fh, 0.40f, 0.68f);   // Mid-bright for menu items
+
+  // Custom is always the last entry in theme[]
+  ColorTheme *t = &theme[getTotalThemes() - 1];
+
+  t->bg               = bg;
+  t->text             = txt;
+  t->text_muted       = muted;
+  t->text_warn        = 0xF800;
+  t->smeter_icon      = muted;
+  t->smeter_bar       = acc;
+  t->smeter_bar_plus  = 0xF800;
+  t->smeter_bar_empty = hlbg;
+  t->save_icon        = acc;
+  t->stereo_icon      = muted;
+  t->rf_icon          = 0xF800;
+  t->rf_icon_conn     = acc;
+  t->batt_voltage     = txt;
+  t->batt_border      = txt;
+  t->batt_full        = acc;
+  t->batt_low         = 0xF800;
+  t->batt_charge      = bg;
+  t->batt_icon        = brt;
+  t->band_text        = muted;
+  t->mode_text        = muted;
+  t->mode_border      = muted;
+  t->box_bg           = bg;
+  t->box_border       = muted;
+  t->box_text         = muted;
+  t->box_off_bg       = 0xF800;
+  t->box_off_text     = brt;
+  t->menu_bg          = bg;
+  t->menu_border      = acc;
+  t->menu_hdr         = txt;
+  t->menu_item        = brt;
+  t->menu_hl_bg       = hlbg;
+  t->menu_hl_text     = hltxt;
+  t->menu_param       = brt;
+  t->freq_text        = txt;
+  t->funit_text       = muted;
+  t->freq_hl          = acc;
+  t->freq_hl_sel      = brt;
+  t->rds_text         = muted;
+  t->scale_text       = txt;
+  t->scale_pointer    = acc;
+  t->scale_line       = muted;
+  t->scan_grid        = hlbg;
+  t->scan_snr         = brt;
+  t->scan_rssi        = acc;
 }

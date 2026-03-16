@@ -72,4 +72,10 @@ int getTotalThemes();
 extern ColorTheme theme[];
 bool switchThemeEditor(int8_t state = 2);
 
+// Custom theme support
+extern uint16_t customThemeHue;   // 0-359 hue for the Custom theme slot
+uint16_t hsvToRgb565(float h, float s, float v);
+uint16_t contrastingTextColor(uint16_t bg565);
+void applyCustomTheme(uint16_t hue);
+
 #endif // THEMES_H

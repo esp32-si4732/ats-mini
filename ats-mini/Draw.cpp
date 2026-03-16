@@ -5,6 +5,7 @@
 #include "Menu.h"
 #include "Ble.h"
 #include "Draw.h"
+#include <math.h>
 
 //
 // Draw preferences write indicator
@@ -470,6 +471,13 @@ void drawScreen(const char *statusLine1, const char *statusLine2)
     return;
   }
 
+  // Color wheel picker is a special case
+  if(currentCmd==CMD_CUSTOM_THEME)
+  {
+    drawColorWheel(customThemeHue);
+    return;
+  }
+
   switch(uiLayoutIdx)
   {
     case UI_SMETER:
@@ -479,6 +487,63 @@ void drawScreen(const char *statusLine1, const char *statusLine2)
       drawLayoutDefault(statusLine1, statusLine2);
       break;
   }
+
+  spr.pushSprite(0, 0);
+}
+
+//
+// Draw the full-screen color wheel picker for the Custom theme.
+// The donut is centered at (160, 95); outer_r=62, inner_r=38.
+// The current hue is highlighted with a white pointer dot.
+// The center circle previews the background and text colors.
+//
+void drawColorWheel(uint16_t hue)
+{
+  const int16_t cx = 160, cy = 95;
+  const int16_t outer_r = 62, inner_r = 38, center_r = 32;
+
+  // Title
+  spr.setTextDatum(TC_DATUM);
+  spr.setTextColor(TH.text, TH.bg);
+  spr.drawString("Custom Theme", 160, 3, 2);
+
+  // Hint at the bottom
+  spr.setTextDatum(TC_DATUM);
+  spr.setTextColor(TH.text_muted, TH.bg);
+  spr.drawString("Rotate: color  Click: apply", 160, 155, 1);
+
+  // Draw the color-wheel donut pixel by pixel
+  for(int16_t dy = -outer_r; dy <= outer_r; dy++)
+  {
+    for(int16_t dx = -outer_r; dx <= outer_r; dx++)
+    {
+      int32_t d2 = (int32_t)dx*dx + (int32_t)dy*dy;
+      if(d2 < (int32_t)inner_r*inner_r || d2 > (int32_t)outer_r*outer_r) continue;
+      float angle = atan2f((float)dy, (float)dx) * 57.2957795f + 180.0f;
+      spr.drawPixel(cx + dx, cy + dy, hsvToRgb565(angle, 1.0f, 1.0f));
+    }
+  }
+
+  // Draw center preview circle
+  uint16_t bgColor  = hsvToRgb565((float)hue, 0.70f, 0.15f);
+  uint16_t txtColor = contrastingTextColor(bgColor);
+  uint16_t mutColor = hsvToRgb565((float)hue, 0.25f, 0.55f);
+  spr.fillCircle(cx, cy, center_r, bgColor);
+
+  // Sample text to preview contrast
+  spr.setTextDatum(MC_DATUM);
+  spr.setTextColor(txtColor, bgColor);
+  spr.drawString("Aa", cx, cy - 8, 4);
+  spr.setTextColor(mutColor, bgColor);
+  spr.drawString("Bb", cx, cy + 14, 2);
+
+  // Pointer: white outer dot, hue-colored inner dot at selected angle
+  float angle_rad = ((float)hue - 180.0f) / 57.2957795f;
+  int16_t mid_r   = (outer_r + inner_r) / 2;  // 50
+  int16_t px = cx + (int16_t)(cosf(angle_rad) * (float)mid_r);
+  int16_t py = cy + (int16_t)(sinf(angle_rad) * (float)mid_r);
+  spr.fillCircle(px, py, 5, 0xFFFF);
+  spr.fillCircle(px, py, 3, hsvToRgb565((float)hue, 1.0f, 1.0f));
 
   spr.pushSprite(0, 0);
 }

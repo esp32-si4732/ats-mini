@@ -56,4 +56,6 @@ void drawLayoutSmeter(const char *statusLine1, const char *statusLine2);
 void drawAbout();
 void drawAboutHelp(uint8_t arrow);
 
+void drawColorWheel(uint16_t hue);
+
 #endif /* DRAW_H */
