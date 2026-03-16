@@ -296,14 +296,233 @@ void remotePrintStatus(Stream* stream, RemoteState* state)
 //
 void remoteTickTime(Stream* stream, RemoteState* state)
 {
-  if(state->remoteLogOn && (millis() - state->remoteTimer >= 500))
+  uint32_t now = millis();
+
+  // Legacy char-protocol periodic log
+  if(state->remoteLogOn && (now - state->remoteTimer >= 500))
   {
-    // Mark time and increment diagnostic sequence number
-    state->remoteTimer = millis();
+    state->remoteTimer = now;
     state->remoteSeqnum++;
-    // Show status
     remotePrintStatus(stream, state);
   }
+
+  // JSON subscription: send status at the requested interval
+  if(state->jsonSubMs > 0 && (now - state->jsonTimer >= state->jsonSubMs))
+  {
+    state->jsonTimer = now;
+    remoteJsonStatus(stream, state->remoteSeqnum++);
+  }
+}
+
+// =========================================================
+// JSON protocol helpers
+// =========================================================
+
+// Extract a string value from a JSON object.
+// Returns true and fills val[] on success.
+static bool jsonStr(const char *json, const char *key, char *val, int valLen)
+{
+  char pat[48];
+  snprintf(pat, sizeof(pat), "\"%s\":", key);
+  const char *p = strstr(json, pat);
+  if(!p) return false;
+  p += strlen(pat);
+  while(*p == ' ') p++;
+  if(*p != '"') return false;
+  p++;
+  int i = 0;
+  while(*p && *p != '"' && i < valLen - 1) val[i++] = *p++;
+  val[i] = '\0';
+  return true;
+}
+
+// Extract an integer value from a JSON object.
+// Returns true and sets *val on success.
+static bool jsonInt(const char *json, const char *key, long *val)
+{
+  char pat[48];
+  snprintf(pat, sizeof(pat), "\"%s\":", key);
+  const char *p = strstr(json, pat);
+  if(!p) return false;
+  p += strlen(pat);
+  while(*p == ' ') p++;
+  if(*p == '-' || (*p >= '0' && *p <= '9'))
+  {
+    *val = atol(p);
+    return true;
+  }
+  return false;
+}
+
+// Send a compact JSON status packet.
+// All fields fit in one MTU (< 250 bytes) so the BLE write() fires one notify.
+void remoteJsonStatus(Stream *stream, uint8_t seq)
+{
+  rx.getCurrentReceivedSignalQuality();
+  uint8_t r  = rx.getCurrentRSSI();
+  uint8_t sn = rx.getCurrentSNR();
+  float   bat = batteryMonitor();
+  int16_t cal = (currentMode == USB) ? getCurrentBand()->usbCal :
+                (currentMode == LSB) ? getCurrentBand()->lsbCal : 0;
+
+  static char buf[320];
+  int n = snprintf(buf, sizeof(buf),
+    "{\"t\":\"s\","
+    "\"f\":%u,\"bfo\":%d,\"cal\":%d,"
+    "\"m\":%u,\"mn\":\"%s\","
+    "\"b\":%u,\"bn\":\"%s\","
+    "\"st\":\"%s\",\"bw\":\"%s\","
+    "\"agc\":%d,\"v\":%u,"
+    "\"r\":%u,\"sn\":%u,"
+    "\"bat\":%.2f,\"seq\":%u,"
+    "\"sch\":%u,\"sci\":%d}\r\n",
+    currentFrequency, currentBFO, cal,
+    currentMode, bandModeDesc[currentMode],
+    (unsigned)bandIdx, getCurrentBand()->bandName,
+    getCurrentStep()->desc, getCurrentBandwidth()->desc,
+    agcIdx, volume,
+    r, sn,
+    bat, seq,
+    scanChannels.count, scanChannelIdx);
+
+  stream->write((uint8_t*)buf, n);
+}
+
+// Stream the last completed scan as a JSON object.
+// The RSSI and SNR arrays are built into a static 2 KB buffer then sent
+// in one write() call to minimise the number of BLE notifications.
+static void remoteJsonScanData(Stream *stream)
+{
+  if(!scanIsDone())
+  {
+    stream->print("{\"t\":\"scan\",\"err\":\"no data\"}\r\n");
+    return;
+  }
+
+  uint16_t n = scanGetCount();
+  static char buf[2048];
+  int pos = snprintf(buf, sizeof(buf),
+    "{\"t\":\"scan\",\"sf\":%u,\"step\":%u,\"n\":%u,\"r\":[",
+    scanGetStartFreq(), scanGetStep(), n);
+
+  for(uint16_t i = 0; i < n && pos < (int)sizeof(buf) - 16; i++)
+    pos += snprintf(buf + pos, sizeof(buf) - pos, "%s%u", i ? "," : "", scanGetRawRSSI(i));
+
+  if(pos < (int)sizeof(buf) - 12)
+  {
+    pos += snprintf(buf + pos, sizeof(buf) - pos, "],\"sn\":[");
+    for(uint16_t i = 0; i < n && pos < (int)sizeof(buf) - 8; i++)
+      pos += snprintf(buf + pos, sizeof(buf) - pos, "%s%u", i ? "," : "", scanGetRawSNR(i));
+    pos += snprintf(buf + pos, sizeof(buf) - pos, "],\"ch\":[");
+    for(uint8_t i = 0; i < scanChannels.count && pos < (int)sizeof(buf) - 8; i++)
+      pos += snprintf(buf + pos, sizeof(buf) - pos, "%s%u", i ? "," : "", scanChannels.freq[i]);
+    pos += snprintf(buf + pos, sizeof(buf) - pos, "]}\r\n");
+  }
+
+  stream->write((uint8_t*)buf, pos);
+}
+
+//
+// Handle a JSON command string received over BLE (or serial).
+// Supports both control commands and data queries.
+// Returns a bitmask of REMOTE_* flags identical to remoteDoCommand().
+//
+int remoteDoJsonCommand(Stream* stream, RemoteState* state, const char* json)
+{
+  char cmd[24] = {0};
+  if(!jsonStr(json, "cmd", cmd, sizeof(cmd))) return 0;
+
+  long val = 0;
+  int  event = REMOTE_CHANGED;
+
+  // ---- One-shot status ------------------------------------------------
+  if(!strcmp(cmd, "status"))
+  {
+    remoteJsonStatus(stream, state->remoteSeqnum++);
+    return REMOTE_CHANGED;
+  }
+
+  // ---- Subscribe: periodic JSON status --------------------------------
+  if(!strcmp(cmd, "sub"))
+  {
+    state->jsonSubMs = jsonInt(json, "ms", &val) ? (uint32_t)max(0L, val) : 0;
+    state->jsonTimer = millis();
+    remoteJsonStatus(stream, state->remoteSeqnum++);
+    return REMOTE_CHANGED;
+  }
+
+  // ---- Direct frequency set (kHz) ------------------------------------
+  if(!strcmp(cmd, "freq"))
+  {
+    if(jsonInt(json, "val", &val) && val > 0)
+    {
+      updateFrequency((int)val, false);
+      event |= REMOTE_PREFS;
+    }
+    remoteJsonStatus(stream, state->remoteSeqnum++);
+    return event;
+  }
+
+  // ---- BFO offset (Hz) -----------------------------------------------
+  if(!strcmp(cmd, "bfo"))
+  {
+    if(jsonInt(json, "val", &val))
+    {
+      updateBFO((int)val, false);
+      event |= REMOTE_PREFS;
+    }
+    remoteJsonStatus(stream, state->remoteSeqnum++);
+    return event;
+  }
+
+  // ---- Encoder-style delta commands ----------------------------------
+  if(!strcmp(cmd, "band"))        { if(jsonInt(json,"d",&val)) { doBand((int)val);       event|=REMOTE_PREFS; } }
+  else if(!strcmp(cmd, "mode"))   { if(jsonInt(json,"d",&val)) { doMode((int)val);       event|=REMOTE_PREFS; } }
+  else if(!strcmp(cmd, "step"))   { if(jsonInt(json,"d",&val)) { doStep((int)val);       event|=REMOTE_PREFS; } }
+  else if(!strcmp(cmd, "bw"))     { if(jsonInt(json,"d",&val)) { doBandwidth((int)val);  event|=REMOTE_PREFS; } }
+  else if(!strcmp(cmd, "agc"))    { if(jsonInt(json,"d",&val)) { doAgc((int)val);        event|=REMOTE_PREFS; } }
+  else if(!strcmp(cmd, "vol"))    { if(jsonInt(json,"d",&val)) { doVolume((int)val);     event|=REMOTE_PREFS; } }
+  else if(!strcmp(cmd, "brt"))    { if(jsonInt(json,"d",&val)) { doBrt((int)val);        event|=REMOTE_PREFS; } }
+  else if(!strcmp(cmd, "squelch")){ if(jsonInt(json,"d",&val)) { doSquelch((int)val);   event|=REMOTE_PREFS; } }
+
+  // ---- Encoder click -------------------------------------------------
+  else if(!strcmp(cmd, "click"))
+  {
+    event |= REMOTE_CLICK;
+    remoteJsonStatus(stream, state->remoteSeqnum++);
+    return event;
+  }
+
+  // ---- Sleep ---------------------------------------------------------
+  else if(!strcmp(cmd, "sleep"))
+  {
+    if(jsonInt(json, "on", &val)) sleepOn(val ? true : false);
+  }
+
+  // ---- Scan: run a new scan, then return data ------------------------
+  else if(!strcmp(cmd, "scan"))
+  {
+    stream->print("{\"t\":\"ack\",\"cmd\":\"scan\"}\r\n");
+    scanRun(currentFrequency, 10);
+    scanExtractChannels();
+    prefsSaveScanChannels(bandIdx);
+    remoteJsonScanData(stream);
+    remoteJsonStatus(stream, state->remoteSeqnum++);
+    return event | REMOTE_PREFS;
+  }
+
+  // ---- Scan data: return last scan without re-scanning ---------------
+  else if(!strcmp(cmd, "scandata"))
+  {
+    remoteJsonScanData(stream);
+    return event;
+  }
+
+  else { return 0; } // unknown command
+
+  // Send updated status after all delta commands
+  remoteJsonStatus(stream, state->remoteSeqnum++);
+  return event;
 }
 
 //

@@ -15,7 +15,7 @@
 #define AUTHORS_LINE4  "Marat Fayzullin"
 
 #define VER_APP        233  // Firmware version
-#define VER_SETTINGS   72   // Settings version
+#define VER_SETTINGS   73   // Settings version
 #define VER_MEMORIES   71   // Memories version
 #define VER_BANDS      72   // Bands version
 
@@ -173,6 +173,7 @@ extern int8_t SsbSoftMuteIdx;
 extern uint8_t rdsModeIdx;
 extern uint8_t usbModeIdx;
 extern uint8_t bleModeIdx;
+extern uint8_t bleAutoOffIdx;
 extern uint8_t wifiModeIdx;
 extern uint8_t FmRegionIdx;
 
@@ -198,10 +199,16 @@ float batteryMonitor();
 bool drawBattery(int x, int y);
 
 // Scan.c
-void scanRun(uint16_t centerFreq, uint16_t step);
-void scanExtractChannels();
-float scanGetRSSI(uint16_t freq);
-float scanGetSNR(uint16_t freq);
+void     scanRun(uint16_t centerFreq, uint16_t step);
+void     scanExtractChannels();
+float    scanGetRSSI(uint16_t freq);
+float    scanGetSNR(uint16_t freq);
+bool     scanIsDone();
+uint16_t scanGetStartFreq();
+uint16_t scanGetStep();
+uint16_t scanGetCount();
+uint8_t  scanGetRawRSSI(uint16_t idx);
+uint8_t  scanGetRawSNR(uint16_t idx);
 
 // Station.c
 const char *getStationName();

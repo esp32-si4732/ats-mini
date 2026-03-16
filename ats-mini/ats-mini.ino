@@ -48,6 +48,11 @@ long lastNTPCheck = millis();
 long lastScheduleCheck = millis();
 
 long elapsedCommand = millis();
+
+// BLE auto-off: tracks when we last had an active BLE connection.
+// Reset while connected; fires after getBleAutoOffMs() ms of no connection.
+static uint32_t bleAutoOffTimer = 0;
+
 volatile int16_t encoderCount = 0;
 volatile int16_t encoderCountAccel = 0;
 uint16_t currentFrequency;
@@ -940,6 +945,36 @@ void loop()
     sleepOn(true);
     // CPU sleep can take long time, renew the timestamps
     elapsedSleep = elapsedCommand = currentTime = millis();
+  }
+
+  // BLE auto-off: while a client is connected, keep the timer fresh.
+  // When the connection drops, start counting; shut down after the timeout.
+  if(bleModeIdx == BLE_ADHOC)
+  {
+    if(getBleStatus() > 0)
+    {
+      // Client connected — reset the idle timer
+      bleAutoOffTimer = currentTime;
+    }
+    else if(getBleAutoOffMs() > 0)
+    {
+      // No client connected; initialise the timer on the first check
+      if(bleAutoOffTimer == 0) bleAutoOffTimer = currentTime;
+
+      if((currentTime - bleAutoOffTimer) >= getBleAutoOffMs())
+      {
+        bleStop();
+        bleModeIdx = BLE_OFF;
+        prefsRequestSave(SAVE_SETTINGS);
+        needRedraw    = true;
+        bleAutoOffTimer = 0;
+      }
+    }
+  }
+  else
+  {
+    // BLE is off — keep timer ready for next enable
+    bleAutoOffTimer = 0;
   }
 
   if((currentTime - elapsedRSSI) > MIN_ELAPSED_RSSI_TIME)

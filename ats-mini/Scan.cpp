@@ -38,6 +38,14 @@ static uint8_t  scanMaxSNR;
 static inline uint8_t min(uint8_t a, uint8_t b) { return(a<b? a:b); }
 static inline uint8_t max(uint8_t a, uint8_t b) { return(a>b? a:b); }
 
+// Raw data accessors used by the BLE JSON protocol
+bool     scanIsDone()               { return scanStatus == SCAN_DONE; }
+uint16_t scanGetStartFreq()         { return scanStartFreq; }
+uint16_t scanGetStep()              { return scanStep; }
+uint16_t scanGetCount()             { return scanCount; }
+uint8_t  scanGetRawRSSI(uint16_t i) { return (i < scanCount) ? scanData[i].rssi : 0; }
+uint8_t  scanGetRawSNR(uint16_t i)  { return (i < scanCount) ? scanData[i].snr  : 0; }
+
 float scanGetRSSI(uint16_t freq)
 {
   // Input frequency must be in range of existing data

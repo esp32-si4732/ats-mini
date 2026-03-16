@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATS-Mini Radio Controller</title>
+<style>
+  :root {
+    --bg:       #0d0d0d;
+    --surface:  #1a1a1a;
+    --surface2: #252525;
+    --border:   #333;
+    --accent:   #00d4ff;
+    --accent2:  #00ff88;
+    --warn:     #ff4444;
+    --text:     #e0e0e0;
+    --muted:    #666;
+    --lcd-bg:   #0a1a0a;
+    --lcd-text: #00ff41;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; font-size: 14px; min-height: 100vh; }
+
+  /* ── Header ── */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 20px; display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 18px; font-weight: 600; color: var(--accent); letter-spacing: 1px; flex: 1; }
+  #connStatus { font-size: 12px; padding: 4px 12px; border-radius: 12px; background: var(--surface2); border: 1px solid var(--muted); color: var(--muted); }
+  #connStatus.connected { border-color: var(--accent2); color: var(--accent2); }
+  #connStatus.error { border-color: var(--warn); color: var(--warn); }
+  #btnConnect { padding: 6px 18px; border: 1px solid var(--accent); border-radius: 6px; background: transparent; color: var(--accent); cursor: pointer; font-size: 13px; transition: background .15s; }
+  #btnConnect:hover { background: rgba(0,212,255,.12); }
+  #btnConnect.active { background: rgba(0,212,255,.2); }
+
+  /* ── Main grid ── */
+  main { display: grid; grid-template-columns: 1fr 320px; grid-template-rows: auto auto; gap: 12px; padding: 14px; max-width: 1100px; margin: 0 auto; }
+  @media (max-width: 700px) { main { grid-template-columns: 1fr; } }
+
+  /* ── Cards ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .card-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 10px; }
+
+  /* ── Frequency display ── */
+  #freqCard { grid-column: 1; }
+  #freqDisplay { background: var(--lcd-bg); border: 1px solid #1a3a1a; border-radius: 6px; padding: 10px 18px; text-align: center; margin-bottom: 12px; }
+  #freqMain { font-family: 'Courier New', monospace; font-size: 52px; font-weight: bold; color: var(--lcd-text); letter-spacing: 4px; line-height: 1; text-shadow: 0 0 20px rgba(0,255,65,.4); }
+  #freqUnit { font-family: 'Courier New', monospace; font-size: 16px; color: #00aa2a; margin-top: 2px; }
+  #modeInfo  { font-size: 11px; color: var(--muted); text-align: center; margin-top: 4px; letter-spacing: 1px; }
+
+  .freq-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .btn-group { display: flex; gap: 4px; }
+  .btn { padding: 6px 14px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface2); color: var(--text); cursor: pointer; font-size: 13px; transition: background .12s, border-color .12s; }
+  .btn:hover { background: var(--surface); border-color: var(--accent); }
+  .btn.primary { border-color: var(--accent); color: var(--accent); }
+  .btn.primary:hover { background: rgba(0,212,255,.15); }
+  .btn.danger { border-color: var(--warn); color: var(--warn); }
+  #freqInput { background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; color: var(--text); padding: 6px 10px; font-size: 13px; width: 110px; }
+  #freqInput:focus { outline: none; border-color: var(--accent); }
+
+  /* ── Radio settings (band/mode/step/BW) ── */
+  .setting-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .setting-label { font-size: 11px; color: var(--muted); width: 52px; flex-shrink: 0; }
+  .setting-val { min-width: 80px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 13px; text-align: center; }
+
+  /* ── Signal card ── */
+  #signalCard { grid-column: 2; grid-row: 1 / span 1; }
+  .meter-row { margin-bottom: 10px; }
+  .meter-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .meter-bar { height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .meter-fill { height: 100%; border-radius: 4px; transition: width .3s ease; }
+  #rssiBar  { background: linear-gradient(90deg, #00d4ff, #00ff88); width: 0%; }
+  #snrBar   { background: linear-gradient(90deg, #ff8800, #ffdd00); width: 0%; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .stat-box { background: var(--surface2); border-radius: 5px; padding: 8px; text-align: center; }
+  .stat-val { font-size: 20px; font-weight: bold; color: var(--accent); }
+  .stat-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* Volume */
+  .vol-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .vol-row label { font-size: 11px; color: var(--muted); width: 50px; }
+  input[type=range] { flex: 1; accent-color: var(--accent); }
+  #volVal { font-size: 12px; width: 28px; text-align: right; }
+
+  /* Battery */
+  #batBar { height: 10px; background: var(--surface2); border-radius: 5px; overflow: hidden; margin-top: 6px; }
+  #batFill { height: 100%; background: var(--accent2); border-radius: 5px; transition: width .5s; }
+
+  /* ── Spectrum ── */
+  #spectrumCard { grid-column: 1 / span 2; }
+  #spectrumCard .card-title { display: flex; align-items: center; gap: 10px; }
+  #btnScan { padding: 4px 14px; border: 1px solid var(--accent); border-radius: 5px; background: transparent; color: var(--accent); cursor: pointer; font-size: 12px; }
+  #btnScan:hover { background: rgba(0,212,255,.12); }
+  #btnScan:disabled { opacity: .4; cursor: default; }
+  #scanStatus { font-size: 11px; color: var(--muted); }
+  #specCanvas { display: block; width: 100%; height: 160px; background: var(--lcd-bg); border-radius: 6px; border: 1px solid #1a2a1a; }
+
+  /* ── Log ── */
+  #logCard { grid-column: 1 / span 2; }
+  #logBox { height: 80px; overflow-y: auto; background: var(--lcd-bg); border-radius: 4px; padding: 6px 8px; font-family: monospace; font-size: 11px; color: #558855; }
+  #logBox p { margin: 0; line-height: 1.5; }
+
+  /* ── Tooltip ── */
+  .tip { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+  code { background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-size: 10px; color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ ATS-Mini Controller</h1>
+  <span id="connStatus">Disconnected</span>
+  <button id="btnConnect">Connect</button>
+</header>
+
+<main>
+
+  <!-- ── Frequency Card ── -->
+  <div class="card" id="freqCard">
+    <div class="card-title">Frequency</div>
+    <div id="freqDisplay">
+      <div id="freqMain">--- . ---</div>
+      <div id="freqUnit">MHz</div>
+    </div>
+    <div id="modeInfo">BAND: ---  MODE: ---  STEP: ---  BW: ---</div>
+
+    <div style="height:10px"></div>
+
+    <div class="freq-controls">
+      <div class="btn-group">
+        <button class="btn primary" id="btnFreqDown">◀ Step</button>
+        <button class="btn primary" id="btnFreqUp">Step ▶</button>
+      </div>
+      <input id="freqInput" type="number" placeholder="Freq (kHz)" />
+      <button class="btn primary" id="btnSetFreq">Go</button>
+    </div>
+
+    <div style="height:12px"></div>
+
+    <div class="setting-row">
+      <span class="setting-label">Band</span>
+      <button class="btn" data-cmd="band" data-d="-1">◀</button>
+      <span class="setting-val" id="valBand">---</span>
+      <button class="btn" data-cmd="band" data-d="1">▶</button>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Mode</span>
+      <button class="btn" data-cmd="mode" data-d="-1">◀</button>
+      <span class="setting-val" id="valMode">---</span>
+      <button class="btn" data-cmd="mode" data-d="1">▶</button>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Step</span>
+      <button class="btn" data-cmd="step" data-d="-1">◀</button>
+      <span class="setting-val" id="valStep">---</span>
+      <button class="btn" data-cmd="step" data-d="1">▶</button>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">BW</span>
+      <button class="btn" data-cmd="bw" data-d="-1">◀</button>
+      <span class="setting-val" id="valBW">---</span>
+      <button class="btn" data-cmd="bw" data-d="1">▶</button>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">AGC</span>
+      <button class="btn" data-cmd="agc" data-d="-1">◀</button>
+      <span class="setting-val" id="valAGC">---</span>
+      <button class="btn" data-cmd="agc" data-d="1">▶</button>
+    </div>
+  </div>
+
+  <!-- ── Signal Card ── -->
+  <div class="card" id="signalCard">
+    <div class="card-title">Signal</div>
+
+    <div class="meter-row">
+      <div class="meter-label"><span>RSSI</span><span id="rssiVal">0 dBµV</span></div>
+      <div class="meter-bar"><div class="meter-fill" id="rssiBar"></div></div>
+    </div>
+    <div class="meter-row">
+      <div class="meter-label"><span>SNR</span><span id="snrVal">0 dB</span></div>
+      <div class="meter-bar"><div class="meter-fill" id="snrBar"></div></div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-val" id="statRssi">--</div>
+        <div class="stat-lbl">RSSI</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statSnr">--</div>
+        <div class="stat-lbl">SNR</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statBat">--</div>
+        <div class="stat-lbl">Battery V</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statSeq">--</div>
+        <div class="stat-lbl">Seq</div>
+      </div>
+    </div>
+
+    <div class="vol-row">
+      <label>Volume</label>
+      <input type="range" id="volSlider" min="0" max="63" value="35">
+      <span id="volVal">35</span>
+    </div>
+
+    <div style="margin-top:10px;">
+      <div class="meter-label"><span>Battery</span><span id="batPct">--</span></div>
+      <div id="batBar"><div id="batFill" style="width:0%"></div></div>
+    </div>
+
+    <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn primary" id="btnClick">Encoder Click</button>
+      <button class="btn danger" id="btnSleep">Sleep</button>
+    </div>
+  </div>
+
+  <!-- ── Spectrum Card ── -->
+  <div class="card" id="spectrumCard">
+    <div class="card-title">
+      <span>Spectrum</span>
+      <button id="btnScan">▶ Scan</button>
+      <span id="scanStatus">No scan data</span>
+    </div>
+    <canvas id="specCanvas"></canvas>
+  </div>
+
+  <!-- ── Log Card ── -->
+  <div class="card" id="logCard">
+    <div class="card-title">Log</div>
+    <div id="logBox"></div>
+    <p class="tip">
+      <strong>Requirements:</strong> Chrome or Edge on Windows/Android.
+      Open this file via a local server: <code>python -m http.server 8080</code>
+      then navigate to <code>http://localhost:8080</code>.<br>
+      Web Bluetooth does <em>not</em> work from <code>file://</code> URLs in Chrome.
+    </p>
+  </div>
+
+</main>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// BLE UUIDs (Nordic UART Service)
+// ─────────────────────────────────────────────────────────────
+const NUS_SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const NUS_TX      = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'; // radio → app  (notify)
+const NUS_RX      = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'; // app   → radio (write)
+
+// ─────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────
+let device=null, rxChar=null, txChar=null;
+let rxBuf='';
+let lastStatus={};
+let scanData=null;
+let volPending=null, volTimer=null;
+
+const dec = new TextDecoder();
+const enc = new TextEncoder();
+
+// ─────────────────────────────────────────────────────────────
+// Log
+// ─────────────────────────────────────────────────────────────
+function log(msg, cls='') {
+  const box = document.getElementById('logBox');
+  const p = document.createElement('p');
+  if(cls) p.style.color = cls === 'err' ? '#ff6666' : cls === 'ok' ? '#00ff88' : '#558855';
+  p.textContent = new Date().toLocaleTimeString() + '  ' + msg;
+  box.appendChild(p);
+  box.scrollTop = box.scrollHeight;
+  if(box.children.length > 120) box.removeChild(box.firstChild);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Connect / Disconnect
+// ─────────────────────────────────────────────────────────────
+document.getElementById('btnConnect').addEventListener('click', async () => {
+  if(device && device.gatt.connected) { disconnect(); return; }
+  if(!navigator.bluetooth) {
+    log('Web Bluetooth not available. Use Chrome/Edge and a secure origin (localhost or HTTPS).', 'err');
+    return;
+  }
+  try {
+    setStatus('Scanning…', '');
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{ name: 'ATS-Mini' }],
+      optionalServices: [NUS_SERVICE]
+    });
+    device.addEventListener('gattserverdisconnected', onDisconnected);
+    setStatus('Connecting…', '');
+    const server  = await device.gatt.connect();
+    const service = await server.getPrimaryService(NUS_SERVICE);
+    txChar = await service.getCharacteristic(NUS_TX);
+    rxChar = await service.getCharacteristic(NUS_RX);
+    await txChar.startNotifications();
+    txChar.addEventListener('characteristicvaluechanged', onNotify);
+    setStatus('Connected', 'connected');
+    document.getElementById('btnConnect').textContent = 'Disconnect';
+    document.getElementById('btnConnect').classList.add('active');
+    log('Connected to ' + device.name, 'ok');
+    // Subscribe to 500 ms status updates
+    await send({ cmd:'sub', ms:500 });
+  } catch(e) {
+    log('Connection failed: ' + e.message, 'err');
+    setStatus('Error', 'error');
+  }
+});
+
+function disconnect() {
+  if(device) device.gatt.disconnect();
+}
+
+function onDisconnected() {
+  setStatus('Disconnected', '');
+  document.getElementById('btnConnect').textContent = 'Connect';
+  document.getElementById('btnConnect').classList.remove('active');
+  rxChar = null; txChar = null;
+  log('Disconnected');
+}
+
+// ─────────────────────────────────────────────────────────────
+// Send JSON command
+// ─────────────────────────────────────────────────────────────
+async function send(obj) {
+  if(!rxChar) return;
+  try {
+    const bytes = enc.encode(JSON.stringify(obj));
+    await rxChar.writeValueWithoutResponse(bytes);
+  } catch(e) { log('Send error: ' + e.message, 'err'); }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Receive & parse incoming BLE notifications
+// Notifications may be fragmented; reassemble using a rolling buffer.
+// ─────────────────────────────────────────────────────────────
+function onNotify(evt) {
+  rxBuf += dec.decode(evt.target.value);
+  let start;
+  while((start = rxBuf.indexOf('{')) !== -1) {
+    let depth=0, end=-1;
+    for(let i=start; i<rxBuf.length; i++) {
+      if(rxBuf[i]==='{') depth++;
+      else if(rxBuf[i]==='}') { if(--depth===0) { end=i; break; } }
+    }
+    if(end === -1) break;              // incomplete — wait for more
+    const raw = rxBuf.slice(start, end+1);
+    rxBuf = rxBuf.slice(end+1);
+    try { handleMessage(JSON.parse(raw)); } catch(_) {}
+  }
+  // Discard anything before the first '{' (e.g. CRLF padding)
+  const firstBrace = rxBuf.indexOf('{');
+  if(firstBrace === -1) rxBuf = '';
+  else if(firstBrace > 0) rxBuf = rxBuf.slice(firstBrace);
+}
+
+function handleMessage(msg) {
+  if(msg.t === 's')    { updateStatus(msg); return; }
+  if(msg.t === 'scan') { updateSpectrum(msg); return; }
+  if(msg.t === 'ack')  { log('ACK: ' + JSON.stringify(msg)); return; }
+  log('RX: ' + JSON.stringify(msg));
+}
+
+// ─────────────────────────────────────────────────────────────
+// Update UI from status packet
+// ─────────────────────────────────────────────────────────────
+function updateStatus(s) {
+  lastStatus = s;
+
+  // Frequency display
+  const f = s.f || 0;
+  const isAM = s.m > 0;           // mode 0=FM, 1=LSB, 2=USB, 3=AM
+  let disp, unit;
+  if(!isAM) {
+    // FM: display as MHz with two decimals
+    disp = (f/100).toFixed(2).padStart(6,' ');
+    unit = 'MHz';
+  } else {
+    // AM/SSB: display as kHz integer
+    disp = f.toString();
+    unit = 'kHz';
+  }
+  document.getElementById('freqMain').textContent = disp;
+  document.getElementById('freqUnit').textContent = unit;
+  document.getElementById('modeInfo').textContent =
+    `BAND: ${s.bn||'---'}  MODE: ${s.mn||'---'}  STEP: ${s.st||'---'}  BW: ${s.bw||'---'}`;
+
+  // Settings labels
+  document.getElementById('valBand').textContent = s.bn || '---';
+  document.getElementById('valMode').textContent = s.mn || '---';
+  document.getElementById('valStep').textContent = s.st || '---';
+  document.getElementById('valBW').textContent   = s.bw || '---';
+  document.getElementById('valAGC').textContent  = `${s.agc ?? '--'}`;
+
+  // Signal meters
+  const rssi = s.r || 0;
+  const snr  = s.sn || 0;
+  document.getElementById('rssiBar').style.width  = Math.min(100, rssi * 100/127) + '%';
+  document.getElementById('snrBar').style.width   = Math.min(100, snr  * 100/30)  + '%';
+  document.getElementById('rssiVal').textContent  = rssi + ' dBµV';
+  document.getElementById('snrVal').textContent   = snr  + ' dB';
+  document.getElementById('statRssi').textContent = rssi;
+  document.getElementById('statSnr').textContent  = snr;
+  document.getElementById('statSeq').textContent  = s.seq ?? '--';
+
+  // Battery
+  if(s.bat != null) {
+    const pct = Math.max(0, Math.min(100, (s.bat - 3.3) / (4.2-3.3) * 100));
+    document.getElementById('statBat').textContent   = s.bat.toFixed(2) + 'V';
+    document.getElementById('batFill').style.width   = pct + '%';
+    document.getElementById('batPct').textContent    = pct.toFixed(0) + '%';
+    const colour = pct < 20 ? '#ff4444' : pct < 50 ? '#ffaa00' : '#00ff88';
+    document.getElementById('batFill').style.background = colour;
+  }
+
+  // Volume slider (only update from radio if not being dragged)
+  if(volPending === null) {
+    const sl = document.getElementById('volSlider');
+    sl.value = s.v ?? 35;
+    document.getElementById('volVal').textContent = s.v ?? '--';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Spectrum display
+// ─────────────────────────────────────────────────────────────
+function updateSpectrum(scan) {
+  scanData = scan;
+  document.getElementById('scanStatus').textContent =
+    `${scan.n} pts · ${scan.sf} – ${scan.sf + scan.step*(scan.n-1)} kHz`;
+  document.getElementById('btnScan').disabled = false;
+  drawSpectrum();
+}
+
+function drawSpectrum() {
+  const canvas = document.getElementById('specCanvas');
+  const ctx = canvas.getContext('2d');
+  // Match CSS size
+  canvas.width  = canvas.offsetWidth  * (window.devicePixelRatio||1);
+  canvas.height = canvas.offsetHeight * (window.devicePixelRatio||1);
+  ctx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
+  const W = canvas.offsetWidth, H = canvas.offsetHeight;
+
+  ctx.fillStyle = '#0a1a0a';
+  ctx.fillRect(0, 0, W, H);
+
+  if(!scanData || !scanData.r) return;
+
+  const n    = scanData.n;
+  const rssi = scanData.r;
+  const snr  = scanData.sn;
+  const chs  = scanData.ch || [];
+
+  const maxR = Math.max(...rssi, 1);
+  const barW = W / n;
+
+  // Draw SNR (dim fill)
+  ctx.fillStyle = 'rgba(0,80,120,0.6)';
+  if(snr) snr.forEach((v,i) => {
+    const h = (v / maxR) * (H - 20);
+    ctx.fillRect(i * barW, H - h, barW, h);
+  });
+
+  // Draw RSSI
+  const grad = ctx.createLinearGradient(0, H, 0, 0);
+  grad.addColorStop(0,   '#003a00');
+  grad.addColorStop(0.5, '#007700');
+  grad.addColorStop(1,   '#00ff41');
+  ctx.fillStyle = grad;
+  rssi.forEach((v,i) => {
+    const h = (v / maxR) * (H - 20);
+    ctx.fillRect(i * barW + 0.5, H - h, Math.max(1, barW - 1), h);
+  });
+
+  // Channel markers
+  chs.forEach(freq => {
+    const i = Math.round((freq - scanData.sf) / scanData.step);
+    if(i < 0 || i >= n) return;
+    const x = (i + 0.5) * barW;
+    ctx.strokeStyle = '#00d4ff';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H-20); ctx.stroke();
+    ctx.setLineDash([]);
+    // Label
+    ctx.fillStyle = '#00d4ff';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    const label = (freq/100).toFixed(1);
+    ctx.fillText(label, x, 10);
+  });
+
+  // Current freq marker
+  if(lastStatus.f) {
+    const i = Math.round((lastStatus.f - scanData.sf) / scanData.step);
+    if(i >= 0 && i < n) {
+      const x = (i + 0.5) * barW;
+      ctx.strokeStyle = '#ff4444';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+    }
+  }
+
+  // Axis labels
+  ctx.fillStyle = '#336633';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(scanData.sf + ' kHz', 4, H-4);
+  ctx.textAlign = 'right';
+  ctx.fillText((scanData.sf + scanData.step*(n-1)) + ' kHz', W-4, H-4);
+}
+
+window.addEventListener('resize', () => { if(scanData) drawSpectrum(); });
+
+// ─────────────────────────────────────────────────────────────
+// Controls
+// ─────────────────────────────────────────────────────────────
+
+// Step tuning
+document.getElementById('btnFreqUp').addEventListener('click',   () => send({cmd:'band', d:0}) /* just get status */ || sendEncoder(1));
+document.getElementById('btnFreqDown').addEventListener('click', () => sendEncoder(-1));
+
+async function sendEncoder(d) {
+  // Use 'R'/'r' single-char for precise step tuning (existing protocol)
+  if(!rxChar) return;
+  const ch = d > 0 ? 'R' : 'r';
+  try { await rxChar.writeValueWithoutResponse(enc.encode(ch)); } catch(e) {}
+}
+// Override: tune by one step using the encoder sim
+document.getElementById('btnFreqUp').onclick   = () => sendEncoder(1);
+document.getElementById('btnFreqDown').onclick = () => sendEncoder(-1);
+
+// Direct frequency entry
+document.getElementById('btnSetFreq').addEventListener('click', () => {
+  const v = parseInt(document.getElementById('freqInput').value);
+  if(v > 0) send({cmd:'freq', val:v});
+});
+document.getElementById('freqInput').addEventListener('keydown', e => {
+  if(e.key === 'Enter') document.getElementById('btnSetFreq').click();
+});
+
+// Delta controls (band/mode/step/bw/agc)
+document.querySelectorAll('[data-cmd]').forEach(btn => {
+  btn.addEventListener('click', () =>
+    send({ cmd: btn.dataset.cmd, d: parseInt(btn.dataset.d) }));
+});
+
+// Volume (debounced)
+document.getElementById('volSlider').addEventListener('input', e => {
+  const v = parseInt(e.target.value);
+  document.getElementById('volVal').textContent = v;
+  volPending = v;
+  clearTimeout(volTimer);
+  // Send delta to reach target volume — simplified: just send absolute set
+  // We calculate the delta from last known volume
+  volTimer = setTimeout(async () => {
+    const cur = lastStatus.v ?? 35;
+    const delta = volPending - cur;
+    if(delta !== 0) {
+      // Send multiple increments if delta is large
+      for(let i=0; i<Math.abs(delta); i++)
+        await send({cmd:'vol', d: delta>0 ? 1 : -1});
+    }
+    volPending = null;
+  }, 300);
+});
+
+// Click & sleep
+document.getElementById('btnClick').addEventListener('click', () => send({cmd:'click'}));
+document.getElementById('btnSleep').addEventListener('click', () => {
+  const sleeping = document.getElementById('btnSleep').textContent === 'Wake';
+  send({cmd:'sleep', on: sleeping ? 0 : 1});
+  document.getElementById('btnSleep').textContent = sleeping ? 'Sleep' : 'Wake';
+});
+
+// Scan button
+document.getElementById('btnScan').addEventListener('click', async () => {
+  if(!rxChar) return;
+  document.getElementById('btnScan').disabled = true;
+  document.getElementById('scanStatus').textContent = 'Scanning… (~10s)';
+  scanData = null;
+  await send({cmd:'scan'});
+});
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
+function setStatus(text, cls) {
+  const el = document.getElementById('connStatus');
+  el.textContent = text;
+  el.className = cls;
+}
+</script>
+</body>
+</html>

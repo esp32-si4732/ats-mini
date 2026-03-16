@@ -213,6 +213,7 @@ void prefsSave(uint32_t items)
     prefs.putUChar("FmRegion",    FmRegionIdx);    // FM region
     prefs.putUChar("UILayout",    uiLayoutIdx);    // UI Layout
     prefs.putUChar("BLEMode",     bleModeIdx);     // Bluetooth mode
+    prefs.putUChar("BLEAutoOff",  bleAutoOffIdx);  // BLE auto-off timeout
     prefs.putUChar("USBMode",     usbModeIdx);     // USB mode
     prefs.putUShort("CustomHue",  customThemeHue); // Custom theme hue
 
@@ -287,8 +288,9 @@ bool prefsLoad(uint32_t items)
     currentSquelch = prefs.getUChar("Squelch", currentSquelch); // Squelch
     FmRegionIdx    = prefs.getUChar("FmRegion", FmRegionIdx);   // FM region
     uiLayoutIdx    = prefs.getUChar("UILayout", uiLayoutIdx);   // UI Layout
-    bleModeIdx     = prefs.getUChar("BLEMode", bleModeIdx);     // Bluetooth mode
-    usbModeIdx     = prefs.getUChar("USBMode", usbModeIdx);     // USB mode
+    bleModeIdx     = prefs.getUChar("BLEMode",    bleModeIdx);    // Bluetooth mode
+    bleAutoOffIdx  = prefs.getUChar("BLEAutoOff", bleAutoOffIdx); // BLE auto-off timeout
+    usbModeIdx     = prefs.getUChar("USBMode",    usbModeIdx);    // USB mode
     customThemeHue = prefs.getUShort("CustomHue", customThemeHue); // Custom theme hue
 
     // Rebuild Custom theme slot from the loaded hue

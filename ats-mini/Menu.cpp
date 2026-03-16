@@ -125,8 +125,9 @@ static const char *menu[] =
 #define MENU_LOADEIBI     11
 #define MENU_USBMODE      12
 #define MENU_BLEMODE      13
-#define MENU_WIFIMODE     14
-#define MENU_ABOUT        15
+#define MENU_BLE_AUTOOFF  14
+#define MENU_WIFIMODE     15
+#define MENU_ABOUT        16
 
 
 int8_t settingsIdx = MENU_BRIGHTNESS;
@@ -147,6 +148,7 @@ static const char *settings[] =
   "Load EiBi",
   "USB Port",
   "Bluetooth",
+  "BLE Auto-Off",
   "Wi-Fi",
   "About",
 };
@@ -284,9 +286,22 @@ int getTotalUSBModes() { return(ITEM_COUNT(usbModeDesc)); }
 
 uint8_t bleModeIdx = BLE_OFF;
 static const char *bleModeDesc[] =
-{ "Off", "Ad hoc" };
+{ "Off", "On" };
 
 int getTotalBleModes() { return(ITEM_COUNT(bleModeDesc)); }
+
+//
+// BLE Auto-Off Menu
+//
+
+uint8_t bleAutoOffIdx = 0;
+static const char *bleAutoOffDesc[] =
+{ "Never", "5 min", "15 min", "30 min", "1 hr" };
+
+static const uint32_t bleAutoOffMs[] =
+{ 0, 300000UL, 900000UL, 1800000UL, 3600000UL };
+
+uint32_t getBleAutoOffMs() { return bleAutoOffMs[bleAutoOffIdx]; }
 
 //
 // WiFi Mode Menu
@@ -691,6 +706,11 @@ static void doBleMode(int16_t enc)
   bleModeIdx = newBleModeIdx;
 }
 
+static void doBleAutoOff(int16_t enc)
+{
+  bleAutoOffIdx = wrap_range(bleAutoOffIdx, enc, 0, LAST_ITEM(bleAutoOffDesc));
+}
+
 static void doWiFiMode(int16_t enc)
 {
   wifiModeIdx = wrap_range(wifiModeIdx, enc, 0, LAST_ITEM(wifiModeDesc));
@@ -972,8 +992,9 @@ static void clickSettings(int cmd, bool shortPress)
     case MENU_SLEEPMODE:  currentCmd = CMD_SLEEPMODE;  break;
     case MENU_UTCOFFSET:  currentCmd = CMD_UTCOFFSET;  break;
     case MENU_USBMODE:    currentCmd = CMD_USBMODE;    break;
-    case MENU_BLEMODE:    currentCmd = CMD_BLEMODE;    break;
-    case MENU_WIFIMODE:   currentCmd = CMD_WIFIMODE;   break;
+    case MENU_BLEMODE:     currentCmd = CMD_BLEMODE;     break;
+    case MENU_BLE_AUTOOFF: currentCmd = CMD_BLE_AUTOOFF; break;
+    case MENU_WIFIMODE:    currentCmd = CMD_WIFIMODE;    break;
     case MENU_FM_REGION:
       // Only in FM mode
       if(currentMode==FM) currentCmd = CMD_FM_REGION;
@@ -1014,8 +1035,9 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_SLEEP:      doSleep(enca);break;
     case CMD_SLEEPMODE:  doSleepMode(scrollDirection * enc);break;
     case CMD_USBMODE:    doUSBMode(scrollDirection * enc);break;
-    case CMD_BLEMODE:    doBleMode(scrollDirection * enc);break;
-    case CMD_WIFIMODE:   doWiFiMode(scrollDirection * enc);break;
+    case CMD_BLEMODE:     doBleMode(scrollDirection * enc);break;
+    case CMD_BLE_AUTOOFF: doBleAutoOff(scrollDirection * enc);break;
+    case CMD_WIFIMODE:    doWiFiMode(scrollDirection * enc);break;
     case CMD_ZOOM:       doZoom(enc);break;
     case CMD_SCROLL:     doScrollDir(enc);break;
     case CMD_UTCOFFSET:  doUTCOffset(scrollDirection * enc);break;
@@ -1362,6 +1384,28 @@ static void drawBleMode(int x, int y, int sx)
 
     spr.setTextDatum(MC_DATUM);
     spr.drawString(bleModeDesc[abs((bleModeIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
+  }
+}
+
+static void drawBleAutoOff(int x, int y, int sx)
+{
+  drawCommon(settings[MENU_BLE_AUTOOFF], x, y, sx, true);
+
+  int count = ITEM_COUNT(bleAutoOffDesc);
+  for(int i=-2 ; i<3 ; i++)
+  {
+    if(i==0) {
+      drawZoomedMenu(bleAutoOffDesc[abs((bleAutoOffIdx+count+i)%count)]);
+      spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
+    } else {
+      spr.setTextColor(TH.menu_item);
+    }
+
+    // Prevent repeats for short menus
+    if(count < 5 && ((bleAutoOffIdx+i) < 0 || (bleAutoOffIdx+i) >= count)) continue;
+
+    spr.setTextDatum(MC_DATUM);
+    spr.drawString(bleAutoOffDesc[abs((bleAutoOffIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
   }
 }
 
@@ -1783,8 +1827,9 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_SLEEP:      drawSleep(x, y, sx);      break;
     case CMD_SLEEPMODE:  drawSleepMode(x, y, sx);  break;
     case CMD_USBMODE:    drawUSBMode(x, y, sx);    break;
-    case CMD_BLEMODE:    drawBleMode(x, y, sx);    break;
-    case CMD_WIFIMODE:   drawWiFiMode(x, y, sx);   break;
+    case CMD_BLEMODE:     drawBleMode(x, y, sx);     break;
+    case CMD_BLE_AUTOOFF: drawBleAutoOff(x, y, sx); break;
+    case CMD_WIFIMODE:    drawWiFiMode(x, y, sx);   break;
     case CMD_ZOOM:       drawZoom(x, y, sx);       break;
     case CMD_SCROLL:     drawScrollDir(x, y, sx);  break;
     case CMD_UTCOFFSET:  drawUTCOffset(x, y, sx);  break;

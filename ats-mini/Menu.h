@@ -46,6 +46,7 @@
 #define CMD_WIFIMODE   0x2F00 // |
 #define CMD_ABOUT         0x3000 //-+
 #define CMD_CUSTOM_THEME  0x3100 // Full-screen color wheel picker
+#define CMD_BLE_AUTOOFF   0x3200 // BLE auto-off timeout selector
 
 // UI Layouts
 #define UI_DEFAULT  0
@@ -120,7 +121,8 @@ uint8_t getRDSMode();
 int getCurrentUTCOffset();
 int getTotalUTCOffsets();
 int getTotalFmRegions();
-int getTotalBleModes();
+int      getTotalBleModes();
+uint32_t getBleAutoOffMs();
 
 void doSoftMute(int16_t enc);
 void doAgc(int16_t enc);
@@ -133,5 +135,6 @@ void doCal(int16_t enc);
 void doStep(int16_t enc);
 void doMode(int16_t enc);
 void doBand(int16_t enc);
+void doSquelch(int16_t enc);
 
 #endif // MENU_H
