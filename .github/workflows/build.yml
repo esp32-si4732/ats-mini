@@ -92,15 +92,16 @@ jobs:
         run: |
           ARTIFACT=artifact/ats-mini-${{ steps.slug.outputs.slug }}-${{ matrix.board.artifact-suffix }}
 
-          # Use the esptool bundled with the installed ESP32 Arduino package
-          # so the version is guaranteed to match the toolchain.
-          ESPTOOL=$(find ~/.arduino15/packages/esp32/tools/esptool_py -name "esptool.py" | sort -V | tail -1)
+          # Install esptool from PyPI so we have a known, callable version
+          # rather than trying to locate arduino-cli's internal copy at a
+          # path that varies across runner environments.
+          pip install esptool --quiet
 
-          # boot_app0.bin is shipped with the ESP32 Arduino core and marks
+          # boot_app0.bin is part of the ESP32 Arduino core and marks
           # partition 0 as the OTA boot target (required for a clean first flash).
-          BOOT_APP0=$(find ~/.arduino15/packages/esp32/hardware/esp32 -name "boot_app0.bin" -path "*/tools/partitions/*" | sort -V | tail -1)
+          BOOT_APP0=$(find ~/.arduino15 -name "boot_app0.bin" | head -1)
 
-          python3 "$ESPTOOL" \
+          python3 -m esptool \
             --chip esp32s3 merge_bin \
             --output "$ARTIFACT/ats-mini-${{ steps.slug.outputs.slug }}-${{ matrix.board.artifact-suffix }}-flash.bin" \
             --flash_mode qio \
