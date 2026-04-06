@@ -61,7 +61,7 @@ public:
     pService = pServer->createService(NORDIC_UART_SERVICE_UUID);
     pTxCharacteristic = pService->createCharacteristic(NORDIC_UART_CHARACTERISTIC_UUID_TX, BLECharacteristic::PROPERTY_NOTIFY);
     pTxCharacteristic->setCallbacks(this); // onSubscribe/onStatus
-    pRxCharacteristic = pService->createCharacteristic(NORDIC_UART_CHARACTERISTIC_UUID_RX, BLECharacteristic::PROPERTY_WRITE);
+    pRxCharacteristic = pService->createCharacteristic(NORDIC_UART_CHARACTERISTIC_UUID_RX, BLECharacteristic::PROPERTY_WRITE_NR);
     pRxCharacteristic->setCallbacks(this); // onWrite
     pService->start();
     pServer->getAdvertising()->start();
