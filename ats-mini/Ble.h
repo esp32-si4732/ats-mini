@@ -221,7 +221,7 @@ public:
         va_end(args);
         if ((result >= 0) && (result <= requiredSize))
         {
-          size_t writtenBytesCount = write((uint8_t *)buffer, result + 1);
+          size_t writtenBytesCount = write((uint8_t *)buffer, result);
           free(buffer);
           return writtenBytesCount;
         }
