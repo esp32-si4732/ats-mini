@@ -1,7 +1,6 @@
 #include "Common.h"
 #include "Themes.h"
-#include "Remote.h"
-#include "Ble.h"
+#include "BleMode.h"
 
 //
 // Get current connection status
@@ -9,8 +8,9 @@
 //
 int8_t getBleStatus()
 {
-  if(!BLESerial.isStarted()) return 0;
-  return BLEDevice::getServer()->getConnectedCount() > 0 ? 1 : -1;
+//  if(!BLESerial.isStarted()) return 0;
+//  return BLESerial.isConnected() ? 1 : -1;
+    return 0;
 }
 
 //
@@ -18,8 +18,8 @@ int8_t getBleStatus()
 //
 void bleStop()
 {
-  if(!BLESerial.isStarted()) return;
-  BLESerial.stop();
+//  if(!BLESerial.isStarted()) return;
+//  BLESerial.end();
 }
 
 void bleInit(uint8_t bleMode)
@@ -27,17 +27,17 @@ void bleInit(uint8_t bleMode)
   bleStop();
 
   if(bleMode == BLE_OFF) return;
-  BLESerial.start();
+//  BLESerial.begin();
 }
 
 int bleDoCommand(Stream* stream, RemoteState* state, uint8_t bleMode)
 {
   if(bleMode == BLE_OFF) return 0;
 
-  if (BLEDevice::getServer()->getConnectedCount() > 0) {
-    if (BLESerial.available())
-      return remoteDoCommand(stream, state, BLESerial.read());
-  }
+//  if (BLESerial.isConnected()) {
+//    if (BLESerial.available())
+//      return remoteDoCommand(stream, state, BLESerial.read());
+//  }
   return 0;
 }
 
@@ -45,6 +45,6 @@ void remoteBLETickTime(Stream* stream, RemoteState* state, uint8_t bleMode)
 {
   if(bleMode == BLE_OFF) return;
 
-  if (BLEDevice::getServer()->getConnectedCount() > 0)
-    remoteTickTime(stream, state);
+//  if (BLESerial.isConnected())
+//    remoteTickTime(stream, state);
 }

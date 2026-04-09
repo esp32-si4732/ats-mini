@@ -4,7 +4,7 @@
 #include "Utils.h"
 #include "Draw.h"
 #include "EIBI.h"
-#include "Ble.h"
+#include "BleMode.h"
 #include "Menu.h"
 
 //

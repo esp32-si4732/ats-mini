@@ -3,7 +3,7 @@
 #include "Storage.h"
 #include "Utils.h"
 #include "Menu.h"
-#include "Ble.h"
+#include "BleMode.h"
 #include "Draw.h"
 
 //
