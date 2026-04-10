@@ -4,30 +4,47 @@
 #include "Ble.h"
 
 //
-// BLE Stub implementation to save IRAM
+// Get current connection status
+// (-1 - not connected, 0 - disabled, 1 - connected)
 //
-
 int8_t getBleStatus()
 {
-  return 0; // Disabled
+  if(!BLESerial.isStarted()) return 0;
+  return BLEDevice::getServer()->getConnectedCount() > 0 ? 1 : -1;
 }
 
+//
+// Stop BLE hardware
+//
 void bleStop()
 {
-  // No-op
+  if(!BLESerial.isStarted()) return;
+  BLESerial.stop();
 }
 
 void bleInit(uint8_t bleMode)
 {
-  // No-op
+  bleStop();
+
+  if(bleMode == BLE_OFF) return;
+  BLESerial.start();
 }
 
 int bleDoCommand(Stream* stream, RemoteState* state, uint8_t bleMode)
 {
+  if(bleMode == BLE_OFF) return 0;
+
+  if (BLEDevice::getServer()->getConnectedCount() > 0) {
+    if (BLESerial.available())
+      return remoteDoCommand(stream, state, BLESerial.read());
+  }
   return 0;
 }
 
 void remoteBLETickTime(Stream* stream, RemoteState* state, uint8_t bleMode)
 {
-  // No-op
+  if(bleMode == BLE_OFF) return;
+
+  if (BLEDevice::getServer()->getConnectedCount() > 0)
+    remoteTickTime(stream, state);
 }

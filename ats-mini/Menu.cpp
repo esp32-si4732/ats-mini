@@ -4,7 +4,7 @@
 #include "Utils.h"
 #include "Draw.h"
 #include "EIBI.h"
-//#include "Ble.h"
+#include "Ble.h"
 #include "Menu.h"
 #include "Beacons.h"
 
@@ -123,19 +123,20 @@ static const char *menu[] =
 #define MENU_BRIGHTNESS   0
 #define MENU_CALIBRATION  1
 #define MENU_RDS          2
-#define MENU_UTCOFFSET    3
-#define MENU_FM_REGION    4
-#define MENU_THEME        5
-#define MENU_UI           6
-#define MENU_ZOOM         7
-#define MENU_SCROLL       8
-#define MENU_SLEEP        9
-#define MENU_SLEEPMODE    10
-#define MENU_LOADEIBI     11
-#define MENU_USBMODE      12
-#define MENU_BLEMODE      13
-#define MENU_WIFIMODE     14
-#define MENU_ABOUT        15
+#define MENU_TIMESOURCE   3
+#define MENU_UTCOFFSET    4
+#define MENU_FM_REGION    5
+#define MENU_THEME        6
+#define MENU_UI           7
+#define MENU_ZOOM         8
+#define MENU_SCROLL       9
+#define MENU_SLEEP        10
+#define MENU_SLEEPMODE    11
+#define MENU_LOADEIBI     12
+#define MENU_USBMODE      13
+#define MENU_BLEMODE      14
+#define MENU_WIFIMODE     15
+#define MENU_ABOUT        16
 
 
 int8_t settingsIdx = MENU_BRIGHTNESS;
@@ -145,6 +146,7 @@ static const char *settings[] =
   "Brightness",
   "Calibration",
   "RDS",
+  "Clock Src",
   "UTC Offset",
   "FM Region",
   "Theme",
@@ -208,6 +210,10 @@ static const RDSMode rdsMode[] =
 };
 
 uint8_t getRDSMode() { return(rdsMode[rdsModeIdx].mode); }
+
+uint8_t timeSourceIdx = CLOCK_AUTO;
+static const char *timeSourceDesc[] =
+{ "Auto", "WiFi/NTP", "RDS" };
 
 //
 // Sleep Mode Menu
@@ -634,11 +640,9 @@ static void doUSBMode(int16_t enc)
 
 static void doBleMode(int16_t enc)
 {
-  /*
   uint8_t newBleModeIdx = wrap_range(bleModeIdx, enc, 0, LAST_ITEM(bleModeDesc));
   bleInit(newBleModeIdx);
   bleModeIdx = newBleModeIdx;
-  */
 }
 
 static void doWiFiMode(int16_t enc)
@@ -664,6 +668,11 @@ static void doUTCOffset(int16_t enc)
   clockRefreshTime();
 }
 
+static void doTimeSource(int16_t enc)
+{
+  timeSourceIdx = wrap_range(timeSourceIdx, enc, 0, LAST_ITEM(timeSourceDesc));
+}
+
 static void doZoom(int16_t enc)
 {
   zoomMenu = !zoomMenu;
@@ -674,40 +683,12 @@ static void doScrollDir(int16_t enc)
   scrollDirection = (scrollDirection == 1) ? -1 : 1;
 }
 
+static void tuneToUtilityEntry(const UtilFreq *u, bool exitToRadio);
+
 static void doUtility(int16_t enc)
 {
-  utilIdx += enc;
-  if (utilIdx < 0) utilIdx = getUtilFreqCount() - 1;
-  if (utilIdx >= getUtilFreqCount()) utilIdx = 0;
-  
-  const UtilFreq* u = getUtilData(utilIdx);
-  
-  // Tune logic
-  // Check if we need to change Band/Mode first
-  if (currentMode != u->mode) {
-      currentMode = u->mode;
-      // We need to re-apply band settings for this mode
-      // This is tricky without disrupting the user's band choice too much.
-      // We force the SI4735 to the new mode.
-      
-      if (currentMode == AM) {
-          rx.setAM(150, 30000, u->freq/1000, getCurrentStep()->step);
-      } else {
-          // SSB
-          rx.setSSB(150, 30000, u->freq/1000, 1, currentMode);
-          rx.setSSBAudioBandwidth(getCurrentBandwidth()->idx);
-          rx.setSSBSidebandCutoffFilter(0);
-          rx.setSSBAutomaticVolumeControl(1);
-      }
-  }
-  
-  // Set Frequency
-  if (currentMode == AM) {
-      updateFrequency(u->freq / 1000);
-  } else {
-      updateFrequency(u->freq / 1000);
-      updateBFO(u->freq % 1000); // Fine tune
-  }
+  utilIdx = getUtilityWrapIndex(utilIdx, enc);
+  tuneToUtilityEntry(getUtilityVisibleData(utilIdx), false);
 }
 
 uint8_t doAbout(int16_t enc)
@@ -889,71 +870,93 @@ static void doMenu(int16_t enc)
   menuIdx = wrap_range(menuIdx, enc, 0, LAST_ITEM(menu));
 }
 
-static void clickUtility()
+static void tuneToUtilityEntry(const UtilFreq *u, bool exitToRadio)
 {
-   // Apply selection and exit
-   const UtilFreq* u = getUtilData(utilIdx);
-   uint32_t freqHz = u->freq;
-   uint8_t mode = u->mode;
-   
-   // Find appropriate band
-   int newBandIdx = 0; 
-   bool found = false;
-   
-   uint16_t targetFreq = freqFromHz(freqHz, mode);
-   
-   for(int i=0; i<getTotalBands(); i++) {
-       if (bands[i].bandMode == mode && 
-           targetFreq >= bands[i].minimumFreq && 
-           targetFreq <= bands[i].maximumFreq) {
-           newBandIdx = i;
-           found = true;
-           break;
-       }
-   }
-   
-   if (!found) {
-       for(int i=0; i<getTotalBands(); i++) {
-           bool isVHF = (bands[i].bandType == FM_BAND_TYPE);
-           bool targetIsVHF = (mode == FM);
-           
-           if (isVHF == targetIsVHF &&
-               targetFreq >= bands[i].minimumFreq && 
-               targetFreq <= bands[i].maximumFreq) {
-               newBandIdx = i;
-               found = true;
-               break;
-           }
-       }
-   }
-   
-   if (!found) {
-       for(int i=0; i<getTotalBands(); i++) {
-           if (strstr(bands[i].bandName, "ALL") || strstr(bands[i].bandName, "WIDE")) {
-               newBandIdx = i;
-               break;
-           }
-       }
-   }
+  uint32_t freqHz = u->freq;
+  uint8_t mode = u->mode;
+  int newBandIdx = 0;
+  bool found = false;
+  uint16_t targetFreq = freqFromHz(freqHz, mode);
 
-   currentCmd = CMD_NONE;
-   
-   // Set Global State
-   bandIdx = newBandIdx;
-   currentMode = mode;
-   currentFrequency = targetFreq;
-   currentBFO = bfoFromHz(freqHz);
-   
-   // Save to Band structure
-   bands[bandIdx].currentFreq = currentFrequency;
-   bands[bandIdx].bandMode = mode;
-   
-   // Apply
-   selectBand(bandIdx, true);
-   
-   if (isSSB() && currentBFO != 0) {
-       updateBFO(currentBFO);
-   }
+  for(int i = 0; i < getTotalBands(); i++)
+  {
+    if(bands[i].bandMode == mode &&
+       targetFreq >= bands[i].minimumFreq &&
+       targetFreq <= bands[i].maximumFreq)
+    {
+      newBandIdx = i;
+      found = true;
+      break;
+    }
+  }
+
+  if(!found)
+  {
+    for(int i = 0; i < getTotalBands(); i++)
+    {
+      bool isVHF = bands[i].bandType == FM_BAND_TYPE;
+      bool targetIsVHF = mode == FM;
+
+      if(isVHF == targetIsVHF &&
+         targetFreq >= bands[i].minimumFreq &&
+         targetFreq <= bands[i].maximumFreq)
+      {
+        newBandIdx = i;
+        found = true;
+        break;
+      }
+    }
+  }
+
+  if(!found)
+  {
+    for(int i = 0; i < getTotalBands(); i++)
+    {
+      if(strstr(bands[i].bandName, "ALL") || strstr(bands[i].bandName, "WIDE"))
+      {
+        newBandIdx = i;
+        break;
+      }
+    }
+  }
+
+  if(exitToRadio)
+    currentCmd = CMD_NONE;
+  bandIdx = newBandIdx;
+  currentMode = mode;
+  currentFrequency = targetFreq;
+  currentBFO = bfoFromHz(freqHz);
+  bands[bandIdx].currentFreq = currentFrequency;
+  bands[bandIdx].bandMode = mode;
+
+  selectBand(bandIdx, true);
+
+  if(isSSB() && currentBFO != 0)
+    updateBFO(currentBFO);
+}
+
+static void clickUtility(bool shortPress)
+{
+  if(shortPress)
+  {
+    utilityCycleView();
+    utilitySyncSelection(&utilIdx);
+    drawMessage(getUtilityFilterLabel());
+    return;
+  }
+
+  tuneToUtilityEntry(getUtilityVisibleData(utilIdx), true);
+}
+
+static void clickPropagation(bool shortPress)
+{
+  if(shortPress)
+  {
+    propagationMoveSelection(1);
+    return;
+  }
+
+  tuneToUtilityEntry(propagationGetSelectedEntry(), true);
 }
 
 static void clickMenu(int cmd, bool shortPress)
@@ -992,11 +995,14 @@ static void clickMenu(int cmd, bool shortPress)
        
     case MENU_PROPAG:
        currentCmd = CMD_PROPAG;
+       propagationResetSelection();
        break;
        
     case MENU_UTILITY:
        currentCmd = CMD_UTILITY;
-       doUtility(0);
+       utilitySetDefaultView();
+       utilitySyncSelection(&utilIdx);
+       tuneToUtilityEntry(getUtilityVisibleData(utilIdx), false);
        break;
 
     case MENU_AVC:
@@ -1032,6 +1038,7 @@ static void clickSettings(int cmd, bool shortPress)
     case MENU_THEME:      currentCmd = CMD_THEME;      break;
     case MENU_UI:         currentCmd = CMD_UI;         break;
     case MENU_RDS:        currentCmd = CMD_RDS;        break;
+    case MENU_TIMESOURCE: currentCmd = CMD_TIMESOURCE; break;
     case MENU_ZOOM:       currentCmd = CMD_ZOOM;       break;
     case MENU_SCROLL:     currentCmd = CMD_SCROLL;     break;
     case MENU_SLEEP:      currentCmd = CMD_SLEEP;      break;
@@ -1076,6 +1083,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_THEME:      doTheme(scrollDirection * enc);break;
     case CMD_UI:         doUILayout(scrollDirection * enc);break;
     case CMD_RDS:        doRDSMode(scrollDirection * enc);break;
+    case CMD_TIMESOURCE: doTimeSource(scrollDirection * enc);break;
     case CMD_MEMORY:     doMemory(scrollDirection * enca);break;
     case CMD_SLEEP:      doSleep(enca);break;
     case CMD_SLEEPMODE:  doSleepMode(scrollDirection * enc);break;
@@ -1087,7 +1095,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_UTCOFFSET:  doUTCOffset(scrollDirection * enc);break;
     case CMD_SQUELCH:    doSquelch(enca);break;
     case CMD_ABOUT:      doAbout(enc);break;
-    case CMD_PROPAG:     /* nothing to scroll, but allow exit */ break;
+    case CMD_PROPAG:     propagationMoveSelection(enc);break;
     case CMD_UTILITY:    doUtility(enc);break;
     default:             return(false);
   }
@@ -1108,7 +1116,8 @@ bool clickHandler(uint16_t cmd, bool shortPress)
     case CMD_SQUELCH:  clickSquelch(shortPress);break;
     case CMD_SEEK:     clickSeek(shortPress);break;
     case CMD_SCAN:     clickScan(shortPress);break;
-    case CMD_UTILITY:  clickUtility();break;
+    case CMD_PROPAG:   clickPropagation(shortPress);break;
+    case CMD_UTILITY:  clickUtility(shortPress);break;
     case CMD_FREQ:     return(clickFreq(shortPress));
     default:           return(false);
   }
@@ -1524,6 +1533,31 @@ static void drawUTCOffset(int x, int y, int sx)
   }
 }
 
+static void drawTimeSource(int x, int y, int sx)
+{
+  drawCommon(settings[MENU_TIMESOURCE], x, y, sx, true);
+
+  int count = ITEM_COUNT(timeSourceDesc);
+  for(int i = -2; i < 3; i++)
+  {
+    if(i == 0)
+    {
+      drawZoomedMenu(timeSourceDesc[abs((timeSourceIdx + count + i) % count)]);
+      spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
+    }
+    else
+    {
+      spr.setTextColor(TH.menu_item);
+    }
+
+    if(count < 5 && ((timeSourceIdx + i) < 0 || (timeSourceIdx + i) >= count))
+      continue;
+
+    spr.setTextDatum(MC_DATUM);
+    spr.drawString(timeSourceDesc[abs((timeSourceIdx + count + i) % count)], 40 + x + (sx / 2), 64 + y + (i * 16), 2);
+  }
+}
+
 static void drawMemory(int x, int y, int sx)
 {
   char label_memory[16];
@@ -1841,6 +1875,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_WIFIMODE:   drawWiFiMode(x, y, sx);   break;
     case CMD_ZOOM:       drawZoom(x, y, sx);       break;
     case CMD_SCROLL:     drawScrollDir(x, y, sx);  break;
+    case CMD_TIMESOURCE: drawTimeSource(x, y, sx); break;
     case CMD_UTCOFFSET:  drawUTCOffset(x, y, sx);  break;
     case CMD_SQUELCH:    drawSquelch(x, y, sx);    break;
     default:             drawInfo(x, y, sx);       break;

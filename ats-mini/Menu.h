@@ -35,19 +35,20 @@
 #define CMD_BRT        0x2100 // |
 #define CMD_CAL        0x2200 // |
 #define CMD_RDS        0x2300 // |
-#define CMD_UTCOFFSET  0x2400 // |
-#define CMD_FM_REGION  0x2500 // |
-#define CMD_THEME      0x2600 // |
-#define CMD_UI         0x2700 // |
-#define CMD_ZOOM       0x2800 // |
-#define CMD_SCROLL     0x2900 // |
-#define CMD_SLEEP      0x2A00 // |
-#define CMD_SLEEPMODE  0x2B00 // |
-#define CMD_LOADEIBI   0x2C00 // |
-#define CMD_USBMODE    0x2D00 // |
-#define CMD_BLEMODE    0x2E00 // |
-#define CMD_WIFIMODE   0x2F00 // |
-#define CMD_ABOUT      0x3000 //-+
+#define CMD_TIMESOURCE 0x2400 // |
+#define CMD_UTCOFFSET  0x2500 // |
+#define CMD_FM_REGION  0x2600 // |
+#define CMD_THEME      0x2700 // |
+#define CMD_UI         0x2800 // |
+#define CMD_ZOOM       0x2900 // |
+#define CMD_SCROLL     0x2A00 // |
+#define CMD_SLEEP      0x2B00 // |
+#define CMD_SLEEPMODE  0x2C00 // |
+#define CMD_LOADEIBI   0x2D00 // |
+#define CMD_USBMODE    0x2E00 // |
+#define CMD_BLEMODE    0x2F00 // |
+#define CMD_WIFIMODE   0x3000 // |
+#define CMD_ABOUT      0x3100 //-+
 
 // UI Layouts
 #define UI_DEFAULT  0

@@ -4,52 +4,54 @@
 #include "Menu.h"
 #include "Themes.h"
 
-// Variable to track current utility index (shared with Menu logic usually, but Draw needs it)
-// We will rely on getUtilData(utilIdx) where utilIdx is managed in Menu.cpp but we need access.
-// Let's add an extern or getter/setter in Menu.h for it? Or simpler: make it global in Utils.h?
-// No, Menu.cpp handles the state.
-// We can use a getter from Menu.h if we implement one, OR just put the drawing logic here using an extern.
+extern int utilIdx;
 
-extern int utilIdx; // We will define this in Menu.cpp
+void drawUtility()
+{
+  spr.fillSprite(TH.bg);
+  spr.fillSmoothRoundRect(10, 10, 300, 150, 4, TH.menu_border);
+  spr.fillSmoothRoundRect(12, 12, 296, 146, 4, TH.menu_bg);
 
-void drawUtility() {
-    // Clear screen
-    spr.fillSprite(TH.bg);
-    
-    const UtilFreq* u = getUtilData(utilIdx);
-    
-    // Draw Category Header
-    spr.setTextDatum(TC_DATUM);
-    spr.setTextColor(TH.menu_hdr);
-    spr.fillSmoothRoundRect(10, 10, 300, 150, 4, TH.menu_border);
-    spr.fillSmoothRoundRect(12, 12, 296, 146, 4, TH.menu_bg);
-    
-    // Category Name
-    spr.drawString(u->cat, 160, 20, 4);
-    spr.drawLine(10, 45, 310, 45, TH.menu_border);
-    
-    // Station Name
-    spr.setTextColor(TH.menu_item);
-    spr.setFreeFont(&Orbitron_Light_24); // Big font
-    spr.drawString(u->name, 160, 65);
-    spr.setTextFont(0); // Reset font
-    
-    // Frequency and Mode
-    char freqStr[32];
-    const char* modeStr = (u->mode == AM) ? "AM" : (u->mode == USB ? "USB" : "LSB");
-    
-    if (u->freq < 30000000) {
-        sprintf(freqStr, "%lu kHz  %s", u->freq / 1000, modeStr);
-    } else {
-        sprintf(freqStr, "%.2f MHz  %s", u->freq / 1000000.0, modeStr);
-    }
-    
-    spr.setTextColor(TH.band_text);
-    spr.drawString(freqStr, 160, 105, 4);
-    
-    // Navigation Hint
-    spr.setTextColor(TH.text_muted);
-    spr.drawString("<  Turn to Browse  >", 160, 135, 2);
-    
-    spr.pushSprite(0, 0);
+  utilitySyncSelection(&utilIdx);
+  const UtilFreq *u = getUtilityVisibleData(utilIdx);
+
+  spr.setTextDatum(TC_DATUM);
+  spr.setTextColor(TH.menu_hdr);
+  spr.drawString("Utility DB", 160, 20, 2);
+  spr.drawLine(10, 42, 310, 42, TH.menu_border);
+
+  spr.setTextDatum(TL_DATUM);
+  spr.setTextColor(TH.menu_item);
+  spr.drawString("View", 24, 50, 2);
+  spr.drawString(getUtilityViewLabel(), 58, 50, 2);
+  spr.drawString(getUtilityFilterLabel(), 92, 50, 2);
+
+  char counter[24];
+  sprintf(counter, "%d/%d", utilIdx + 1, getUtilityVisibleCount());
+  spr.setTextDatum(TR_DATUM);
+  spr.drawString(counter, 296, 50, 2);
+
+  spr.setTextDatum(TC_DATUM);
+  spr.setTextColor(TH.text);
+  spr.drawString(u->name, 160, 78, 2);
+
+  char freqStr[32];
+  if(u->freq >= 10000000)
+    sprintf(freqStr, "%.3f MHz  %s", u->freq / 1000000.0f, bandModeDesc[u->mode]);
+  else
+    sprintf(freqStr, "%lu kHz  %s", u->freq / 1000, bandModeDesc[u->mode]);
+
+  spr.setTextColor(TH.menu_param);
+  spr.drawString(freqStr, 160, 98, 2);
+
+  spr.setTextColor(TH.band_text);
+  spr.drawString(u->cat, 160, 116, 2);
+
+  spr.setTextColor(TH.rds_text);
+  spr.drawString(u->note, 160, 134, 2);
+
+  spr.setTextColor(TH.text_muted);
+  spr.drawString("Turn=tune  Short=view  Long=tune", 160, 154, 2);
+
+  spr.pushSprite(0, 0);
 }

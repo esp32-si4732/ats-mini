@@ -3,6 +3,7 @@
 #include "Utils.h"
 #include "Menu.h"
 #include "Draw.h"
+#include "Storage.h"
 #include "Remote.h"
 
 
@@ -12,6 +13,159 @@ static uint8_t char2nibble(char key)
   if((key >= 'A') && (key <= 'F')) return(key - 'A' + 10);
   if((key >= 'a') && (key <= 'f')) return(key - 'a' + 10);
   return(0);
+}
+
+static void rigCtlSkipSeparators(Stream *stream)
+{
+  while(stream->available())
+  {
+    char ch = stream->peek();
+    if(ch == ' ' || ch == '\t' || ch == '\r')
+      stream->read();
+    else
+      break;
+  }
+}
+
+static void rigCtlDiscardLine(Stream *stream)
+{
+  while(stream->available())
+  {
+    if(stream->read() == '\n') break;
+  }
+}
+
+static long rigCtlReadLong(Stream *stream, long fallback = 0)
+{
+  rigCtlSkipSeparators(stream);
+
+  bool neg = false;
+  bool any = false;
+  long result = 0;
+
+  if(stream->available() && stream->peek() == '-')
+  {
+    neg = true;
+    stream->read();
+  }
+
+  while(stream->available())
+  {
+    char ch = stream->peek();
+    if(ch >= '0' && ch <= '9')
+    {
+      any = true;
+      result = result * 10 + (stream->read() - '0');
+    }
+    else
+    {
+      break;
+    }
+  }
+
+  return any ? (neg ? -result : result) : fallback;
+}
+
+static void rigCtlReadToken(Stream *stream, char *buf, uint8_t bufLen)
+{
+  uint8_t length = 0;
+  rigCtlSkipSeparators(stream);
+
+  while(stream->available())
+  {
+    char ch = stream->peek();
+    if(ch <= ' ')
+      break;
+
+    buf[length++] = stream->read();
+    if(length >= bufLen - 1)
+      break;
+  }
+
+  buf[length] = '\0';
+}
+
+static int rigCtlFindBand(uint16_t targetFreq, uint8_t mode, bool requireRange = true)
+{
+  bool wantVhf = mode == FM;
+
+  if(((getCurrentBand()->bandType == FM_BAND_TYPE) == wantVhf) &&
+     (!requireRange || isFreqInBand(getCurrentBand(), targetFreq)))
+  {
+    return bandIdx;
+  }
+
+  for(int i = 0; i < getTotalBands(); i++)
+  {
+    bool isVhf = bands[i].bandType == FM_BAND_TYPE;
+    if(isVhf == wantVhf && (!requireRange || isFreqInBand(&bands[i], targetFreq)))
+      return i;
+  }
+
+  if(!wantVhf)
+  {
+    for(int i = 0; i < getTotalBands(); i++)
+    {
+      if(strcmp(bands[i].bandName, "ALL") == 0 || strcmp(bands[i].bandName, "WIDE") == 0)
+        return i;
+    }
+  }
+
+  return bandIdx;
+}
+
+static bool rigCtlApplyMode(uint8_t newMode)
+{
+  uint32_t displayedHz = currentMode == FM ?
+    freqToHz(currentFrequency, currentMode) :
+    freqToHz(currentFrequency, currentMode) + currentBFO;
+
+  uint16_t targetFreq = freqFromHz(displayedHz, newMode);
+  int newBandIdx = rigCtlFindBand(targetFreq, newMode, true);
+
+  if(!isFreqInBand(&bands[newBandIdx], targetFreq))
+    targetFreq = bands[newBandIdx].currentFreq;
+
+  bands[newBandIdx].bandMode = newMode;
+  bands[newBandIdx].currentFreq = targetFreq;
+  selectBand(newBandIdx);
+
+  if(!isSSB() && currentBFO)
+    updateBFO(0);
+
+  prefsRequestSave(SAVE_ALL);
+  return true;
+}
+
+static bool rigCtlApplyFrequency(uint32_t freqHz)
+{
+  uint8_t mode = currentMode;
+  uint16_t targetFreq = freqFromHz(freqHz, mode);
+  int targetBfo = isSSB() ? bfoFromHz(freqHz) : 0;
+  int newBandIdx = rigCtlFindBand(targetFreq, mode, true);
+
+  if(!isFreqInBand(&bands[newBandIdx], targetFreq))
+    return false;
+
+  if(newBandIdx != bandIdx)
+  {
+    bands[newBandIdx].bandMode = mode;
+    bands[newBandIdx].currentFreq = targetFreq;
+    selectBand(newBandIdx);
+  }
+  else
+  {
+    if(!updateFrequency(targetFreq, false))
+      return false;
+  }
+
+  if(isSSB())
+    updateBFO(targetBfo, false);
+  else if(currentBFO)
+    updateBFO(0);
+
+  prefsRequestSave(SAVE_CUR_BAND);
+  return true;
 }
 
 //
@@ -444,16 +598,14 @@ static void rigCtlProcess(Stream* stream)
   {
     case 'f': // get_freq
       stream->printf("%lu\n", (currentMode == FM) ? (uint32_t)(currentFrequency * 10000) : (uint32_t)((currentFrequency * 1000) + currentBFO));
+      rigCtlDiscardLine(stream);
       break;
       
     case 'F': // set_freq
       {
-        long freq = remoteReadInteger(stream); // in Hz
-        if (currentMode == FM)
-          updateFrequency(freq / 10000);
-        else
-          updateFrequency(freq / 1000);
-        stream->println("RPRT 0");
+        long freq = rigCtlReadLong(stream); // Hz
+        rigCtlDiscardLine(stream);
+        stream->println(rigCtlApplyFrequency(freq) ? "RPRT 0" : "RPRT -1");
       }
       break;
 
@@ -469,40 +621,45 @@ static void rigCtlProcess(Stream* stream)
           case USB: m = "USB"; width = 2700; break;
         }
         stream->printf("%s\n%d\n", m, width);
+        rigCtlDiscardLine(stream);
       }
       break;
       
     case 'M': // set_mode
       {
          char modeName[8];
-         remoteReadString(stream, modeName, 8);
-         // Pass bandwidth param
-         remoteReadInteger(stream); 
-         
-         if (strcmp(modeName, "FM") == 0) currentMode = FM;
-         else if (strcmp(modeName, "AM") == 0) currentMode = AM;
-         else if (strcmp(modeName, "LSB") == 0) currentMode = LSB;
-         else if (strcmp(modeName, "USB") == 0) currentMode = USB;
-         
-         // Force band/mode update
-         selectBand(bandIdx); // Re-select to apply mode? No, this resets frequency.
-         // Just setting currentMode might not be enough if logic depends on band.
-         // But for now let's assume simple mode switch.
-         stream->println("RPRT 0");
+         uint8_t newMode = currentMode;
+         rigCtlReadToken(stream, modeName, 8);
+         rigCtlReadLong(stream); // bandwidth, ignored for now
+         rigCtlDiscardLine(stream);
+
+         if (strcmp(modeName, "FM") == 0) newMode = FM;
+         else if (strcmp(modeName, "AM") == 0) newMode = AM;
+         else if (strcmp(modeName, "LSB") == 0) newMode = LSB;
+         else if (strcmp(modeName, "USB") == 0) newMode = USB;
+         else
+         {
+           stream->println("RPRT -1");
+           break;
+         }
+
+         stream->println(rigCtlApplyMode(newMode) ? "RPRT 0" : "RPRT -1");
       }
       break;
 
     case 'v': // get_vfo
       stream->println("VFOA");
+      rigCtlDiscardLine(stream);
       break;
 
     case 'l': // get_level
       {
-         char lvl[8];
-         remoteReadString(stream, lvl, 8);
+         char lvl[16];
+         rigCtlReadToken(stream, lvl, 16);
+         rigCtlDiscardLine(stream);
+         rx.getCurrentReceivedSignalQuality();
          if (strcmp(lvl, "STRENGTH") == 0) {
-            // Return RSSI
-            stream->printf("%d\n", rssi - 127); // Hamlib expects dBm usually, or relative? RSSI here is dBuV usually.
+            stream->printf("%d\n", rx.getCurrentRSSI());
          } else {
              stream->println("0");
          }
@@ -511,6 +668,7 @@ static void rigCtlProcess(Stream* stream)
       
     case 'q': // quit?
         // Do nothing
+        rigCtlDiscardLine(stream);
         break;
 
     default:

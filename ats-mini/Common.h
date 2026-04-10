@@ -94,6 +94,13 @@
 #define USB_ADHOC      1 // Ad hoc serial protocol
 #define USB_RIGCTL     2 // Hamlib RigCtl protocol
 
+// Clock sources
+#define CLOCK_AUTO     0 // Prefer WiFi/NTP, fall back to RDS
+#define CLOCK_NTP      1 // WiFi/NTP only
+#define CLOCK_RDS      2 // RDS only
+
+struct UtilFreq;
+
 //
 // Data Types
 //
@@ -179,6 +186,7 @@ extern uint8_t usbModeIdx;
 extern uint8_t bleModeIdx;
 extern uint8_t wifiModeIdx;
 extern uint8_t FmRegionIdx;
+extern uint8_t timeSourceIdx;
 
 extern int8_t agcIdx;
 extern int8_t agcNdx;
@@ -217,6 +225,14 @@ uint16_t getRdsPiCode();
 void clearStationInfo();
 bool checkRds();
 bool identifyFrequency(uint16_t freq, bool periodic = false);
+
+// Propagation.c
+bool propagationDataAvailable();
+int propagationBandScore(uint32_t freqHz);
+const char *propagationBandLabel(uint32_t freqHz);
+void propagationMoveSelection(int delta);
+void propagationResetSelection();
+const UtilFreq *propagationGetSelectedEntry();
 
 // Network.cpp
 int8_t getWiFiStatus();

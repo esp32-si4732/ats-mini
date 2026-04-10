@@ -13,7 +13,7 @@
 #include "Utils.h"
 #include "EIBI.h"
 #include "Remote.h"
-//#include "Ble.h"
+#include "Ble.h"
 
 #include "Beacons.h"
 
@@ -105,7 +105,7 @@ ButtonTracker pb1 = ButtonTracker();
 TFT_eSPI tft    = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
 SI4735_fixed rx;
-//NordicUART BLESerial = NordicUART(RECEIVER_NAME);
+NordicUART BLESerial = NordicUART(RECEIVER_NAME);
 
 //
 // Hardware initialization and setup
@@ -271,7 +271,7 @@ void setup()
   netInit(wifiModeIdx);
 
   // Start Bluetooth LE, if necessary
-  //bleInit(bleModeIdx);
+  bleInit(bleModeIdx);
 }
 
 
@@ -757,7 +757,7 @@ void loop()
 
   // Periodically print status to remote interfaces
   serialTickTime(&Serial, &remoteSerialState, usbModeIdx);
-  //remoteBLETickTime(&BLESerial, &remoteBLEState, bleModeIdx);
+  remoteBLETickTime(&BLESerial, &remoteBLEState, bleModeIdx);
 
   // if(encCount && getCpuFrequencyMhz()!=240) setCpuFrequencyMhz(240);
 
@@ -771,7 +771,6 @@ void loop()
   if(ser_event & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
 
   // Receive and execute BLE command
-  /*
   int ble_event = bleDoCommand(&BLESerial, &remoteBLEState, bleModeIdx);
   needRedraw |= !!(ble_event & REMOTE_CHANGED);
   pb1st.wasClicked |= !!(ble_event & REMOTE_CLICK);
@@ -779,7 +778,6 @@ void loop()
   encCount = ble_direction? ble_direction : encCount;
   encCountAccel = ble_direction? ble_direction : encCountAccel;
   if(ble_event & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
-  */
 
   // Block encoder rotation when in the locked sleep mode
   if(encCount && sleepOn() && sleepModeIdx==SLEEP_LOCKED) encCount = encCountAccel = 0;

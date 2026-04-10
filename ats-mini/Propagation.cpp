@@ -7,216 +7,247 @@
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 
-// Data Cache
-struct PropData {
-    bool valid;
-    float sfi;
-    float kp;
-    char rating10m[16];
-    char rating20m[16];
-    char rating40m[16];
-    char rating80m[16];
+struct PropData
+{
+  bool valid;
+  float sfi;
+  float kp;
+  char rating10m[16];
+  char rating20m[16];
+  char rating40m[16];
+  char rating80m[16];
 };
 
 static PropData propData = { false, 0, 0, "--", "--", "--", "--" };
+static int propagationSelection = 0;
 
-// Helper to parse JSON value manually (lightweight)
-// Returns true if found
-bool extractJsonString(String& json, const char* key, char* buffer, int bufLen) {
-    int keyPos = json.indexOf(key);
-    if (keyPos == -1) return false;
-    
-    // Find colon
-    int colonPos = json.indexOf(':', keyPos);
-    if (colonPos == -1) return false;
-    
-    // Find start quote
-    int quoteStart = json.indexOf('"', colonPos);
-    if (quoteStart == -1) return false;
-    
-    // Find end quote
-    int quoteEnd = json.indexOf('"', quoteStart + 1);
-    if (quoteEnd == -1) return false;
-    
-    String val = json.substring(quoteStart + 1, quoteEnd);
-    strncpy(buffer, val.c_str(), bufLen);
-    buffer[bufLen-1] = 0; // Ensure null term
-    return true;
+static int extractJsonFloat(String& json, const char *key)
+{
+  int keyPos = json.indexOf(key);
+  if(keyPos == -1) return 0;
+
+  int colonPos = json.indexOf(':', keyPos);
+  if(colonPos == -1) return 0;
+
+  int valStart = colonPos + 1;
+  while(valStart < json.length() && (json[valStart] == ' ' || json[valStart] == '\t')) valStart++;
+
+  int valEnd = valStart;
+  while(valEnd < json.length() && (isdigit(json[valEnd]) || json[valEnd] == '.' || json[valEnd] == '-')) valEnd++;
+
+  return (int)(json.substring(valStart, valEnd).toFloat() * 10.0f);
 }
 
-// Helper for float values (e.g. "sfi": 155.0)
-float extractJsonFloat(String& json, const char* key) {
-    int keyPos = json.indexOf(key);
-    if (keyPos == -1) return 0.0;
-    
-    int colonPos = json.indexOf(':', keyPos);
-    if (colonPos == -1) return 0.0;
-    
-    // Find start of number (skip spaces)
-    int valStart = colonPos + 1;
-    while (valStart < json.length() && (json[valStart] == ' ' || json[valStart] == '\t')) valStart++;
-    
-    // Find end of number (comma, brace, or space)
-    int valEnd = valStart;
-    while (valEnd < json.length() && (isdigit(json[valEnd]) || json[valEnd] == '.' || json[valEnd] == '-')) valEnd++;
-    
-    String val = json.substring(valStart, valEnd);
-    return val.toFloat();
+static int getLocalHour()
+{
+  uint8_t h, m;
+  int localMinutes = 12 * 60;
+
+  if(clockGetHM(&h, &m))
+  {
+    localMinutes = (int)h * 60 + m + getCurrentUTCOffset() * 15;
+    localMinutes = localMinutes < 0 ? localMinutes + 24 * 60 : localMinutes;
+    localMinutes = localMinutes % (24 * 60);
+  }
+
+  return localMinutes / 60;
 }
 
-// Called explicitly from Network.cpp after WiFi connect
-void updatePropagationData() {
-    if (getWiFiStatus() != 2) return; // Need Internet
-    if (propData.valid) return; // Already have data, one-shot
-    
-    WiFiClientSecure *client = new WiFiClientSecure;
-    if(client) {
-        client->setInsecure(); // Skip certificate check
-        HTTPClient https;
-        
-        // Use wspr.hb9vqq.ch API with shorter timeout
-        https.setTimeout(3000); 
-        
-        if (https.begin(*client, "https://wspr.hb9vqq.ch/api/dx.json")) {
-            int httpCode = https.GET();
-            if (httpCode == HTTP_CODE_OK) {
-                String payload = https.getString();
-                
-                propData.sfi = extractJsonFloat(payload, "\"sfi\"");
-                propData.kp  = extractJsonFloat(payload, "\"kp\"");
-                
-                auto getRating = [&](const char* band) {
-                    int bandPos = payload.indexOf(band);
-                    if (bandPos == -1) return String("--");
-                    int ratePos = payload.indexOf("\"rating\"", bandPos);
-                    if (ratePos == -1) return String("--");
-                    int q1 = payload.indexOf('"', ratePos + 8);
-                    int q2 = payload.indexOf('"', q1 + 1);
-                    if (q1 != -1 && q2 != -1) return payload.substring(q1+1, q2);
-                    return String("--");
-                };
-                
-                strncpy(propData.rating10m, getRating("\"10m\"").c_str(), 15);
-                strncpy(propData.rating20m, getRating("\"20m\"").c_str(), 15);
-                strncpy(propData.rating40m, getRating("\"40m\"").c_str(), 15);
-                strncpy(propData.rating80m, getRating("\"80m\"").c_str(), 15);
-                
-                propData.valid = true;
-            }
-            https.end();
-        }
-        delete client;
-    }
+static int ratingToScore(const char *rating)
+{
+  if(strcmp(rating, "Good") == 0) return 3;
+  if(strcmp(rating, "Fair") == 0) return 2;
+  if(strcmp(rating, "Poor") == 0) return 1;
+  return 2;
 }
 
-// Removed periodic tick, now called manually
+static const char *scoreToLabel(int score)
+{
+  if(score >= 3) return "Good";
+  if(score == 2) return "Fair";
+  return "Poor";
+}
 
-void drawPropagation() {
-    // Background
-    spr.fillSprite(TH.bg);
-    
-    // Draw Header
-    spr.setTextDatum(TC_DATUM);
-    spr.setTextColor(TH.menu_hdr);
-    spr.fillSmoothRoundRect(10, 10, 300, 150, 4, TH.menu_border);
-    spr.fillSmoothRoundRect(12, 12, 296, 146, 4, TH.menu_bg);
-    
-    spr.drawString(propData.valid ? "Solar & DX (Live)" : "Propagation Forecast", 160, 20, 4);
-    spr.drawLine(10, 45, 310, 45, TH.menu_border);
-    
-    // Get Time for Local display
-    uint8_t h, m;
-    int t = 0;
-    int localHour = 12; // Default noon
-    
-    if (clockGetHM(&h, &m)) {
-        t = (int)h * 60 + m + getCurrentUTCOffset() * 15;
-        t = t < 0 ? t + 24*60 : t;
-        t = t % (24*60);
-        localHour = t / 60;
-    }
+static int heuristicBandScore(uint32_t freqHz)
+{
+  uint32_t freqKHz = freqHz / 1000;
+  int hour = getLocalHour();
 
-    if (!propData.valid) {
-        // Fallback: Show Estimated Data based on Time
-        const char* phase = "Unknown";
-        const char* bestBands = "";
-        uint16_t iconColor = TH.text;
-        
-        if (localHour >= 6 && localHour < 9) {
-            phase = "Morning / Greyline";
-            bestBands = "20m, 30m, 40m";
-            iconColor = TH.batt_icon; // Yellow-ish
-        } else if (localHour >= 9 && localHour < 16) {
-            phase = "Daytime";
-            bestBands = "10m - 20m";
-            iconColor = TH.text_warn; // Red-ish
-        } else if (localHour >= 16 && localHour < 19) {
-            phase = "Evening / Greyline";
-            bestBands = "20m - 60m";
-            iconColor = TH.scale_line; // Orange-ish
-        } else {
-            phase = "Night Time";
-            bestBands = "40m - 160m";
-            iconColor = TH.menu_param; // Cyan-ish
-        }
-        
-        spr.setTextColor(iconColor);
-        spr.drawString(phase, 160, 60, 4);
-        
-        char timeStr[32];
-        sprintf(timeStr, "Local: %02d:%02d (No WiFi)", localHour, t%60);
-        spr.setTextColor(TH.menu_item);
-        spr.drawString(timeStr, 160, 90, 2);
-        
-        spr.setTextColor(TH.text);
-        spr.drawString("Best Bands:", 160, 115, 2);
-        spr.setTextColor(TH.band_text);
-        spr.drawString(bestBands, 160, 135, 4);
-        
-        spr.pushSprite(0, 0);
-        return;
+  if(hour >= 6 && hour < 9)
+  {
+    if(freqKHz >= 12000 && freqKHz <= 22000) return 3;
+    if(freqKHz >= 5000 && freqKHz < 12000) return 2;
+    return 1;
+  }
+
+  if(hour >= 9 && hour < 17)
+  {
+    if(freqKHz >= 14000 && freqKHz <= 30000) return 3;
+    if(freqKHz >= 7000 && freqKHz < 14000) return 2;
+    return 1;
+  }
+
+  if(hour >= 17 && hour < 21)
+  {
+    if(freqKHz >= 7000 && freqKHz <= 18000) return 3;
+    if(freqKHz >= 3000 && freqKHz < 7000) return 2;
+    return 1;
+  }
+
+  if(freqKHz >= 3000 && freqKHz <= 10000) return 3;
+  if(freqKHz >= 1000 && freqKHz < 3000) return 2;
+  return 1;
+}
+
+bool propagationDataAvailable()
+{
+  return propData.valid;
+}
+
+int propagationBandScore(uint32_t freqHz)
+{
+  uint32_t freqKHz = freqHz / 1000;
+
+  if(!propData.valid)
+    return heuristicBandScore(freqHz);
+
+  if(freqKHz >= 24000) return ratingToScore(propData.rating10m);
+  if(freqKHz >= 14000) return ratingToScore(propData.rating20m);
+  if(freqKHz >= 5000) return ratingToScore(propData.rating40m);
+  return ratingToScore(propData.rating80m);
+}
+
+const char *propagationBandLabel(uint32_t freqHz)
+{
+  return scoreToLabel(propagationBandScore(freqHz));
+}
+
+void propagationMoveSelection(int delta)
+{
+  int count = getUtilityRecommendationCount();
+  if(count <= 0) return;
+
+  propagationSelection += delta;
+  propagationSelection = propagationSelection >= count ? propagationSelection % count : propagationSelection;
+  propagationSelection = propagationSelection < 0 ? count - ((-propagationSelection) % count) : propagationSelection;
+  if(propagationSelection == count) propagationSelection = 0;
+}
+
+void propagationResetSelection()
+{
+  propagationSelection = 0;
+}
+
+const UtilFreq *propagationGetSelectedEntry()
+{
+  return getUtilityRecommendation(propagationSelection);
+}
+
+void updatePropagationData()
+{
+  if(getWiFiStatus() != 2) return;
+  if(propData.valid) return;
+
+  WiFiClientSecure *client = new WiFiClientSecure;
+  if(client)
+  {
+    client->setInsecure();
+    HTTPClient https;
+    https.setTimeout(3000);
+
+    if(https.begin(*client, "https://wspr.hb9vqq.ch/api/dx.json"))
+    {
+      int httpCode = https.GET();
+      if(httpCode == HTTP_CODE_OK)
+      {
+        String payload = https.getString();
+
+        propData.sfi = extractJsonFloat(payload, "\"sfi\"") / 10.0f;
+        propData.kp  = extractJsonFloat(payload, "\"kp\"") / 10.0f;
+
+        auto getRating = [&](const char *band) {
+          int bandPos = payload.indexOf(band);
+          if(bandPos == -1) return String("--");
+          int ratePos = payload.indexOf("\"rating\"", bandPos);
+          if(ratePos == -1) return String("--");
+          int q1 = payload.indexOf('"', ratePos + 8);
+          int q2 = payload.indexOf('"', q1 + 1);
+          if(q1 != -1 && q2 != -1) return payload.substring(q1 + 1, q2);
+          return String("--");
+        };
+
+        strncpy(propData.rating10m, getRating("\"10m\"").c_str(), 15);
+        strncpy(propData.rating20m, getRating("\"20m\"").c_str(), 15);
+        strncpy(propData.rating40m, getRating("\"40m\"").c_str(), 15);
+        strncpy(propData.rating80m, getRating("\"80m\"").c_str(), 15);
+        propData.rating10m[15] = '\0';
+        propData.rating20m[15] = '\0';
+        propData.rating40m[15] = '\0';
+        propData.rating80m[15] = '\0';
+        propData.valid = true;
+      }
+      https.end();
     }
-    
-    // Draw LIVE Data
-    char buf[32];
-    spr.setTextDatum(TL_DATUM);
-    
-    // SFI
-    spr.setTextColor(TH.menu_param);
+    delete client;
+  }
+}
+
+void drawPropagation()
+{
+  spr.fillSprite(TH.bg);
+  spr.setTextDatum(TC_DATUM);
+  spr.setTextColor(TH.menu_hdr);
+  spr.fillSmoothRoundRect(10, 10, 300, 150, 4, TH.menu_border);
+  spr.fillSmoothRoundRect(12, 12, 296, 146, 4, TH.menu_bg);
+  spr.drawString(propData.valid ? "Propagation & Listening" : "Propagation Guide", 160, 20, 2);
+  spr.drawLine(10, 42, 310, 42, TH.menu_border);
+
+  char buf[32];
+  spr.setTextDatum(TL_DATUM);
+  spr.setTextColor(TH.menu_item);
+
+  if(propData.valid)
+  {
     sprintf(buf, "SFI: %.0f", propData.sfi);
-    spr.drawString(buf, 30, 60, 4);
-    
-    // Kp
+    spr.drawString(buf, 24, 54, 2);
     sprintf(buf, "Kp: %.1f", propData.kp);
-    spr.drawString(buf, 180, 60, 4);
-    
-    // Draw Band Ratings
-    spr.setTextDatum(TC_DATUM);
-    spr.setTextColor(TH.menu_item);
-    spr.drawString("Band Conditions:", 160, 95, 2);
-    
-    int y = 115;
-    spr.setTextDatum(TL_DATUM);
-    spr.setTextColor(TH.band_text);
-    spr.drawString("10m:", 30, y, 2);
-    spr.drawString("20m:", 100, y, 2);
-    spr.drawString("40m:", 170, y, 2);
-    spr.drawString("80m:", 240, y, 2);
-    
-    auto getColor = [](const char* r) {
-        if (strcmp(r, "Good") == 0) return TH.batt_full;
-        if (strcmp(r, "Fair") == 0) return TH.batt_icon;
-        return TH.text_warn;
-    };
-    
-    spr.setTextColor(getColor(propData.rating10m));
-    spr.drawString(propData.rating10m, 30, y+15, 2);
-    spr.setTextColor(getColor(propData.rating20m));
-    spr.drawString(propData.rating20m, 100, y+15, 2);
-    spr.setTextColor(getColor(propData.rating40m));
-    spr.drawString(propData.rating40m, 170, y+15, 2);
-    spr.setTextColor(getColor(propData.rating80m));
-    spr.drawString(propData.rating80m, 240, y+15, 2);
+    spr.drawString(buf, 110, 54, 2);
+    sprintf(buf, "10m %s", propData.rating10m);
+    spr.drawString(buf, 170, 54, 2);
+    sprintf(buf, "20m %s", propData.rating20m);
+    spr.drawString(buf, 24, 72, 2);
+    sprintf(buf, "40m %s", propData.rating40m);
+    spr.drawString(buf, 110, 72, 2);
+    sprintf(buf, "80m %s", propData.rating80m);
+    spr.drawString(buf, 200, 72, 2);
+  }
+  else
+  {
+    spr.drawString("Offline heuristic active", 24, 54, 2);
+    spr.drawString("Band labels adapt to local time", 24, 72, 2);
+  }
 
-    spr.pushSprite(0, 0);
+  const UtilFreq *entry = propagationGetSelectedEntry();
+
+  spr.drawLine(24, 92, 296, 92, TH.menu_border);
+  spr.setTextColor(TH.band_text);
+  spr.drawString("Listen now", 24, 100, 2);
+
+  spr.setTextDatum(TC_DATUM);
+  spr.setTextColor(TH.text);
+  spr.drawString(entry->name, 160, 116, 2);
+
+  sprintf(buf, "%.3f %s", entry->freq / 1000000.0f, bandModeDesc[entry->mode]);
+  spr.setTextColor(TH.menu_param);
+  spr.drawString(buf, 160, 134, 2);
+
+  spr.setTextDatum(TC_DATUM);
+  spr.setTextColor(TH.menu_item);
+  spr.drawString(entry->cat, 160, 148, 2);
+
+  spr.setTextDatum(TL_DATUM);
+  spr.setTextColor(TH.rds_text);
+  spr.drawString(entry->note, 24, 162, 2);
+
+  spr.pushSprite(0, 0);
 }

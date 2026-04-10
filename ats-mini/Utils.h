@@ -52,9 +52,31 @@ struct UtilFreq {
     uint8_t mode;     // AM, USB, LSB
     const char* name; // Station Name
     const char* cat;  // Category
+    const char* note; // Short listening hint
+    uint8_t startHour; // Best listening window start (local hour)
+    uint8_t endHour;   // Best listening window end (local hour)
+    uint8_t weight;    // Recommendation priority
 };
 
 int getUtilFreqCount();
 const UtilFreq* getUtilData(int idx);
+int getUtilityVisibleCount();
+const UtilFreq* getUtilityVisibleData(int idx);
+int getUtilityWrapIndex(int current, int delta);
+void utilityCycleView();
+const char* getUtilityViewLabel();
+const char* getUtilityFilterLabel();
+int getUtilityCategoryCount();
+const char* getUtilityCategoryName(int idx);
+int getUtilityCurrentCategory();
+void utilitySetCurrentCategory(int idx);
+void utilitySyncSelection(int *idx);
+void utilitySetDefaultView();
+
+void utilitySavePrefs(bool openPrefs = true);
+void utilityLoadPrefs(bool openPrefs = true);
+
+int getUtilityRecommendationCount();
+const UtilFreq* getUtilityRecommendation(int idx);
 
 #endif // UTILS_H
