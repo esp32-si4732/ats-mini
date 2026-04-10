@@ -23,12 +23,13 @@ OPTIONS = \
 
 HEADERS = \
 	Common.h Themes.h Menu.h Storage.h tft_setup.h Rotary.h \
-	Utils.h Button.h EIBI.h Remote.h BleMode.h SI4735-fixed.h patch_init.h
+	Utils.h Button.h EIBI.h Remote.h BleMode.h BlePeripheral.h \
+	SI4735-fixed.h patch_init.h
 
 SRC = \
 	$(INO) Utils.cpp Rotary.cpp Button.cpp Draw.cpp Menu.cpp \
 	Station.cpp Battery.cpp Storage.cpp Themes.cpp Remote.cpp \
-	Network.cpp EIBI.cpp Scan.cpp About.cpp BleMode.cpp \
+	Network.cpp EIBI.cpp Scan.cpp About.cpp BleMode.cpp BlePeripheral.cpp \
 	Layout-Default.cpp Layout-SMeter.cpp
 
 all: build

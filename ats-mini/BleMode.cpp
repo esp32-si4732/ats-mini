@@ -1,6 +1,9 @@
 #include "Common.h"
 #include "Themes.h"
+#include "Remote.h"
 #include "BleMode.h"
+
+BlePeripheral BLESerial;
 
 //
 // Get current connection status
@@ -8,9 +11,8 @@
 //
 int8_t getBleStatus()
 {
-//  if(!BLESerial.isStarted()) return 0;
-//  return BLESerial.isConnected() ? 1 : -1;
-    return 0;
+  if(!BLESerial.isStarted()) return 0;
+  return BLESerial.isConnected() ? 1 : -1;
 }
 
 //
@@ -18,8 +20,8 @@ int8_t getBleStatus()
 //
 void bleStop()
 {
-//  if(!BLESerial.isStarted()) return;
-//  BLESerial.end();
+  if(!BLESerial.isStarted()) return;
+  BLESerial.end();
 }
 
 void bleInit(uint8_t bleMode)
@@ -27,17 +29,17 @@ void bleInit(uint8_t bleMode)
   bleStop();
 
   if(bleMode == BLE_OFF) return;
-//  BLESerial.begin();
+  BLESerial.begin(RECEIVER_NAME);
 }
 
 int bleDoCommand(Stream* stream, RemoteState* state, uint8_t bleMode)
 {
   if(bleMode == BLE_OFF) return 0;
 
-//  if (BLESerial.isConnected()) {
+  if (BLESerial.isConnected()) {
 //    if (BLESerial.available())
 //      return remoteDoCommand(stream, state, BLESerial.read());
-//  }
+  }
   return 0;
 }
 
