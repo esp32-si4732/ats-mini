@@ -60,8 +60,8 @@ private:
   void resetTxSession();
 
   BLEService* service = nullptr;
-  BLECharacteristic* txch = nullptr;
-  BLECharacteristic* rxch = nullptr;
+  BLECharacteristic* txCh = nullptr;
+  BLECharacteristic* rxCh = nullptr;
 
   cbuf rxBuf{BLE_BUFFER_SIZE};
   cbuf txBuf{BLE_BUFFER_SIZE};

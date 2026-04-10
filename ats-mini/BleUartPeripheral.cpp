@@ -3,7 +3,7 @@
 
 bool BleUartPeripheral::canSend() const
 {
-  return (txch != nullptr) &&
+  return (txCh != nullptr) &&
          (txConnHandle != BLE_HS_CONN_HANDLE_NONE) &&
          txSubscribed;
 }
@@ -68,9 +68,9 @@ size_t BleUartPeripheral::pumpTx()
     txPendingLen = txBuf.read((char*)txChunk, chunkSize);
     if (txPendingLen == 0) return 0;
   }
-  txch->setValue(txChunk, txPendingLen);
+  txCh->setValue(txChunk, txPendingLen);
   txNotifyState = BleUartTxNotifyState::WaitingFirstStatus;
-  txch->notify();
+  txCh->notify();
   return txPendingLen;
 }
 
@@ -103,10 +103,10 @@ void BleUartPeripheral::createServices()
   if (currentServer == nullptr) return;
 
   service = currentServer->createService(UART_SERVICE_UUID);
-  txch = service->createCharacteristic(UART_CHARACTERISTIC_UUID_TX, BLECharacteristic::PROPERTY_NOTIFY);
-  txch->setCallbacks(this);
-  rxch = service->createCharacteristic(UART_CHARACTERISTIC_UUID_RX, BLECharacteristic::PROPERTY_WRITE_NR);
-  rxch->setCallbacks(this);
+  txCh = service->createCharacteristic(UART_CHARACTERISTIC_UUID_TX, BLECharacteristic::PROPERTY_NOTIFY);
+  txCh->setCallbacks(this);
+  rxCh = service->createCharacteristic(UART_CHARACTERISTIC_UUID_RX, BLECharacteristic::PROPERTY_WRITE_NR);
+  rxCh->setCallbacks(this);
   service->start();
 }
 
@@ -117,16 +117,16 @@ void BleUartPeripheral::destroyServices()
 
   service->stop();
 
-  if (rxch)
+  if (rxCh)
   {
-    service->removeCharacteristic(rxch, true);
-    rxch = nullptr;
+    service->removeCharacteristic(rxCh, true);
+    rxCh = nullptr;
   }
 
-  if (txch)
+  if (txCh)
   {
-    service->removeCharacteristic(txch, true);
-    txch = nullptr;
+    service->removeCharacteristic(txCh, true);
+    txCh = nullptr;
   }
 
   currentServer->removeService(service);
@@ -158,7 +158,7 @@ void BleUartPeripheral::onDisconnect(BLEServer* server, ble_gap_conn_desc* desc)
 
 void BleUartPeripheral::onWrite(BLECharacteristic* characteristic, ble_gap_conn_desc* desc)
 {
-  if (characteristic != rxch) return;
+  if (characteristic != rxCh) return;
 
   uint8_t* data = characteristic->getData();
   size_t byteCount = characteristic->getLength();
@@ -171,7 +171,7 @@ void BleUartPeripheral::onWrite(BLECharacteristic* characteristic, ble_gap_conn_
 
 void BleUartPeripheral::onSubscribe(BLECharacteristic* characteristic, ble_gap_conn_desc* desc, uint16_t subValue)
 {
-  if ((characteristic != txch) || (desc->conn_handle != txConnHandle)) return;
+  if ((characteristic != txCh) || (desc->conn_handle != txConnHandle)) return;
 
   txSubscribed = !!(subValue & 0x0001);
   if (txSubscribed)
@@ -194,7 +194,7 @@ void BleUartPeripheral::onSubscribe(BLECharacteristic* characteristic, ble_gap_c
 
 void BleUartPeripheral::onStatus(BLECharacteristic* characteristic, Status status, uint32_t code)
 {
-  if (characteristic != txch) return;
+  if (characteristic != txCh) return;
 
   switch (status)
   {
@@ -268,7 +268,7 @@ void BleUartPeripheral::flush()
 
 size_t BleUartPeripheral::write(const uint8_t* data, size_t size)
 {
-  if ((txch == nullptr) || !canSend()) return 0;
+  if ((txCh == nullptr) || !canSend()) return 0;
 
   size_t writtenByteCount = 0;
   while (writtenByteCount < size)
