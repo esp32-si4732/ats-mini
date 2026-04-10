@@ -5,7 +5,6 @@
 #include "Draw.h"
 #include "Remote.h"
 
-
 static uint8_t char2nibble(char key)
 {
   if((key >= '0') && (key <= '9')) return(key - '0');
@@ -54,6 +53,7 @@ static void remoteCaptureScreen(Stream* stream)
     }
     stream->println("");
   }
+  stream->flush();
 }
 
 char remoteReadChar(Stream* stream)
