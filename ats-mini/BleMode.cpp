@@ -3,7 +3,7 @@
 #include "Remote.h"
 #include "BleMode.h"
 
-BlePeripheral BLESerial;
+BleUartPeripheral BLESerial;
 
 //
 // Get current connection status
@@ -37,8 +37,8 @@ int bleDoCommand(Stream* stream, RemoteState* state, uint8_t bleMode)
   if(bleMode == BLE_OFF) return 0;
 
   if (BLESerial.isConnected()) {
-//    if (BLESerial.available())
-//      return remoteDoCommand(stream, state, BLESerial.read());
+    if (BLESerial.available())
+      return remoteDoCommand(stream, state, BLESerial.read());
   }
   return 0;
 }
@@ -47,6 +47,6 @@ void remoteBLETickTime(Stream* stream, RemoteState* state, uint8_t bleMode)
 {
   if(bleMode == BLE_OFF) return;
 
-//  if (BLESerial.isConnected())
-//    remoteTickTime(stream, state);
+  if (BLESerial.isConnected())
+    remoteTickTime(stream, state);
 }
