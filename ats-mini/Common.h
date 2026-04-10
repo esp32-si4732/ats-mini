@@ -2,6 +2,16 @@
 #define COMMON_H
 
 #include <stdint.h>
+
+#if defined(ESP32)
+  #include <esp_idf_version.h>
+  #if (ESP_IDF_VERSION_MAJOR >= 5)
+    #include "rom/gpio.h"
+    #define gpio_input_get() (uint32_t)GPIO.in
+    #define gpio_input_get_high() (uint32_t)GPIO.in1.val
+  #endif
+#endif
+
 #include <TFT_eSPI.h>
 #include <SI4735-fixed.h>
 
@@ -74,9 +84,22 @@
 #define BLE_OFF        0 // Bluetooth is disabled
 #define BLE_ADHOC      1 // Ad hoc BLE serial protocol
 
+// UI Layouts
+#define UI_DEFAULT   0
+#define UI_SMETER    1
+#define UI_WATERFALL 2
+
 // USB modes
 #define USB_OFF        0 // USB is disabled
 #define USB_ADHOC      1 // Ad hoc serial protocol
+#define USB_RIGCTL     2 // Hamlib RigCtl protocol
+
+// Clock sources
+#define CLOCK_AUTO     0 // Prefer WiFi/NTP, fall back to RDS
+#define CLOCK_NTP      1 // WiFi/NTP only
+#define CLOCK_RDS      2 // RDS only
+
+struct UtilFreq;
 
 //
 // Data Types
@@ -163,6 +186,7 @@ extern uint8_t usbModeIdx;
 extern uint8_t bleModeIdx;
 extern uint8_t wifiModeIdx;
 extern uint8_t FmRegionIdx;
+extern uint8_t timeSourceIdx;
 
 extern int8_t agcIdx;
 extern int8_t agcNdx;
@@ -172,6 +196,9 @@ extern uint8_t disableAgc;
 extern const int CALMax;
 
 static inline bool isSSB() { return(currentMode>FM && currentMode<AM); }
+
+bool updateFrequency(int newFreq, bool wrap = true);
+void selectBand(uint8_t idx, bool drawLoadingSSB = true);
 
 void useBand(const Band *band);
 bool updateBFO(int newBFO, bool wrap = true);
@@ -199,6 +226,14 @@ void clearStationInfo();
 bool checkRds();
 bool identifyFrequency(uint16_t freq, bool periodic = false);
 
+// Propagation.c
+bool propagationDataAvailable();
+int propagationBandScore(uint32_t freqHz);
+const char *propagationBandLabel(uint32_t freqHz);
+void propagationMoveSelection(int delta);
+void propagationResetSelection();
+const UtilFreq *propagationGetSelectedEntry();
+
 // Network.cpp
 int8_t getWiFiStatus();
 char *getWiFiIPAddress();
@@ -209,6 +244,7 @@ bool ntpSyncTime();
 
 void netRequestConnect();
 void netTickTime();
+void updatePropagationData();
 
 // Remote.c
 #define REMOTE_CHANGED   1

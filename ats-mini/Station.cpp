@@ -1,4 +1,4 @@
-#include "Common.h"
+Ôªø#include "Common.h"
 #include "Themes.h"
 #include "Utils.h"
 #include "Menu.h"
@@ -200,11 +200,12 @@ static bool showRdsPiCode(uint16_t rdsPiCode)
 
 static bool showRdsTime(const char *rdsTime)
 {
-  // If NTP time available, do not use RDS time
-  if(!rdsTime || ntpIsAvailable()) return(false);
+  if(!rdsTime) return(false);
+  if(timeSourceIdx == CLOCK_NTP) return(false);
+  if(timeSourceIdx == CLOCK_AUTO && ntpIsAvailable()) return(false);
 
-  // The standard RDS time format is ìHH:MMî.
-  // or sometimes more complex like ìDD.MM.YY,HH:MMî.
+  // The standard RDS time format is ‚ÄúHH:MM‚Äù.
+  // or sometimes more complex like ‚ÄúDD.MM.YY,HH:MM‚Äù.
   const char *timeField = strstr(rdsTime, ":");
 
   // If we find a valid time format...
@@ -367,3 +368,4 @@ bool identifyFrequency(uint16_t freq, bool periodic)
   name = findScheduleByFreq(freq, periodic);
   return(showStationName(name? name : "", true));
 }
+

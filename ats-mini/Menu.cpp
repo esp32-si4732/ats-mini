@@ -6,6 +6,7 @@
 #include "EIBI.h"
 #include "Ble.h"
 #include "Menu.h"
+#include "Beacons.h"
 
 //
 // Bands Menu
@@ -64,6 +65,8 @@ Band bands[] =
   // https://www.hfunderground.com/wiki/CB
   // Also see MIN_CB_FREQUENCY and MAX_CB_FREQUENCY
   {"CB",   SW_BAND_TYPE, AM,  25000, 28000, 27135, 0, 4, 0, 0},
+  // Experimental wideband (150kHz - 30MHz continuous)
+  {"WIDE", SW_BAND_TYPE, AM,    150, 30000, 10000, 1, 4, 0, 0},
 };
 
 int getTotalBands() { return(ITEM_COUNT(bands)); }
@@ -85,9 +88,13 @@ Band *getCurrentBand() { return(&bands[bandIdx]); }
 #define MENU_AGC_ATT      9
 #define MENU_AVC         10
 #define MENU_SOFTMUTE    11
-#define MENU_SETTINGS    12
+#define MENU_BEACON      12
+#define MENU_PROPAG      13
+#define MENU_UTILITY     14
+#define MENU_SETTINGS    15
 
 int8_t menuIdx = MENU_VOLUME;
+int utilIdx = 0; // Current Utility Index
 
 static const char *menu[] =
 {
@@ -103,6 +110,9 @@ static const char *menu[] =
   "AGC/ATTN",
   "AVC",
   "SoftMute",
+  "Beacon",
+  "Propag.",
+  "Utility DB",
   "Settings",
 };
 
@@ -113,19 +123,20 @@ static const char *menu[] =
 #define MENU_BRIGHTNESS   0
 #define MENU_CALIBRATION  1
 #define MENU_RDS          2
-#define MENU_UTCOFFSET    3
-#define MENU_FM_REGION    4
-#define MENU_THEME        5
-#define MENU_UI           6
-#define MENU_ZOOM         7
-#define MENU_SCROLL       8
-#define MENU_SLEEP        9
-#define MENU_SLEEPMODE    10
-#define MENU_LOADEIBI     11
-#define MENU_USBMODE      12
-#define MENU_BLEMODE      13
-#define MENU_WIFIMODE     14
-#define MENU_ABOUT        15
+#define MENU_TIMESOURCE   3
+#define MENU_UTCOFFSET    4
+#define MENU_FM_REGION    5
+#define MENU_THEME        6
+#define MENU_UI           7
+#define MENU_ZOOM         8
+#define MENU_SCROLL       9
+#define MENU_SLEEP        10
+#define MENU_SLEEPMODE    11
+#define MENU_LOADEIBI     12
+#define MENU_USBMODE      13
+#define MENU_BLEMODE      14
+#define MENU_WIFIMODE     15
+#define MENU_ABOUT        16
 
 
 int8_t settingsIdx = MENU_BRIGHTNESS;
@@ -135,6 +146,7 @@ static const char *settings[] =
   "Brightness",
   "Calibration",
   "RDS",
+  "Clock Src",
   "UTC Offset",
   "FM Region",
   "Theme",
@@ -198,6 +210,10 @@ static const RDSMode rdsMode[] =
 };
 
 uint8_t getRDSMode() { return(rdsMode[rdsModeIdx].mode); }
+
+uint8_t timeSourceIdx = CLOCK_AUTO;
+static const char *timeSourceDesc[] =
+{ "Auto", "WiFi/NTP", "RDS" };
 
 //
 // Sleep Mode Menu
@@ -265,7 +281,7 @@ int getTotalUTCOffsets() { return(ITEM_COUNT(utcOffsets)); }
 //
 uint8_t uiLayoutIdx = 0;
 static const char *uiLayoutDesc[] =
-{ "Default", "S-Meter" };
+{ "Default", "S-Meter", "S-History" };
 
 //
 // USB Port Mode Menu
@@ -273,7 +289,7 @@ static const char *uiLayoutDesc[] =
 
 uint8_t usbModeIdx = USB_OFF;
 static const char *usbModeDesc[] =
-{ "Off", "Ad hoc" };
+{ "Off", "Ad hoc", "RigCtl" };
 
 int getTotalUSBModes() { return(ITEM_COUNT(usbModeDesc)); }
 
@@ -652,6 +668,11 @@ static void doUTCOffset(int16_t enc)
   clockRefreshTime();
 }
 
+static void doTimeSource(int16_t enc)
+{
+  timeSourceIdx = wrap_range(timeSourceIdx, enc, 0, LAST_ITEM(timeSourceDesc));
+}
+
 static void doZoom(int16_t enc)
 {
   zoomMenu = !zoomMenu;
@@ -660,6 +681,14 @@ static void doZoom(int16_t enc)
 static void doScrollDir(int16_t enc)
 {
   scrollDirection = (scrollDirection == 1) ? -1 : 1;
+}
+
+static void tuneToUtilityEntry(const UtilFreq *u, bool exitToRadio);
+
+static void doUtility(int16_t enc)
+{
+  utilIdx = getUtilityWrapIndex(utilIdx, enc);
+  tuneToUtilityEntry(getUtilityVisibleData(utilIdx), false);
 }
 
 uint8_t doAbout(int16_t enc)
@@ -841,6 +870,95 @@ static void doMenu(int16_t enc)
   menuIdx = wrap_range(menuIdx, enc, 0, LAST_ITEM(menu));
 }
 
+static void tuneToUtilityEntry(const UtilFreq *u, bool exitToRadio)
+{
+  uint32_t freqHz = u->freq;
+  uint8_t mode = u->mode;
+  int newBandIdx = 0;
+  bool found = false;
+  uint16_t targetFreq = freqFromHz(freqHz, mode);
+
+  for(int i = 0; i < getTotalBands(); i++)
+  {
+    if(bands[i].bandMode == mode &&
+       targetFreq >= bands[i].minimumFreq &&
+       targetFreq <= bands[i].maximumFreq)
+    {
+      newBandIdx = i;
+      found = true;
+      break;
+    }
+  }
+
+  if(!found)
+  {
+    for(int i = 0; i < getTotalBands(); i++)
+    {
+      bool isVHF = bands[i].bandType == FM_BAND_TYPE;
+      bool targetIsVHF = mode == FM;
+
+      if(isVHF == targetIsVHF &&
+         targetFreq >= bands[i].minimumFreq &&
+         targetFreq <= bands[i].maximumFreq)
+      {
+        newBandIdx = i;
+        found = true;
+        break;
+      }
+    }
+  }
+
+  if(!found)
+  {
+    for(int i = 0; i < getTotalBands(); i++)
+    {
+      if(strstr(bands[i].bandName, "ALL") || strstr(bands[i].bandName, "WIDE"))
+      {
+        newBandIdx = i;
+        break;
+      }
+    }
+  }
+
+  if(exitToRadio)
+    currentCmd = CMD_NONE;
+  bandIdx = newBandIdx;
+  currentMode = mode;
+  currentFrequency = targetFreq;
+  currentBFO = bfoFromHz(freqHz);
+  bands[bandIdx].currentFreq = currentFrequency;
+  bands[bandIdx].bandMode = mode;
+
+  selectBand(bandIdx, true);
+
+  if(isSSB() && currentBFO != 0)
+    updateBFO(currentBFO);
+}
+
+static void clickUtility(bool shortPress)
+{
+  if(shortPress)
+  {
+    utilityCycleView();
+    utilitySyncSelection(&utilIdx);
+    drawMessage(getUtilityFilterLabel());
+    return;
+  }
+
+  tuneToUtilityEntry(getUtilityVisibleData(utilIdx), true);
+}
+
+static void clickPropagation(bool shortPress)
+{
+  if(shortPress)
+  {
+    propagationMoveSelection(1);
+    return;
+  }
+
+  tuneToUtilityEntry(propagationGetSelectedEntry(), true);
+}
+
 static void clickMenu(int cmd, bool shortPress)
 {
   // No command yet
@@ -867,9 +985,25 @@ static void clickMenu(int cmd, bool shortPress)
       break;
 
     case MENU_SOFTMUTE:
-      // No soft mute in FM mode
       if(currentMode!=FM) currentCmd = CMD_SOFTMUTE;
       break;
+
+    case MENU_BEACON:
+       toggleBeaconMode();
+       currentCmd = CMD_NONE;
+       break;
+       
+    case MENU_PROPAG:
+       currentCmd = CMD_PROPAG;
+       propagationResetSelection();
+       break;
+       
+    case MENU_UTILITY:
+       currentCmd = CMD_UTILITY;
+       utilitySetDefaultView();
+       utilitySyncSelection(&utilIdx);
+       tuneToUtilityEntry(getUtilityVisibleData(utilIdx), false);
+       break;
 
     case MENU_AVC:
       // No AVC in FM mode
@@ -904,6 +1038,7 @@ static void clickSettings(int cmd, bool shortPress)
     case MENU_THEME:      currentCmd = CMD_THEME;      break;
     case MENU_UI:         currentCmd = CMD_UI;         break;
     case MENU_RDS:        currentCmd = CMD_RDS;        break;
+    case MENU_TIMESOURCE: currentCmd = CMD_TIMESOURCE; break;
     case MENU_ZOOM:       currentCmd = CMD_ZOOM;       break;
     case MENU_SCROLL:     currentCmd = CMD_SCROLL;     break;
     case MENU_SLEEP:      currentCmd = CMD_SLEEP;      break;
@@ -948,6 +1083,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_THEME:      doTheme(scrollDirection * enc);break;
     case CMD_UI:         doUILayout(scrollDirection * enc);break;
     case CMD_RDS:        doRDSMode(scrollDirection * enc);break;
+    case CMD_TIMESOURCE: doTimeSource(scrollDirection * enc);break;
     case CMD_MEMORY:     doMemory(scrollDirection * enca);break;
     case CMD_SLEEP:      doSleep(enca);break;
     case CMD_SLEEPMODE:  doSleepMode(scrollDirection * enc);break;
@@ -959,6 +1095,8 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_UTCOFFSET:  doUTCOffset(scrollDirection * enc);break;
     case CMD_SQUELCH:    doSquelch(enca);break;
     case CMD_ABOUT:      doAbout(enc);break;
+    case CMD_PROPAG:     propagationMoveSelection(enc);break;
+    case CMD_UTILITY:    doUtility(enc);break;
     default:             return(false);
   }
 
@@ -978,6 +1116,8 @@ bool clickHandler(uint16_t cmd, bool shortPress)
     case CMD_SQUELCH:  clickSquelch(shortPress);break;
     case CMD_SEEK:     clickSeek(shortPress);break;
     case CMD_SCAN:     clickScan(shortPress);break;
+    case CMD_PROPAG:   clickPropagation(shortPress);break;
+    case CMD_UTILITY:  clickUtility(shortPress);break;
     case CMD_FREQ:     return(clickFreq(shortPress));
     default:           return(false);
   }
@@ -1393,6 +1533,31 @@ static void drawUTCOffset(int x, int y, int sx)
   }
 }
 
+static void drawTimeSource(int x, int y, int sx)
+{
+  drawCommon(settings[MENU_TIMESOURCE], x, y, sx, true);
+
+  int count = ITEM_COUNT(timeSourceDesc);
+  for(int i = -2; i < 3; i++)
+  {
+    if(i == 0)
+    {
+      drawZoomedMenu(timeSourceDesc[abs((timeSourceIdx + count + i) % count)]);
+      spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
+    }
+    else
+    {
+      spr.setTextColor(TH.menu_item);
+    }
+
+    if(count < 5 && ((timeSourceIdx + i) < 0 || (timeSourceIdx + i) >= count))
+      continue;
+
+    spr.setTextDatum(MC_DATUM);
+    spr.drawString(timeSourceDesc[abs((timeSourceIdx + count + i) % count)], 40 + x + (sx / 2), 64 + y + (i * 16), 2);
+  }
+}
+
 static void drawMemory(int x, int y, int sx)
 {
   char label_memory[16];
@@ -1710,6 +1875,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_WIFIMODE:   drawWiFiMode(x, y, sx);   break;
     case CMD_ZOOM:       drawZoom(x, y, sx);       break;
     case CMD_SCROLL:     drawScrollDir(x, y, sx);  break;
+    case CMD_TIMESOURCE: drawTimeSource(x, y, sx); break;
     case CMD_UTCOFFSET:  drawUTCOffset(x, y, sx);  break;
     case CMD_SQUELCH:    drawSquelch(x, y, sx);    break;
     default:             drawInfo(x, y, sx);       break;

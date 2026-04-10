@@ -29,6 +29,7 @@ bool muteOn(uint8_t mode, int x = 2);
 const char *clockGet();
 bool clockAvailable();
 bool clockGetHM(uint8_t *hours, uint8_t *minutes);
+bool clockGetHMS(uint8_t *hours, uint8_t *minutes, uint8_t *seconds);
 bool clockSet(uint8_t hours, uint8_t minutes, uint8_t seconds = 0);
 void clockReset();
 bool clockTickTime();
@@ -44,5 +45,38 @@ uint32_t freqToHz(uint16_t freq, uint8_t mode);
 
 // Check if given frequency belongs to a band
 bool isFreqInBand(const Band *band, uint16_t freq);
+
+// Utility Channels
+struct UtilFreq {
+    uint32_t freq;    // Hz
+    uint8_t mode;     // AM, USB, LSB
+    const char* name; // Station Name
+    const char* cat;  // Category
+    const char* note; // Short listening hint
+    uint8_t startHour; // Best listening window start (local hour)
+    uint8_t endHour;   // Best listening window end (local hour)
+    uint8_t weight;    // Recommendation priority
+};
+
+int getUtilFreqCount();
+const UtilFreq* getUtilData(int idx);
+int getUtilityVisibleCount();
+const UtilFreq* getUtilityVisibleData(int idx);
+int getUtilityWrapIndex(int current, int delta);
+void utilityCycleView();
+const char* getUtilityViewLabel();
+const char* getUtilityFilterLabel();
+int getUtilityCategoryCount();
+const char* getUtilityCategoryName(int idx);
+int getUtilityCurrentCategory();
+void utilitySetCurrentCategory(int idx);
+void utilitySyncSelection(int *idx);
+void utilitySetDefaultView();
+
+void utilitySavePrefs(bool openPrefs = true);
+void utilityLoadPrefs(bool openPrefs = true);
+
+int getUtilityRecommendationCount();
+const UtilFreq* getUtilityRecommendation(int idx);
 
 #endif // UTILS_H

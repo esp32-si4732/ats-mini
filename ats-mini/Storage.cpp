@@ -2,6 +2,7 @@
 #include "Storage.h"
 #include "Themes.h"
 #include "Menu.h"
+#include "Utils.h"
 #include <LittleFS.h>
 #include "nvs_flash.h"
 
@@ -189,11 +190,13 @@ void prefsSave(uint32_t items)
     prefs.putUChar("ZoomMenu",    zoomMenu);       // TRUE: Zoom menu
     prefs.putBool("ScrollDir", scrollDirection<0); // TRUE: Reverse scroll
     prefs.putUChar("UTCOffset",   utcOffsetIdx);   // UTC Offset
+    prefs.putUChar("TimeSource",  timeSourceIdx);  // Clock source
     prefs.putUChar("Squelch",     currentSquelch); // Squelch
     prefs.putUChar("FmRegion",    FmRegionIdx);    // FM region
     prefs.putUChar("UILayout",    uiLayoutIdx);    // UI Layout
     prefs.putUChar("BLEMode",     bleModeIdx);     // Bluetooth mode
     prefs.putUChar("USBMode",     usbModeIdx);     // USB mode
+    utilitySavePrefs(false);                       // Utility DB state
 
     // Done with global settings
     prefs.end();
@@ -263,11 +266,13 @@ bool prefsLoad(uint32_t items)
     zoomMenu       = prefs.getUChar("ZoomMenu", zoomMenu);      // TRUE: Zoom menu
     scrollDirection = prefs.getBool("ScrollDir", scrollDirection<0)? -1:1; // TRUE: Reverse scroll
     utcOffsetIdx   = prefs.getUChar("UTCOffset", utcOffsetIdx); // UTC Offset
+    timeSourceIdx  = prefs.getUChar("TimeSource", timeSourceIdx); // Clock source
     currentSquelch = prefs.getUChar("Squelch", currentSquelch); // Squelch
     FmRegionIdx    = prefs.getUChar("FmRegion", FmRegionIdx);   // FM region
     uiLayoutIdx    = prefs.getUChar("UILayout", uiLayoutIdx);   // UI Layout
     bleModeIdx     = prefs.getUChar("BLEMode", bleModeIdx);     // Bluetooth mode
     usbModeIdx     = prefs.getUChar("USBMode", usbModeIdx);     // USB mode
+    utilityLoadPrefs(false);                                    // Utility DB state
 
     // Done with global settings
     prefs.end();

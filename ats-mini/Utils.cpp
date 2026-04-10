@@ -5,6 +5,7 @@
 #include "Utils.h"
 #include "Menu.h"
 #include "Draw.h"
+#include "Storage.h"
 
 // SSB patch for whole SSBRX initialization string
 #include "patch_init.h"
@@ -291,6 +292,18 @@ bool clockGetHM(uint8_t *hours, uint8_t *minutes)
   }
 }
 
+bool clockGetHMS(uint8_t *hours, uint8_t *minutes, uint8_t *seconds)
+{
+  if(!clockHasBeenSet) return(false);
+  else
+  {
+    *hours   = clockHours;
+    *minutes = clockMinutes;
+    *seconds = clockSeconds;
+    return(true);
+  }
+}
+
 void clockReset()
 {
   clockHasBeenSet = false;
@@ -455,4 +468,409 @@ int getStrength(int rssi)
     if (rssi <= 76) return 16; // S9 +60
     return                 17; //>S9 +60
   }
+}
+
+enum UtilityViewMode
+{
+  UTIL_VIEW_ALL = 0,
+  UTIL_VIEW_NOW = 1,
+  UTIL_VIEW_CATEGORY = 2,
+};
+
+static const uint8_t UTIL_HOUR_ANY = 0xFF;
+
+static const char *utilityCategories[] =
+{
+  "TIME",
+  "BROADCAST",
+  "AERO",
+  "MARITIME",
+  "DIGITAL",
+  "BEACONS",
+  "MILITARY",
+  "NUMBERS",
+  "SPECIAL",
+};
+
+//
+// Utility frequencies with listening hints
+//
+static const UtilFreq utilFreqs[] =
+{
+  { 2500000,  AM,  "WWV/BPM",       "TIME",      "Low-band time signal",       18, 9,  8 },
+  { 3330000,  AM,  "CHU Canada",    "TIME",      "Canadian time signal",       18, 9,  8 },
+  { 4996000,  AM,  "RWM Russia",    "TIME",      "Russian time signal",        18, 9,  6 },
+  { 5000000,  AM,  "WWV/WWVH",      "TIME",      "Reference freq and ticks",   UTIL_HOUR_ANY, UTIL_HOUR_ANY, 10 },
+  { 7850000,  AM,  "CHU Canada",    "TIME",      "Useful around dusk",         16, 10, 7 },
+  { 10000000, AM,  "WWV/WWVH",      "TIME",      "Best all-round reference",   UTIL_HOUR_ANY, UTIL_HOUR_ANY, 10 },
+  { 14670000, AM,  "CHU Canada",    "TIME",      "Daytime path",               8, 18,  6 },
+  { 15000000, AM,  "WWV/WWVH",      "TIME",      "Excellent daytime marker",   8, 18,  9 },
+  { 20000000, AM,  "WWV/WWVH",      "TIME",      "High-band daytime marker",   9, 17,  6 },
+  { 25000000, AM,  "WWV/WWVH",      "TIME",      "Strong only on good days",   10, 16, 5 },
+
+  { 5995000,  AM,  "Radio Mali",    "BROADCAST", "Night shortwave broadcast",  18, 8,  6 },
+  { 6070000,  AM,  "Channel 292",   "BROADCAST", "European hobby station",     9, 23,  5 },
+  { 6180000,  AM,  "Brazzaville",   "BROADCAST", "African broadcast target",   18, 8,  4 },
+  { 7265000,  AM,  "Radio Vanuatu", "BROADCAST", "Pacific regional service",   5, 9,   4 },
+  { 9395000,  AM,  "WRMI",          "BROADCAST", "US shortwave relay",         18, 10, 7 },
+  { 9580000,  AM,  "Radio Farda",   "BROADCAST", "Middle East service",        15, 22, 5 },
+  { 11780000, AM,  "RNA Brasil",    "BROADCAST", "Daytime Latin America",      12, 22, 5 },
+  { 13650000, AM,  "Voice of Korea","BROADCAST", "High-band SW broadcast",     9, 17,  4 },
+  { 15105000, AM,  "BBC WS relay",  "BROADCAST", "Daytime international",      8, 18,  5 },
+  { 17790000, AM,  "CRI relay",     "BROADCAST", "High-band daytime SW",       9, 16,  3 },
+  { 3955000,  AM,  "BBC 75m zone",  "BROADCAST", "Nighttime SW window",        18, 8,  4 },
+  { 6150000,  AM,  "Europa relay",  "BROADCAST", "Often active in Europe",     17, 9,  5 },
+  { 7295000,  AM,  "Regional SW",   "BROADCAST", "Low SW broadcast segment",   17, 8,  4 },
+  { 9550000,  AM,  "China Radio",   "BROADCAST", "Strong all-round target",    12, 22, 4 },
+  { 11940000, AM,  "BBC/Relay",     "BROADCAST", "Midday SW broadcast",        9, 18,  4 },
+  { 15500000, AM,  "Voice Africa",  "BROADCAST", "Higher daytime shortwave",   9, 17,  3 },
+
+  { 2869000,  USB, "Gander Aero",   "AERO",      "N Atlantic night route",     20, 8,  8 },
+  { 2962000,  USB, "Shanwick Aero", "AERO",      "Oceanic control at night",   20, 8,  8 },
+  { 3413000,  USB, "Shannon Volmet","AERO",      "Weather and met reports",    20, 10, 8 },
+  { 4675000,  USB, "Shanwick Aero", "AERO",      "Oceanic night traffic",      19, 10, 7 },
+  { 5450000,  USB, "RAF Volmet",    "AERO",      "Military weather voice",     UTIL_HOUR_ANY, UTIL_HOUR_ANY, 8 },
+  { 5505000,  USB, "Shannon Volmet","AERO",      "Busy European weather",      UTIL_HOUR_ANY, UTIL_HOUR_ANY, 8 },
+  { 6604000,  USB, "Gander Aero",   "AERO",      "Day and dusk traffic",       14, 23, 7 },
+  { 6676000,  USB, "Bangkok Volmet","AERO",      "Asian weather broadcast",    0, 12,  5 },
+  { 8864000,  USB, "Shanwick Aero", "AERO",      "Good daytime oceanic slot",  8, 18,  7 },
+  { 8957000,  USB, "Shannon Volmet","AERO",      "One of the easiest catches", UTIL_HOUR_ANY, UTIL_HOUR_ANY, 9 },
+  { 10051000, USB, "Gander Aero",   "AERO",      "Transatlantic daytime",      8, 18,  6 },
+  { 11253000, USB, "RAF Volmet",    "AERO",      "Stable daytime weather",     8, 18,  7 },
+  { 13264000, USB, "Shannon Volmet","AERO",      "High-band daylight slot",    9, 17,  6 },
+
+  { 2182000,  USB, "Distress 2M",   "MARITIME",  "Voice distress watch",       UTIL_HOUR_ANY, UTIL_HOUR_ANY, 7 },
+  { 2187500,  USB, "GMDSS DSC",     "MARITIME",  "Digital maritime calling",   UTIL_HOUR_ANY, UTIL_HOUR_ANY, 7 },
+  { 4125000,  USB, "Distress 4M",   "MARITIME",  "Watch freq in USB",          UTIL_HOUR_ANY, UTIL_HOUR_ANY, 6 },
+  { 4207500,  USB, "GMDSS DSC",     "MARITIME",  "Digital call watch",         UTIL_HOUR_ANY, UTIL_HOUR_ANY, 6 },
+  { 6215000,  USB, "Distress 6M",   "MARITIME",  "Mid-band distress",          UTIL_HOUR_ANY, UTIL_HOUR_ANY, 6 },
+  { 6312000,  USB, "GMDSS DSC",     "MARITIME",  "Maritime digital watch",     UTIL_HOUR_ANY, UTIL_HOUR_ANY, 6 },
+  { 8291000,  USB, "Distress 8M",   "MARITIME",  "Longer-path maritime",       UTIL_HOUR_ANY, UTIL_HOUR_ANY, 5 },
+  { 8414500,  USB, "GMDSS DSC",     "MARITIME",  "Busy when condx are good",   UTIL_HOUR_ANY, UTIL_HOUR_ANY, 5 },
+  { 12290000, USB, "Distress 12M",  "MARITIME",  "High-band daytime route",    9, 17,  4 },
+  { 12577000, USB, "GMDSS DSC",     "MARITIME",  "Daytime digital watch",      9, 17,  4 },
+  { 16420000, USB, "Distress 16M",  "MARITIME",  "Best on strong high bands",  10, 16, 3 },
+  { 16804500, USB, "GMDSS DSC",     "MARITIME",  "High-band maritime DSC",     10, 16, 3 },
+
+  { 3573000,  USB, "FT8 80m",       "DIGITAL",   "Night digital watering hole",20, 8,  8 },
+  { 5357000,  USB, "FT8 60m",       "DIGITAL",   "Regional digital channel",   18, 9,  6 },
+  { 7074000,  USB, "FT8 40m",       "DIGITAL",   "Excellent after sunset",     17, 10, 9 },
+  { 10136000, USB, "FT8 30m",       "DIGITAL",   "Often active all day",       UTIL_HOUR_ANY, UTIL_HOUR_ANY, 9 },
+  { 14074000, USB, "FT8 20m",       "DIGITAL",   "Best daytime all-rounder",   7, 20, 10 },
+  { 14095600, USB, "WSPR 20m",      "DIGITAL",   "Beacon-like weak-signal",    7, 20,  7 },
+  { 14230000, USB, "SSTV Call",     "DIGITAL",   "Popular SSTV calling freq",  10, 22, 6 },
+  { 18100000, USB, "FT8 17m",       "DIGITAL",   "Good when 20m is lively",    9, 18,  7 },
+  { 21074000, USB, "FT8 15m",       "DIGITAL",   "High-band digital action",   9, 17,  6 },
+  { 24915000, USB, "FT8 12m",       "DIGITAL",   "Strong only with good condx",10, 16, 4 },
+  { 28074000, USB, "FT8 10m",       "DIGITAL",   "Watch during good solar days",10, 16, 5 },
+  { 3575000,  USB, "FT4 80m",       "DIGITAL",   "Fast digital around sunset", 20, 8,  6 },
+  { 7047500,  USB, "FT4 40m",       "DIGITAL",   "Fast digital on 40m",        17, 10, 7 },
+  { 10140000, USB, "FT4 30m",       "DIGITAL",   "FT4 on 30m",                 8, 18,  5 },
+  { 14080000, USB, "JS8Call 20m",   "DIGITAL",   "Keyboard weak-signal chat",  7, 21,  6 },
+  { 7078000,  USB, "JS8Call 40m",   "DIGITAL",   "Evening JS8 activity",       17, 10, 6 },
+  { 18104000, USB, "FT4 17m",       "DIGITAL",   "Fast digital on 17m",        9, 18,  4 },
+  { 21140000, USB, "FT4 15m",       "DIGITAL",   "High-band fast digital",     9, 17,  4 },
+
+  { 14100000, USB, "IBP 20m",       "BEACONS",   "NCDXF/IARU beacon chain",    7, 20,  9 },
+  { 18110000, USB, "IBP 17m",       "BEACONS",   "Beacon chain on 17m",        8, 18,  7 },
+  { 21150000, USB, "IBP 15m",       "BEACONS",   "Beacon chain on 15m",        9, 17,  6 },
+  { 24930000, USB, "IBP 12m",       "BEACONS",   "Beacon chain on 12m",        10, 16, 4 },
+  { 28200000, USB, "IBP 10m",       "BEACONS",   "Beacon chain on 10m",        10, 16, 4 },
+
+  { 4625000,  USB, "The Buzzer",    "MILITARY",  "UVB-76 style channel",       UTIL_HOUR_ANY, UTIL_HOUR_ANY, 8 },
+  { 4724000,  USB, "USAF HFGCS",    "MILITARY",  "Global military net",        UTIL_HOUR_ANY, UTIL_HOUR_ANY, 8 },
+  { 6761000,  USB, "USAF HFGCS",    "MILITARY",  "Common daytime slot",        UTIL_HOUR_ANY, UTIL_HOUR_ANY, 8 },
+  { 8992000,  USB, "USAF HFGCS",    "MILITARY",  "Another HFGCS channel",      UTIL_HOUR_ANY, UTIL_HOUR_ANY, 8 },
+  { 11175000, USB, "USAF HFGCS",    "MILITARY",  "High-band military",         8, 18,  6 },
+  { 13200000, USB, "USAF HFGCS",    "MILITARY",  "Best on good daytime paths", 9, 17,  5 },
+  { 15016000, USB, "USAF HFGCS",    "MILITARY",  "Upper HF military slot",     9, 16,  4 },
+
+  { 3756000,  USB, "E11 slot",      "NUMBERS",   "Numbers station range",      18, 8,  4 },
+  { 4625000,  AM,  "Voice marker",  "NUMBERS",   "Odd utility voice channel",  18, 8,  3 },
+  { 4908000,  AM,  "Numbers slot",  "NUMBERS",   "Night utility target",       18, 8,  3 },
+  { 6507000,  USB, "Numbers slot",  "NUMBERS",   "Keep an ear on this area",   18, 8,  3 },
+  { 11545000, AM,  "Numbers slot",  "NUMBERS",   "Daytime numbers window",     8, 18,  3 },
+
+  { 3340000,  AM,  "HAARP Mon",     "SPECIAL",   "Watch for tests and carriers",18, 8,  3 },
+  { 6998000,  AM,  "HAARP Mon",     "SPECIAL",   "Upper monitor frequency",    18, 8,  3 },
+  { 27185000, AM,  "CB Ch 19",      "SPECIAL",   "Road traffic chatter",       UTIL_HOUR_ANY, UTIL_HOUR_ANY, 6 },
+  { 27025000, AM,  "CB Ch 6",       "SPECIAL",   "High-power AM channel",      11, 22,  5 },
+  { 27205000, AM,  "CB Ch 20",      "SPECIAL",   "General AM activity",        UTIL_HOUR_ANY, UTIL_HOUR_ANY, 4 },
+  { 5550000,  USB, "ALE watch",     "SPECIAL",   "Listen for ALE bursts",      UTIL_HOUR_ANY, UTIL_HOUR_ANY, 4 },
+  { 8038000,  USB, "Weatherfax",    "SPECIAL",   "Marine fax transmissions",   UTIL_HOUR_ANY, UTIL_HOUR_ANY, 4 },
+  { 11039000, USB, "Weatherfax",    "SPECIAL",   "HF fax daytime window",      8, 18,  4 },
+  { 11253000, USB, "VOLMET backup", "SPECIAL",   "Useful air weather target",  8, 18,  5 },
+};
+
+static UtilityViewMode utilityViewMode = UTIL_VIEW_NOW;
+static int utilityCategoryIdx = 0;
+
+static int getUtilityLocalHour()
+{
+  uint8_t hour, minute;
+  int localMinutes = 12 * 60;
+
+  if(clockGetHM(&hour, &minute))
+  {
+    localMinutes = (int)hour * 60 + minute + getCurrentUTCOffset() * 15;
+    localMinutes = localMinutes < 0 ? localMinutes + 24 * 60 : localMinutes;
+    localMinutes = localMinutes % (24 * 60);
+  }
+
+  return localMinutes / 60;
+}
+
+static bool utilityMatchesHour(const UtilFreq *entry, int hour)
+{
+  if(entry->startHour == UTIL_HOUR_ANY || entry->endHour == UTIL_HOUR_ANY)
+    return true;
+
+  if(entry->startHour == entry->endHour)
+    return true;
+
+  if(entry->startHour < entry->endHour)
+    return hour >= entry->startHour && hour < entry->endHour;
+
+  return hour >= entry->startHour || hour < entry->endHour;
+}
+
+static int utilityVisibleDbIndex(int visibleIdx)
+{
+  int match = 0;
+  int localHour = getUtilityLocalHour();
+
+  for(int i = 0; i < getUtilFreqCount(); i++)
+  {
+    bool include = false;
+
+    switch(utilityViewMode)
+    {
+      case UTIL_VIEW_ALL:
+        include = true;
+        break;
+      case UTIL_VIEW_NOW:
+        include = utilityMatchesHour(&utilFreqs[i], localHour);
+        break;
+      case UTIL_VIEW_CATEGORY:
+        include = strcmp(utilFreqs[i].cat, utilityCategories[utilityCategoryIdx]) == 0;
+        break;
+    }
+
+    if(include)
+    {
+      if(match == visibleIdx) return i;
+      match++;
+    }
+  }
+
+  return -1;
+}
+
+static int utilityScoreEntry(const UtilFreq *entry)
+{
+  int localHour = getUtilityLocalHour();
+  int score = entry->weight * 10;
+
+  if(utilityMatchesHour(entry, localHour))
+    score += 30;
+  else
+    score -= 15;
+
+  score += propagationBandScore(entry->freq) * 18;
+
+  if(currentMode == entry->mode)
+    score += 8;
+
+  uint32_t currentHz = freqToHz(currentFrequency, currentMode) + currentBFO;
+  uint32_t diff = currentHz > entry->freq ? currentHz - entry->freq : entry->freq - currentHz;
+  if(diff < 500000) score += 6;
+  else if(diff < 2000000) score += 3;
+
+  return score;
+}
+
+int getUtilFreqCount()
+{
+  return ITEM_COUNT(utilFreqs);
+}
+
+const UtilFreq *getUtilData(int idx)
+{
+  if(idx < 0 || idx >= getUtilFreqCount()) return &utilFreqs[0];
+  return &utilFreqs[idx];
+}
+
+int getUtilityVisibleCount()
+{
+  int count = 0;
+  int localHour = getUtilityLocalHour();
+
+  for(int i = 0; i < getUtilFreqCount(); i++)
+  {
+    switch(utilityViewMode)
+    {
+      case UTIL_VIEW_ALL:
+        count++;
+        break;
+      case UTIL_VIEW_NOW:
+        count += utilityMatchesHour(&utilFreqs[i], localHour) ? 1 : 0;
+        break;
+      case UTIL_VIEW_CATEGORY:
+        count += strcmp(utilFreqs[i].cat, utilityCategories[utilityCategoryIdx]) == 0 ? 1 : 0;
+        break;
+    }
+  }
+
+  return count ? count : 1;
+}
+
+const UtilFreq *getUtilityVisibleData(int idx)
+{
+  int dbIdx = utilityVisibleDbIndex(idx);
+  if(dbIdx < 0) return &utilFreqs[0];
+  return &utilFreqs[dbIdx];
+}
+
+int getUtilityWrapIndex(int current, int delta)
+{
+  int count = getUtilityVisibleCount();
+  if(count <= 0) return 0;
+
+  current += delta;
+  current = current >= count ? current % count : current;
+  current = current < 0 ? count - ((-current) % count) : current;
+  return current == count ? 0 : current;
+}
+
+void utilitySyncSelection(int *idx)
+{
+  int count = getUtilityVisibleCount();
+  if(!idx || count <= 0) return;
+  *idx = getUtilityWrapIndex(*idx, 0);
+}
+
+void utilitySetDefaultView()
+{
+  utilityViewMode = UTIL_VIEW_NOW;
+}
+
+void utilityCycleView()
+{
+  if(utilityViewMode == UTIL_VIEW_ALL)
+  {
+    utilityViewMode = UTIL_VIEW_NOW;
+  }
+  else if(utilityViewMode == UTIL_VIEW_NOW)
+  {
+    utilityViewMode = UTIL_VIEW_CATEGORY;
+    utilityCategoryIdx = (utilityCategoryIdx + 1) % getUtilityCategoryCount();
+  }
+  else
+  {
+    utilityCategoryIdx++;
+    if(utilityCategoryIdx >= getUtilityCategoryCount())
+    {
+      utilityCategoryIdx = 0;
+      utilityViewMode = UTIL_VIEW_ALL;
+    }
+  }
+}
+
+const char *getUtilityViewLabel()
+{
+  switch(utilityViewMode)
+  {
+    case UTIL_VIEW_ALL:      return "ALL";
+    case UTIL_VIEW_NOW:      return "NOW";
+    case UTIL_VIEW_CATEGORY: return "CAT";
+  }
+  return "ALL";
+}
+
+const char *getUtilityFilterLabel()
+{
+  if(utilityViewMode == UTIL_VIEW_CATEGORY)
+    return utilityCategories[utilityCategoryIdx];
+
+  if(utilityViewMode == UTIL_VIEW_NOW)
+    return "Best At This Time";
+
+  return "All Utility Entries";
+}
+
+int getUtilityCategoryCount()
+{
+  return ITEM_COUNT(utilityCategories);
+}
+
+const char *getUtilityCategoryName(int idx)
+{
+  if(idx < 0 || idx >= getUtilityCategoryCount()) return utilityCategories[0];
+  return utilityCategories[idx];
+}
+
+int getUtilityCurrentCategory()
+{
+  return utilityCategoryIdx;
+}
+
+void utilitySetCurrentCategory(int idx)
+{
+  utilityCategoryIdx = idx < 0 ? 0 : idx % getUtilityCategoryCount();
+}
+
+void utilitySavePrefs(bool openPrefs)
+{
+  if(openPrefs) prefs.begin("settings", false, STORAGE_PARTITION);
+  prefs.putUChar("UtilView", (uint8_t)utilityViewMode);
+  prefs.putUChar("UtilCat", utilityCategoryIdx);
+  if(openPrefs) prefs.end();
+}
+
+void utilityLoadPrefs(bool openPrefs)
+{
+  if(openPrefs) prefs.begin("settings", true, STORAGE_PARTITION);
+  utilityViewMode = (UtilityViewMode)prefs.getUChar("UtilView", (uint8_t)utilityViewMode);
+  utilityCategoryIdx = prefs.getUChar("UtilCat", utilityCategoryIdx);
+  if(utilityViewMode > UTIL_VIEW_CATEGORY) utilityViewMode = UTIL_VIEW_NOW;
+  if(utilityCategoryIdx >= getUtilityCategoryCount()) utilityCategoryIdx = 0;
+  if(openPrefs) prefs.end();
+}
+
+int getUtilityRecommendationCount()
+{
+  return min(getUtilFreqCount(), 5);
+}
+
+const UtilFreq *getUtilityRecommendation(int idx)
+{
+  if(idx < 0 || idx >= getUtilityRecommendationCount()) return &utilFreqs[0];
+
+  int picked[5] = { -1, -1, -1, -1, -1 };
+
+  for(int slot = 0; slot <= idx; slot++)
+  {
+    int bestScore = -32768;
+    int bestIdx = 0;
+
+    for(int i = 0; i < getUtilFreqCount(); i++)
+    {
+      bool alreadyPicked = false;
+      for(int j = 0; j < slot; j++)
+        alreadyPicked |= picked[j] == i;
+
+      if(alreadyPicked) continue;
+
+      int score = utilityScoreEntry(&utilFreqs[i]);
+      if(score > bestScore)
+      {
+        bestScore = score;
+        bestIdx = i;
+      }
+    }
+
+    picked[slot] = bestIdx;
+  }
+
+  return &utilFreqs[picked[idx]];
 }

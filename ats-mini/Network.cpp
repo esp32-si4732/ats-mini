@@ -47,12 +47,19 @@ static bool wifiConnect();
 static void webInit();
 
 static void webSetConfig(AsyncWebServerRequest *request);
+static void webSetControl(AsyncWebServerRequest *request);
+static void webImportBackup(AsyncWebServerRequest *request);
+static String webStatusJson();
+static String webExportMemories();
+static String webExportSettings();
+static bool webApplyBackup(const String &text);
 
 static const String webInputField(const String &name, const String &value, bool pass = false);
 static const String webStyleSheet();
 static const String webPage(const String &body);
 static const String webUtcOffsetSelector();
 static const String webThemeSelector();
+static const String webClockSourceSelector();
 static const String webRadioPage();
 static const String webMemoryPage();
 static const String webConfigPage();
@@ -166,10 +173,16 @@ void netInit(uint8_t netMode, bool showStatus)
     // NTP time updates will happen every 5 minutes
     ntpClient.setUpdateInterval(5*60*1000);
 
-    // Get NTP time from the network
-    clockReset();
-    for(int j=0 ; j<10 ; j++)
-      if(ntpSyncTime()) break; else delay(500);
+    // Get NTP time from the network if allowed
+    if(timeSourceIdx != CLOCK_RDS)
+    {
+      clockReset();
+      for(int j=0 ; j<10 ; j++)
+        if(ntpSyncTime()) break; else delay(500);
+    }
+      
+    // Fetch Solar/DX Data once
+    updatePropagationData();
   }
 
   // If only connected to sync...
@@ -203,6 +216,8 @@ bool ntpIsAvailable()
 //
 bool ntpSyncTime()
 {
+  if(timeSourceIdx == CLOCK_RDS) return(false);
+
   if(WiFi.status()==WL_CONNECTED)
   {
     ntpClient.update();
@@ -321,9 +336,74 @@ static void webInit()
 
   // This method saves configuration form contents
   server.on("/setconfig", HTTP_ANY, webSetConfig);
+  server.on("/api/import", HTTP_ANY, webImportBackup);
+  server.on("/api/export/memory", HTTP_ANY, [] (AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", webExportMemories());
+  });
+  server.on("/api/export/settings", HTTP_ANY, [] (AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", webExportSettings());
+  });
+
+  // API Control
+  server.on("/api/control", HTTP_ANY, webSetControl);
+  server.on("/api/status", HTTP_ANY, [] (AsyncWebServerRequest *request) {
+    request->send(200, "application/json", webStatusJson());
+  });
 
   // Start web server
   server.begin();
+}
+
+void webSetControl(AsyncWebServerRequest *request)
+{
+  bool changed = false;
+
+  if(request->hasParam("freq"))
+  {
+    String freq = request->getParam("freq")->value();
+    if (currentMode == FM)
+        updateFrequency(freq.toFloat() * 100);
+    else
+        updateFrequency(freq.toInt());
+    changed = true;
+  }
+
+  if(request->hasParam("vol"))
+  {
+    String vol = request->getParam("vol")->value();
+    volume = constrain(vol.toInt(), 0, 63);
+    rx.setVolume(volume);
+    changed = true;
+  }
+  
+  if(request->hasParam("band"))
+  {
+    String val = request->getParam("band")->value();
+    selectBand(val.toInt());
+    changed = true;
+  }
+
+  if(changed)
+  {
+    prefsRequestSave(SAVE_ALL);
+    drawScreen();
+  }
+
+  if(request->hasParam("ajax"))
+    request->send(200, "application/json", webStatusJson());
+  else
+    request->redirect("/");
+}
+
+void webImportBackup(AsyncWebServerRequest *request)
+{
+  String payload = "";
+
+  if(request->hasParam("backup", true))
+    payload = request->getParam("backup", true)->value();
+
+  webApplyBackup(payload);
+  request->redirect("/config");
 }
 
 void webSetConfig(AsyncWebServerRequest *request)
@@ -371,6 +451,13 @@ void webSetConfig(AsyncWebServerRequest *request)
     prefsSave |= SAVE_SETTINGS;
   }
 
+  if(request->hasParam("timesource", true))
+  {
+    String source = request->getParam("timesource", true)->value();
+    timeSourceIdx = source.toInt();
+    prefsSave |= SAVE_SETTINGS;
+  }
+
   // Save theme
   if(request->hasParam("theme", true))
   {
@@ -412,54 +499,201 @@ static const String webInputField(const String &name, const String &value, bool 
   );
 }
 
+static String jsonEscape(String value)
+{
+  value.replace("\\", "\\\\");
+  value.replace("\"", "\\\"");
+  value.replace("\n", " ");
+  value.replace("\r", " ");
+  return value;
+}
+
+static String webStatusJson()
+{
+  String ip = WiFi.status()==WL_CONNECTED ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
+  String ssid = WiFi.status()==WL_CONNECTED ? WiFi.SSID() : String(apSSID);
+  String station = String(getStationName());
+  if(!station.length()) station = "--";
+  String clock = clockGet() ? String(clockGet()) : String("--:--");
+  String freq = currentMode == FM ?
+    String(currentFrequency / 100.0, 2) + " MHz" :
+    String((currentFrequency * 1000 + currentBFO) / 1000.0, 3) + " kHz";
+  String freqValue = currentMode == FM ? String(currentFrequency / 100.0, 2) : String(currentFrequency);
+  String freqMin = currentMode == FM ? String(getCurrentBand()->minimumFreq / 100.0, 2) : String(getCurrentBand()->minimumFreq);
+  String freqMax = currentMode == FM ? String(getCurrentBand()->maximumFreq / 100.0, 2) : String(getCurrentBand()->maximumFreq);
+  String freqStep = currentMode == FM ? String(getCurrentStep()->step / 100.0, 2) : String(getCurrentStep()->step);
+  static const char *clockSourceDesc[] = { "Auto", "WiFi/NTP", "RDS" };
+
+  String json = "{";
+  json += "\"ip\":\"" + jsonEscape(ip) + "\",";
+  json += "\"ssid\":\"" + jsonEscape(ssid) + "\",";
+  json += "\"freq\":\"" + jsonEscape(freq) + "\",";
+  json += "\"freqValue\":\"" + jsonEscape(freqValue) + "\",";
+  json += "\"freqMin\":\"" + jsonEscape(freqMin) + "\",";
+  json += "\"freqMax\":\"" + jsonEscape(freqMax) + "\",";
+  json += "\"freqStep\":\"" + jsonEscape(freqStep) + "\",";
+  json += "\"band\":\"" + jsonEscape(String(getCurrentBand()->bandName)) + "\",";
+  json += "\"mode\":\"" + jsonEscape(String(bandModeDesc[currentMode])) + "\",";
+  json += "\"station\":\"" + jsonEscape(station) + "\",";
+  json += "\"clock\":\"" + jsonEscape(clock) + "\",";
+  json += "\"clockSource\":\"" + jsonEscape(String(clockSourceDesc[timeSourceIdx])) + "\",";
+  json += "\"rssi\":" + String(rssi) + ",";
+  json += "\"snr\":" + String(snr) + ",";
+  json += "\"volume\":" + String(volume) + ",";
+  json += "\"battery\":\"" + String(batteryMonitor(), 2) + " V\",";
+  json += "\"wifi\":" + String(getWiFiStatus()) + ",";
+  json += "\"version\":\"" + jsonEscape(String(getVersion(true))) + "\"";
+  json += "}";
+  return json;
+}
+
+static String webExportMemories()
+{
+  String result = "# ATS-Mini memory backup\n";
+
+  for(int i = 0; i < MEMORY_COUNT; i++)
+  {
+    if(memories[i].freq && memories[i].band < getTotalBands() && memories[i].mode < getTotalModes())
+    {
+      result += "#" + String(i + 1 < 10 ? "0" : "") + String(i + 1) + ",";
+      result += String(bands[memories[i].band].bandName) + ",";
+      result += String(memories[i].freq) + ",";
+      result += String(bandModeDesc[memories[i].mode]) + "\n";
+    }
+  }
+
+  return result;
+}
+
+static String webExportSettings()
+{
+  String result = "# ATS-Mini settings backup\n";
+  result += "volume=" + String(volume) + "\n";
+  result += "wifiMode=" + String(wifiModeIdx) + "\n";
+  result += "utcOffset=" + String(utcOffsetIdx) + "\n";
+  result += "timeSource=" + String(timeSourceIdx) + "\n";
+  result += "theme=" + String(themeIdx) + "\n";
+  result += "zoomMenu=" + String(zoomMenu ? 1 : 0) + "\n";
+  result += "scrollDir=" + String(scrollDirection < 0 ? -1 : 1) + "\n";
+  result += "brightness=" + String(currentBrt) + "\n";
+  result += "sleep=" + String(currentSleep) + "\n";
+  result += "uiLayout=" + String(uiLayoutIdx) + "\n";
+  result += "usbMode=" + String(usbModeIdx) + "\n";
+  result += "bleMode=" + String(bleModeIdx) + "\n";
+  return result;
+}
+
+static bool webApplyBackup(const String &text)
+{
+  int start = 0;
+  bool changed = false;
+
+  while(start < text.length())
+  {
+    int end = text.indexOf('\n', start);
+    if(end == -1) end = text.length();
+
+    String line = text.substring(start, end);
+    line.trim();
+    start = end + 1;
+
+    if(!line.length()) continue;
+
+    if(line[0] == '#' && line.length() > 1 && isdigit(line[1]))
+    {
+      int c1 = line.indexOf(',');
+      int c2 = line.indexOf(',', c1 + 1);
+      int c3 = line.indexOf(',', c2 + 1);
+      if(c1 == -1 || c2 == -1 || c3 == -1) continue;
+
+      int slot = line.substring(1, c1).toInt();
+      String bandName = line.substring(c1 + 1, c2);
+      uint32_t freq = (uint32_t)line.substring(c2 + 1, c3).toInt();
+      String modeName = line.substring(c3 + 1);
+
+      if(slot < 1 || slot > MEMORY_COUNT) continue;
+
+      uint8_t band = 0xFF;
+      uint8_t mode = 0xFF;
+
+      for(int i = 0; i < getTotalBands(); i++)
+        if(bandName == bands[i].bandName) { band = i; break; }
+      for(int i = 0; i < getTotalModes(); i++)
+        if(modeName == bandModeDesc[i]) { mode = i; break; }
+
+      if(band == 0xFF || mode == 0xFF) continue;
+
+      memories[slot - 1].band = band;
+      memories[slot - 1].mode = mode;
+      memories[slot - 1].freq = freq;
+      changed = true;
+      continue;
+    }
+
+    if(line[0] == '#') continue;
+
+    int eq = line.indexOf('=');
+    if(eq == -1) continue;
+
+    String key = line.substring(0, eq);
+    String value = line.substring(eq + 1);
+    key.trim();
+    value.trim();
+
+    if(key == "volume") volume = constrain(value.toInt(), 0, 63);
+    else if(key == "wifiMode") wifiModeIdx = value.toInt();
+    else if(key == "utcOffset") utcOffsetIdx = value.toInt();
+    else if(key == "timeSource") timeSourceIdx = value.toInt();
+    else if(key == "theme") themeIdx = value.toInt();
+    else if(key == "zoomMenu") zoomMenu = value.toInt() != 0;
+    else if(key == "scrollDir") scrollDirection = value.toInt() < 0 ? -1 : 1;
+    else if(key == "brightness") currentBrt = value.toInt();
+    else if(key == "sleep") currentSleep = value.toInt();
+    else if(key == "uiLayout") uiLayoutIdx = value.toInt();
+    else if(key == "usbMode") usbModeIdx = value.toInt();
+    else if(key == "bleMode") bleModeIdx = value.toInt();
+    changed = true;
+  }
+
+  if(changed)
+  {
+    rx.setVolume(volume);
+    clockRefreshTime();
+    prefsRequestSave(SAVE_ALL, true);
+    drawScreen();
+  }
+
+  return changed;
+}
+
 static const String webStyleSheet()
 {
   return
-"BODY"
-"{"
-  "margin: 0;"
-  "padding: 0;"
-"}"
-"H1"
-"{"
-  "text-align: center;"
-"}"
-"TABLE"
-"{"
-  "width: 100%;"
-  "max-width: 768px;"
-  "border: 0px;"
-  "margin-left: auto;"
-  "margin-right: auto;"
-"}"
-"TH, TD"
-"{"
-  "padding: 0.5em;"
-"}"
-"TH.HEADING"
-"{"
-  "background-color: #80A0FF;"
-  "column-span: all;"
-  "text-align: center;"
-"}"
-"TD.LABEL"
-"{"
-  "text-align: right;"
-"}"
-"INPUT[type=text], INPUT[type=password], SELECT"
-"{"
-  "width: 95%;"
-  "padding: 0.5em;"
-"}"
-"INPUT[type=submit]"
-"{"
-  "width: 50%;"
-  "padding: 0.5em 0;"
-"}"
-".CENTER"
-"{"
-  "text-align: center;"
-"}"
+"body{margin:0;padding:0;background:#0f1720;color:#e5eef7;font-family:Segoe UI,Arial,sans-serif;}"
+".shell{max-width:1100px;margin:0 auto;padding:20px;}"
+".topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;}"
+".brand{font-size:28px;font-weight:700;letter-spacing:.04em;}"
+".nav a{color:#9fd3ff;text-decoration:none;margin-left:14px;}"
+".hero{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;}"
+".panel,.card,.table-card{background:linear-gradient(180deg,#14202c,#101923);border:1px solid #21384d;border-radius:18px;box-shadow:0 12px 30px rgba(0,0,0,.22);}"
+".panel{padding:20px;}"
+".freq{font-size:42px;font-weight:700;line-height:1.05;color:#f7fbff;}"
+".sub{color:#91a9bd;font-size:14px;}"
+".grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}"
+".card{padding:14px;min-height:82px;}"
+".label{display:block;color:#89a2b6;font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}"
+".value{font-size:24px;font-weight:700;color:#f4f8fb;}"
+".hint{font-size:13px;color:#8fc5f0;}"
+".actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:16px;}"
+".table-card{padding:18px;margin-top:18px;}"
+"table{width:100%;border-collapse:collapse;}"
+"th,td{padding:10px 8px;border-bottom:1px solid #1c3142;text-align:left;}"
+"th{color:#9ec4e0;font-size:12px;text-transform:uppercase;letter-spacing:.08em;}"
+"input[type=text],input[type=password],select{width:100%;padding:11px 12px;border-radius:10px;border:1px solid #2a4a63;background:#0c141d;color:#edf6ff;box-sizing:border-box;}"
+"input[type=submit],button{width:100%;padding:12px 14px;border:none;border-radius:12px;background:linear-gradient(90deg,#1f8fff,#36c2ff);color:#fff;font-weight:700;cursor:pointer;}"
+".status-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#36c2ff;margin-right:8px;}"
+".muted{color:#89a2b6;}"
+"@media(max-width:780px){.hero{grid-template-columns:1fr;}.freq{font-size:34px;}}"
 ;
 }
 
@@ -471,10 +705,10 @@ static const String webPage(const String &body)
 "<HEAD>"
   "<META CHARSET='UTF-8'>"
   "<META NAME='viewport' CONTENT='width=device-width, initial-scale=1.0'>"
-  "<TITLE>ATS-Mini Config</TITLE>"
+  "<TITLE>ATS-Mini Control Panel</TITLE>"
   "<STYLE>" + webStyleSheet() + "</STYLE>"
 "</HEAD>"
-"<BODY STYLE='font-family: sans-serif;'>" + body + "</BODY>"
+"<BODY>" + body + "</BODY>"
 "</HTML>"
 ;
 }
@@ -518,13 +752,44 @@ static const String webThemeSelector()
   return(result);
 }
 
+static const String webClockSourceSelector()
+{
+  static const char *clockSourceDesc[] = { "Auto", "WiFi/NTP", "RDS" };
+  String result = "";
+
+  for(int i = 0; i < 3; i++)
+  {
+    char text[64];
+    sprintf(text, "<OPTION VALUE='%d'%s>%s</OPTION>", i, timeSourceIdx == i ? " SELECTED" : "", clockSourceDesc[i]);
+    result += text;
+  }
+
+  return result;
+}
+
 static const String webRadioPage()
 {
   String ip = "";
   String ssid = "";
   String freq = currentMode == FM?
-    String(currentFrequency / 100.0) + "MHz "
-  : String(currentFrequency + currentBFO / 1000.0) + "kHz ";
+    String(currentFrequency / 100.0, 2) + " MHz"
+  : String((currentFrequency * 1000 + currentBFO) / 1000.0, 3) + " kHz";
+  String freqInputValue = currentMode == FM ?
+    String(currentFrequency / 100.0, 2) :
+    String(currentFrequency);
+  String freqMin = currentMode == FM ?
+    String(getCurrentBand()->minimumFreq / 100.0, 2) :
+    String(getCurrentBand()->minimumFreq);
+  String freqMax = currentMode == FM ?
+    String(getCurrentBand()->maximumFreq / 100.0, 2) :
+    String(getCurrentBand()->maximumFreq);
+  String freqStep = currentMode == FM ?
+    String(getCurrentStep()->step / 100.0, 2) :
+    String(getCurrentStep()->step);
+  String station = String(getStationName());
+  if(!station.length()) station = "--";
+  String clock = clockGet() ? String(clockGet()) : String("--:--");
+  static const char *clockSourceDesc[] = { "Auto", "WiFi/NTP", "RDS" };
 
   if(WiFi.status()==WL_CONNECTED)
   {
@@ -538,44 +803,97 @@ static const String webRadioPage()
   }
 
   return webPage(
-"<H1>ATS-Mini Pocket Receiver</H1>"
-"<P ALIGN='CENTER'>"
-  "<A HREF='/memory'>Memory</A>&nbsp;|&nbsp;<A HREF='/config'>Config</A>"
-"</P>"
-"<TABLE COLUMNS=2>"
-"<TR>"
-  "<TD CLASS='LABEL'>IP Address</TD>"
-  "<TD><A HREF='http://" + ip + "'>" + ip + "</A> (" + ssid + ")</TD>"
-"</TR>"
-"<TR>"
-  "<TD CLASS='LABEL'>MAC Address</TD>"
-  "<TD>" + String(getMACAddress()) + "</TD>"
-"</TR>"
-"<TR>"
-  "<TD CLASS='LABEL'>Firmware</TD>"
-  "<TD>" + String(getVersion(true)) + "</TD>"
-"</TR>"
-"<TR>"
-  "<TD CLASS='LABEL'>Band</TD>"
-  "<TD>" + String(getCurrentBand()->bandName) + "</TD>"
-"</TR>"
-"<TR>"
-  "<TD CLASS='LABEL'>Frequency</TD>"
-  "<TD>" + freq + String(bandModeDesc[currentMode]) + "</TD>"
-"</TR>"
-"<TR>"
-  "<TD CLASS='LABEL'>Signal Strength</TD>"
-  "<TD>" + String(rssi) + "dBuV</TD>"
-"</TR>"
-"<TR>"
-  "<TD CLASS='LABEL'>Signal to Noise</TD>"
-  "<TD>" + String(snr) + "dB</TD>"
-"</TR>"
-"<TR>"
-  "<TD CLASS='LABEL'>Battery Voltage</TD>"
-  "<TD>" + String(batteryMonitor()) + "V</TD>"
-"</TR>"
-"</TABLE>"
+"<DIV CLASS='shell'>"
+"<DIV CLASS='topbar'>"
+  "<DIV CLASS='brand'>ATS-Mini Control Panel</DIV>"
+  "<DIV CLASS='nav'><A HREF='/'>Dashboard</A><A HREF='/memory'>Memory</A><A HREF='/config'>Config</A></DIV>"
+"</DIV>"
+"<DIV CLASS='hero'>"
+  "<DIV CLASS='panel'>"
+    "<DIV CLASS='sub'><SPAN CLASS='status-dot'></SPAN><SPAN ID='ssid'>" + ssid + "</SPAN> • <SPAN ID='ip'>" + ip + "</SPAN></DIV>"
+    "<DIV CLASS='freq' ID='freq'>" + freq + "</DIV>"
+    "<DIV CLASS='sub'><SPAN ID='band'>" + String(getCurrentBand()->bandName) + "</SPAN> • <SPAN ID='mode'>" + String(bandModeDesc[currentMode]) + "</SPAN> • Station <SPAN ID='station'>" + station + "</SPAN></DIV>"
+    "<DIV CLASS='actions'>"
+      "<DIV CLASS='card'><SPAN CLASS='label'>Signal</SPAN><DIV CLASS='value'><SPAN ID='rssi'>" + String(rssi) + "</SPAN> dBuV</DIV><DIV CLASS='hint'>SNR <SPAN ID='snr'>" + String(snr) + "</SPAN> dB</DIV></DIV>"
+      "<DIV CLASS='card'><SPAN CLASS='label'>Power</SPAN><DIV CLASS='value' ID='battery'>" + String(batteryMonitor(), 2) + " V</DIV><DIV CLASS='hint'>Volume <SPAN ID='volume'>" + String(volume) + "</SPAN>/63</DIV></DIV>"
+      "<DIV CLASS='card'><SPAN CLASS='label'>Clock</SPAN><DIV CLASS='value' ID='clock'>" + clock + "</DIV><DIV CLASS='hint'>Source <SPAN ID='clockSource'>" + String(clockSourceDesc[timeSourceIdx]) + "</SPAN></DIV></DIV>"
+    "</DIV>"
+  "</DIV>"
+  "<DIV CLASS='panel'>"
+    "<SPAN CLASS='label'>Receiver</SPAN>"
+    "<DIV CLASS='value' style='font-size:20px'>" + String(getVersion(true)) + "</DIV>"
+    "<DIV CLASS='hint'>MAC " + String(getMACAddress()) + "</DIV>"
+    "<DIV CLASS='hint'>WiFi state " + String(getWiFiStatus()) + "</DIV>"
+    "<DIV CLASS='hint' style='margin-top:18px'>Live polling every " + String(ajaxInterval / 1000.0, 1) + "s</DIV>"
+  "</DIV>"
+"</DIV>"
+"<DIV CLASS='actions'>"
+  "<DIV CLASS='table-card'>"
+    "<H2>Live Control</H2>"
+    "<DIV CLASS='label'>Frequency</DIV>"
+    "<DIV CLASS='value' style='font-size:18px' ID='freqSliderLabel'>" + freq + "</DIV>"
+    "<INPUT TYPE='RANGE' ID='freqSlider' MIN='" + freqMin + "' MAX='" + freqMax + "' STEP='" + freqStep + "' VALUE='" + freqInputValue + "'>"
+    "<DIV CLASS='hint'>Range follows current band. For SSB it tunes the carrier in kHz.</DIV>"
+    "<DIV STYLE='height:16px'></DIV>"
+    "<DIV CLASS='label'>Volume</DIV>"
+    "<DIV CLASS='value' style='font-size:18px'><SPAN ID='volSliderLabel'>" + String(volume) + "</SPAN>/63</DIV>"
+    "<INPUT TYPE='RANGE' ID='volSlider' MIN='0' MAX='63' STEP='1' VALUE='" + String(volume) + "'>"
+    "<DIV STYLE='height:16px'></DIV>"
+    "<DIV CLASS='label'>Band Index</DIV>"
+    "<FORM ACTION='/api/control' METHOD='GET'>"
+      "<INPUT TYPE='TEXT' NAME='band' VALUE='" + String(bandIdx) + "'>"
+      "<DIV STYLE='margin-top:12px'><INPUT TYPE='SUBMIT' VALUE='Change Band'></DIV>"
+    "</FORM>"
+  "</DIV>"
+  "<DIV CLASS='table-card'>"
+    "<H2>Live Status</H2>"
+    "<TABLE>"
+      "<TR><TH>Field</TH><TH>Value</TH></TR>"
+      "<TR><TD>Clock Source</TD><TD>" + String(clockSourceDesc[timeSourceIdx]) + "</TD></TR>"
+      "<TR><TD>Battery</TD><TD>" + String(batteryMonitor(), 2) + " V</TD></TR>"
+      "<TR><TD>Station</TD><TD>" + station + "</TD></TR>"
+      "<TR><TD>IP / SSID</TD><TD>" + ip + " / " + ssid + "</TD></TR>"
+    "</TABLE>"
+  "</DIV>"
+"</DIV>"
+"<SCRIPT>"
+"let freqTimer=null;"
+"let volTimer=null;"
+"function sendLive(params){ fetch('/api/control?ajax=1&'+params).then(r=>r.json()).then(updateStatus).catch(()=>{}); }"
+"function formatFreqValue(v,mode){ return mode==='FM' ? Number(v).toFixed(2)+' MHz' : Number(v).toFixed(0)+' kHz'; }"
+"function scheduleFreqSend(){ const v=document.getElementById('freqSlider').value; const mode=document.getElementById('mode').textContent; document.getElementById('freqSliderLabel').textContent=formatFreqValue(v,mode); clearTimeout(freqTimer); freqTimer=setTimeout(()=>sendLive('freq='+encodeURIComponent(v)),120); }"
+"function scheduleVolSend(){ const v=document.getElementById('volSlider').value; document.getElementById('volSliderLabel').textContent=v; clearTimeout(volTimer); volTimer=setTimeout(()=>sendLive('vol='+encodeURIComponent(v)),80); }"
+"async function refreshStatus(){"
+"const r=await fetch('/api/status');"
+"const s=await r.json();"
+"updateStatus(s);"
+"}"
+"function updateStatus(s){"
+"document.getElementById('ip').textContent=s.ip;"
+"document.getElementById('ssid').textContent=s.ssid;"
+"document.getElementById('freq').textContent=s.freq;"
+"document.getElementById('band').textContent=s.band;"
+"document.getElementById('mode').textContent=s.mode;"
+"document.getElementById('station').textContent=s.station;"
+"document.getElementById('rssi').textContent=s.rssi;"
+"document.getElementById('snr').textContent=s.snr;"
+"document.getElementById('volume').textContent=s.volume;"
+"document.getElementById('battery').textContent=s.battery;"
+"document.getElementById('clock').textContent=s.clock;"
+"document.getElementById('clockSource').textContent=s.clockSource;"
+"document.getElementById('freqSlider').min=s.freqMin;"
+"document.getElementById('freqSlider').max=s.freqMax;"
+"document.getElementById('freqSlider').step=s.freqStep;"
+"document.getElementById('freqSlider').value=s.freqValue;"
+"document.getElementById('freqSliderLabel').textContent=s.freq;"
+"document.getElementById('volSlider').value=s.volume;"
+"document.getElementById('volSliderLabel').textContent=s.volume;"
+"}"
+"document.getElementById('freqSlider').addEventListener('input',scheduleFreqSend);"
+"document.getElementById('volSlider').addEventListener('input',scheduleVolSend);"
+"setInterval(refreshStatus," + String(ajaxInterval) + ");"
+"</SCRIPT>"
+"</DIV>"
 );
 }
 
@@ -601,11 +919,28 @@ static const String webMemoryPage()
   }
 
   return webPage(
-"<H1>ATS-Mini Pocket Receiver Memory</H1>"
-"<P ALIGN='CENTER'>"
-  "<A HREF='/'>Status</A>&nbsp;|&nbsp;<A HREF='/config'>Config</A>"
-"</P>"
-"<TABLE COLUMNS=2>" + items + "</TABLE>"
+"<DIV CLASS='shell'>"
+"<DIV CLASS='topbar'>"
+  "<DIV CLASS='brand'>ATS-Mini Memory</DIV>"
+  "<DIV CLASS='nav'><A HREF='/'>Dashboard</A><A HREF='/memory'>Memory</A><A HREF='/config'>Config</A></DIV>"
+"</DIV>"
+"<DIV CLASS='table-card'><H2>Saved Favorites</H2><TABLE COLUMNS=2>" + items + "</TABLE></DIV>"
+"<DIV CLASS='actions'>"
+  "<DIV CLASS='table-card'>"
+    "<H2>Export Favorites</H2>"
+    "<P CLASS='muted'>Open the plain text export or copy the contents into your notes.</P>"
+    "<P><A HREF='/api/export/memory'>Download Memory Backup</A></P>"
+    "<TEXTAREA STYLE='width:100%;min-height:180px;background:#0c141d;color:#edf6ff;border:1px solid #2a4a63;border-radius:12px;padding:12px;box-sizing:border-box'>" + webExportMemories() + "</TEXTAREA>"
+  "</DIV>"
+  "<DIV CLASS='table-card'>"
+    "<H2>Restore Favorites</H2>"
+    "<FORM ACTION='/api/import' METHOD='POST'>"
+      "<TEXTAREA NAME='backup' STYLE='width:100%;min-height:180px;background:#0c141d;color:#edf6ff;border:1px solid #2a4a63;border-radius:12px;padding:12px;box-sizing:border-box' PLACEHOLDER='#01,VHF,107900000,FM'></TEXTAREA>"
+      "<DIV STYLE='margin-top:14px'><INPUT TYPE='SUBMIT' VALUE='Restore Backup'></DIV>"
+    "</FORM>"
+  "</DIV>"
+"</DIV>"
+"</DIV>"
 );
 }
 
@@ -621,11 +956,13 @@ const String webConfigPage()
   prefs.end();
 
   return webPage(
-"<H1>ATS-Mini Config</H1>"
-"<P ALIGN='CENTER'>"
-  "<A HREF='/'>Status</A>"
-  "&nbsp;|&nbsp;<A HREF='/memory'>Memory</A>"
-"</P>"
+"<DIV CLASS='shell'>"
+"<DIV CLASS='topbar'>"
+  "<DIV CLASS='brand'>ATS-Mini Config</DIV>"
+  "<DIV CLASS='nav'><A HREF='/'>Dashboard</A><A HREF='/memory'>Memory</A><A HREF='/config'>Config</A></DIV>"
+"</DIV>"
+"<DIV CLASS='actions'>"
+"<DIV CLASS='table-card'>"
 "<FORM ACTION='/setconfig' METHOD='POST'>"
   "<TABLE COLUMNS=2>"
   "<TR><TH COLSPAN=2 CLASS='HEADING'>WiFi Network 1</TH></TR>"
@@ -672,6 +1009,12 @@ const String webConfigPage()
     "</TD>"
   "</TR>"
   "<TR>"
+    "<TD CLASS='LABEL'>Clock Source</TD>"
+    "<TD>"
+      "<SELECT NAME='timesource'>" + webClockSourceSelector() + "</SELECT>"
+    "</TD>"
+  "</TR>"
+  "<TR>"
     "<TD CLASS='LABEL'>Theme</TD>"
     "<TD>"
       "<SELECT NAME='theme'>" + webThemeSelector() + "</SELECT>"
@@ -692,5 +1035,17 @@ const String webConfigPage()
   "</TH></TR>"
   "</TABLE>"
 "</FORM>"
+"</DIV>"
+"<DIV CLASS='table-card'>"
+  "<H2>Backup & Restore</H2>"
+  "<P><A HREF='/api/export/settings'>Download Settings Backup</A></P>"
+  "<TEXTAREA STYLE='width:100%;min-height:150px;background:#0c141d;color:#edf6ff;border:1px solid #2a4a63;border-radius:12px;padding:12px;box-sizing:border-box'>" + webExportSettings() + "</TEXTAREA>"
+  "<FORM ACTION='/api/import' METHOD='POST' STYLE='margin-top:14px'>"
+    "<TEXTAREA NAME='backup' STYLE='width:100%;min-height:180px;background:#0c141d;color:#edf6ff;border:1px solid #2a4a63;border-radius:12px;padding:12px;box-sizing:border-box' PLACEHOLDER='volume=35&#10;theme=1&#10;utcOffset=16'></TEXTAREA>"
+    "<DIV STYLE='margin-top:14px'><INPUT TYPE='SUBMIT' VALUE='Apply Backup'></DIV>"
+  "</FORM>"
+"</DIV>"
+"</DIV>"
+"</DIV>"
 );
 }

@@ -15,6 +15,8 @@
 #include "Remote.h"
 #include "Ble.h"
 
+#include "Beacons.h"
+
 // SI473/5 and UI
 #define MIN_ELAPSED_TIME         5  // 300
 #define MIN_ELAPSED_RSSI_TIME  200  // RSSI check uses IN_ELAPSED_RSSI_TIME * 6 = 1.2s
@@ -312,7 +314,7 @@ int16_t accelerateEncoder(int8_t dir)
 // will reboot during attachInterrupt call. The ICACHE_RAM_ATTR macro
 // places this function into RAM.
 //
-ICACHE_RAM_ATTR void rotaryEncoder()
+void rotaryEncoder()
 {
   // Rotary encoder events
   uint8_t encoderStatus = encoder.process();
@@ -976,9 +978,13 @@ void loop()
 
   // Tick NETWORK time, connecting to WiFi if requested
   netTickTime();
-
+  
   // Run clock
   needRedraw |= clockTickTime();
+  
+  // Run beacon logic
+  beaconRun();
+  if (isBeaconMode()) needRedraw = true; // Force redraw to show beacon updates
 
   // Periodically refresh the main screen
   // This covers the case where there is nothing else triggering a refresh

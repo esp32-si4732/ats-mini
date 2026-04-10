@@ -3,7 +3,7 @@
 #include "Storage.h"
 #include "Utils.h"
 #include "Menu.h"
-#include "Ble.h"
+//#include "Ble.h"
 #include "Draw.h"
 
 //
@@ -27,6 +27,7 @@ void drawSaveIndicator(int x, int y)
 //
 void drawBleIndicator(int x, int y)
 {
+  /*
   int8_t status = getBleStatus();
 
   // If need to draw BLE icon...
@@ -44,6 +45,7 @@ void drawBleIndicator(int x, int y)
     spr.drawLine(x, y+4, x+6, y+10, color);
     spr.drawLine(x+6, y+10, x+3, y+13, color);
   }
+  */
 }
 
 //
@@ -424,6 +426,8 @@ void drawScanGraphs(uint32_t freq)
   spr.drawLine(160, 130, 160, 169, TH.scale_pointer);
 }
 
+#include "Beacons.h"
+
 //
 // Draw screen according to given command
 //
@@ -440,11 +444,26 @@ void drawScreen(const char *statusLine1, const char *statusLine2)
     drawAbout();
     return;
   }
+  
+  if(currentCmd==CMD_PROPAG)
+  {
+    drawPropagation();
+    return;
+  }
+  
+  if(currentCmd==CMD_UTILITY)
+  {
+    drawUtility();
+    return;
+  }
 
   switch(uiLayoutIdx)
   {
     case UI_SMETER:
       drawLayoutSmeter(statusLine1, statusLine2);
+      break;
+    case UI_WATERFALL:
+      drawLayoutWaterfall(statusLine1, statusLine2);
       break;
     default:
       drawLayoutDefault(statusLine1, statusLine2);
