@@ -752,9 +752,12 @@ void loop()
 
   ButtonTracker::State pb1st = pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW);
 
+  bleUpdate(bleModeIdx);
+  pb1st.isPressed |= bleIsPressed(bleModeIdx);
+
   // Periodically print status to remote interfaces
   serialTickTime(&Serial, &remoteSerialState, usbModeIdx);
-  remoteBLETickTime(&BLESerial, &remoteBLEState, bleModeIdx);
+  remoteBLETickTime(&remoteBLEState, bleModeIdx);
 
   // if(encCount && getCpuFrequencyMhz()!=240) setCpuFrequencyMhz(240);
 
@@ -762,15 +765,17 @@ void loop()
   int ser_event = serialDoCommand(&Serial, &remoteSerialState, usbModeIdx);
   needRedraw |= !!(ser_event & REMOTE_CHANGED);
   pb1st.wasClicked |= !!(ser_event & REMOTE_CLICK);
+  pb1st.wasShortPressed |= !!(ser_event & REMOTE_SHORT_PRESS);
   int ser_direction = ser_event >> REMOTE_DIRECTION;
   encCount = ser_direction? ser_direction : encCount;
   encCountAccel = ser_direction? ser_direction : encCountAccel;
   if(ser_event & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
 
   // Receive and execute BLE command
-  int ble_event = bleDoCommand(&BLESerial, &remoteBLEState, bleModeIdx);
+  int ble_event = bleDoCommand(&remoteBLEState, bleModeIdx);
   needRedraw |= !!(ble_event & REMOTE_CHANGED);
   pb1st.wasClicked |= !!(ble_event & REMOTE_CLICK);
+  pb1st.wasShortPressed |= !!(ble_event & REMOTE_SHORT_PRESS);
   int ble_direction = ble_event >> REMOTE_DIRECTION;
   encCount = ble_direction? ble_direction : encCount;
   encCountAccel = ble_direction? ble_direction : encCountAccel;

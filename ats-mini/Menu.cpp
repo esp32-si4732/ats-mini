@@ -283,7 +283,7 @@ int getTotalUSBModes() { return(ITEM_COUNT(usbModeDesc)); }
 
 uint8_t bleModeIdx = BLE_OFF;
 static const char *bleModeDesc[] =
-{ "Off", "Ad hoc" };
+{ "Off", "Ad hoc", "HID" };
 
 int getTotalBleModes() { return(ITEM_COUNT(bleModeDesc)); }
 

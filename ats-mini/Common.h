@@ -73,6 +73,7 @@
 // Bluetooth modes
 #define BLE_OFF        0 // Bluetooth is disabled
 #define BLE_ADHOC      1 // Ad hoc BLE serial protocol
+#define BLE_HID        2 // BLE HID central
 
 // USB modes
 #define USB_OFF        0 // USB is disabled
@@ -214,6 +215,7 @@ void netTickTime();
 #define REMOTE_CHANGED   1
 #define REMOTE_CLICK     2
 #define REMOTE_PREFS     4
+#define REMOTE_SHORT_PRESS 8
 #define REMOTE_DIRECTION 8
 
 #endif // COMMON_H
