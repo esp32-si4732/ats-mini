@@ -39,6 +39,7 @@ void BleHidCentral::configureSecurity()
 {
   security.setCapability(ESP_IO_CAP_NONE);
   security.setAuthenticationMode(true, false, true);
+  BLESecurity::setForceAuthentication(false);
   BLEDevice::setSecurityCallbacks(&securityCallbacks);
 }
 
@@ -75,7 +76,9 @@ void BleHidCentral::onScanStart()
 
 bool BleHidCentral::matches(BLEAdvertisedDevice& device)
 {
-  return device.haveServiceUUID() && device.isAdvertisingService(hidServiceUUID);
+  return device.isConnectable() &&
+         device.haveServiceUUID() &&
+         device.isAdvertisingService(hidServiceUUID);
 }
 
 bool BleHidCentral::discover()
