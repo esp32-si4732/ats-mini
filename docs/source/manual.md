@@ -178,7 +178,8 @@ Alternatively, open the following web terminal in Google Chrome: <https://www.se
 |--------------|---------------------|----------------------------------------------------------------------------------------------|
 | <kbd>R</kbd> | Rotate Encoder Up   | Tune the frequency up, scroll the menu, etc                                                  |
 | <kbd>r</kbd> | Rotate Encoder Down | Tune the frequency down, scroll the menu, etc                                                |
-| <kbd>e</kbd> | Encoder Button      | The <kbd>e</kbd> emulates a single push and can not be used for preferences reset or long press   |
+| <kbd>e</kbd> | Encoder Click       | The <kbd>e</kbd> emulates a single click and can not be used for preferences reset or long press |
+| <kbd>E</kbd> | Encoder Short Press | The <kbd>E</kbd> emulates a short press (>0.5 sec)                                             |
 | <kbd>V</kbd> | Volume Up           |                                                                                              |
 | <kbd>v</kbd> | Volume Down         |                                                                                              |
 | <kbd>B</kbd> | Next Band           |                                                                                              |

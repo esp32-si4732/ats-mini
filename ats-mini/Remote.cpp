@@ -328,6 +328,9 @@ int remoteDoCommand(Stream* stream, RemoteState* state, char key)
     case 'e': // Encoder Push Button
       event |= REMOTE_CLICK;
       break;
+    case 'E': // Encoder Short Press
+      event |= REMOTE_SHORT_PRESS;
+      break;
     case 'B': // Band Up
       doBand(1);
       event |= REMOTE_PREFS;
