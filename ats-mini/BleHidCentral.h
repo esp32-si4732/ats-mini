@@ -6,19 +6,18 @@
 #define BLE_SCAN_INTERVAL 100
 #define BLE_SCAN_WINDOW 100
 
-struct BleKnobInput {
+struct BleHidState {
+  bool isPressed = false;
   int16_t rotation = 0;
-  bool clicked = false;
-  bool shortPressed = false;
+  bool wasClicked = false;
+  bool wasShortPressed = false;
 };
 
 class BleHidCentral : public BleCentral {
 public:
   BleHidCentral() = default;
 
-  bool available() const;
-  bool read(BleKnobInput& input);
-  bool isPressed() const;
+  BleHidState update();
 
 protected:
   void configureSecurity() override;
@@ -46,7 +45,7 @@ private:
   void handleInputReport(const uint8_t* data, size_t length);
   void holdVirtualPush();
 
-  BleKnobInput pendingInput{};
+  BleHidState pendingState{};
   uint32_t virtualPushUntil = 0;
   uint32_t playPauseClickDeadline = 0;
   bool scanNextPressed = false;

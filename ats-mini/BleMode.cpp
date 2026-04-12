@@ -76,9 +76,9 @@ int bleLoop(uint8_t bleMode)
   BLEHid.loop();
   if (!BLEHid.isConnected()) return 0;
 
-  BleKnobInput input;
-  int event = BLEHid.isPressed() ? REMOTE_PRESSED : 0;
-  if (!BLEHid.read(input)) return event;
+  BleHidState input = BLEHid.update();
+  int event = input.isPressed ? REMOTE_PRESSED : 0;
+  if (!input.rotation && !input.wasClicked && !input.wasShortPressed) return event;
 
   event |= REMOTE_CHANGED;
   if (input.rotation)
@@ -86,9 +86,9 @@ int bleLoop(uint8_t bleMode)
     event |= input.rotation << REMOTE_DIRECTION;
     event |= REMOTE_PREFS;
   }
-  if (input.clicked)
+  if (input.wasClicked)
     event |= REMOTE_CLICK;
-  if (input.shortPressed)
+  if (input.wasShortPressed)
     event |= REMOTE_SHORT_PRESS;
   return event;
 }

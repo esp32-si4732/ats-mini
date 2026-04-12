@@ -18,30 +18,21 @@ static constexpr uint16_t consumerBitsPlayPause = 1u << 5;
 
 BleHidCentral* BleHidCentral::activeInstance = nullptr;
 
-bool BleHidCentral::available() const
+BleHidState BleHidCentral::update()
 {
-  return pendingInput.rotation || pendingInput.clicked || pendingInput.shortPressed;
-}
-
-bool BleHidCentral::read(BleKnobInput& input)
-{
-  if (!pendingInput.rotation && !pendingInput.clicked && !pendingInput.shortPressed &&
+  if (!pendingState.rotation && !pendingState.wasClicked && !pendingState.wasShortPressed &&
       playPauseClickPending && (int32_t)(millis() - playPauseClickDeadline) >= 0)
   {
-    pendingInput.clicked = true;
+    pendingState.wasClicked = true;
     playPauseClickPending = false;
     playPauseClickDeadline = 0;
   }
 
-  if (!available()) return false;
-  input = pendingInput;
-  pendingInput = {};
-  return true;
-}
-
-bool BleHidCentral::isPressed() const
-{
-  return scanNextPressed || scanPreviousPressed || (virtualPushUntil && (int32_t)(virtualPushUntil - millis()) > 0);
+  pendingState.isPressed =
+    scanNextPressed || scanPreviousPressed || (virtualPushUntil && (int32_t)(virtualPushUntil - millis()) > 0);
+  BleHidState result = pendingState;
+  pendingState = {};
+  return result;
 }
 
 void BleHidCentral::configureSecurity()
@@ -116,7 +107,7 @@ bool BleHidCentral::discover()
 
 void BleHidCentral::resetPeerState()
 {
-  pendingInput = {};
+  pendingState = {};
   virtualPushUntil = 0;
   playPauseClickDeadline = 0;
   scanNextPressed = false;
@@ -169,21 +160,21 @@ void BleHidCentral::handleInputReport(const uint8_t* data, size_t length)
   else
     return;
 
-  if (hasVolumeIncrement && !volumeIncrementPressed && pendingInput.rotation < 32767)
-    pendingInput.rotation++;
+  if (hasVolumeIncrement && !volumeIncrementPressed && pendingState.rotation < 32767)
+    pendingState.rotation++;
 
-  if (hasVolumeDecrement && !volumeDecrementPressed && pendingInput.rotation > -32768)
-    pendingInput.rotation--;
+  if (hasVolumeDecrement && !volumeDecrementPressed && pendingState.rotation > -32768)
+    pendingState.rotation--;
 
-  if (hasScanNext && !scanNextPressed && pendingInput.rotation < 32767)
+  if (hasScanNext && !scanNextPressed && pendingState.rotation < 32767)
   {
-    pendingInput.rotation++;
+    pendingState.rotation++;
     holdVirtualPush();
   }
 
-  if (hasScanPrevious && !scanPreviousPressed && pendingInput.rotation > -32768)
+  if (hasScanPrevious && !scanPreviousPressed && pendingState.rotation > -32768)
   {
-    pendingInput.rotation--;
+    pendingState.rotation--;
     holdVirtualPush();
   }
 
@@ -191,7 +182,7 @@ void BleHidCentral::handleInputReport(const uint8_t* data, size_t length)
   {
     if (playPauseClickPending && (int32_t)(millis() - playPauseClickDeadline) < 0)
     {
-      pendingInput.shortPressed = true;
+      pendingState.wasShortPressed = true;
       playPauseClickPending = false;
       playPauseClickDeadline = 0;
     }
