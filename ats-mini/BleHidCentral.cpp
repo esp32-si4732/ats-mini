@@ -53,8 +53,8 @@ void BleHidCentral::configureSecurity()
 
 void BleHidCentral::configureScan(BLEScan& scan)
 {
-  scan.setInterval(1349);
-  scan.setWindow(449);
+  scan.setInterval(BLE_SCAN_INTERVAL);
+  scan.setWindow(BLE_SCAN_WINDOW);
   scan.setActiveScan(true);
 }
 
@@ -78,6 +78,8 @@ void BleHidCentral::onScanStart()
   }
   else
     drawScreen("Scanning for BLE HID...");
+
+  delay(500);
 }
 
 bool BleHidCentral::matches(BLEAdvertisedDevice& device)

@@ -70,7 +70,7 @@ int bleLoop(uint8_t bleMode)
   {
     drawScreen();
     drawScreen("Connecting BLE HID", BLEHid.peerName());
-    delay(1000);
+    delay(500);
   }
 
   BLEHid.loop();

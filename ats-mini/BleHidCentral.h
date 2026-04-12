@@ -3,6 +3,9 @@
 
 #include "BleCentral.h"
 
+#define BLE_SCAN_INTERVAL 100
+#define BLE_SCAN_WINDOW 100
+
 struct BleKnobInput {
   int16_t rotation = 0;
   bool clicked = false;

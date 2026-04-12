@@ -6,7 +6,7 @@
 #include <BLEScan.h>
 #include <BLESecurity.h>
 
-#define DEFAULT_SCAN_DURATION 5
+#define BLE_SCAN_DURATION 10
 #define MAX_SCAN_ATTEMPTS 3
 
 class BleCentral : protected BLEClientCallbacks, protected BLEAdvertisedDeviceCallbacks {
@@ -41,10 +41,10 @@ protected:
   BLEClient* client() const;
   BLEAdvertisedDevice* peer() const;
 
-  void startScan(uint32_t seconds = DEFAULT_SCAN_DURATION);
+  void startScan(uint32_t seconds = BLE_SCAN_DURATION);
   void stopScan();
 
-  uint32_t scanDuration = DEFAULT_SCAN_DURATION;
+  uint32_t scanDuration = BLE_SCAN_DURATION;
 
   void onConnect(BLEClient* client) override;
   void onDisconnect(BLEClient* client) override;

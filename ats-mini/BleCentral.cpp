@@ -115,9 +115,6 @@ void BleCentral::startScan(uint32_t seconds)
       activeScanner = nullptr;
     return;
   }
-
-  while (started && activeScanner == this && scan->isScanning())
-    delay(5);
 }
 
 void BleCentral::stopScan()
