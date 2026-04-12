@@ -28,11 +28,14 @@ void BlePeripheral::end()
   started = false;
   BLEServer* currentServer = server();
   if (currentServer)
+  {
     currentServer->getAdvertising()->stop();
+    std::map<uint16_t, conn_status_t> peers = currentServer->getPeerDevices(false);
+    for (auto const& peer : peers)
+      currentServer->disconnect(peer.first);
+  }
 
   destroyServices();
-
-  BLEDevice::deinit(false);
 }
 
 bool BlePeripheral::isStarted() const

@@ -99,6 +99,8 @@ void BleUartPeripheral::configureDefaults()
 
 void BleUartPeripheral::createServices()
 {
+  if (service != nullptr) return;
+
   BLEServer* currentServer = server();
   if (currentServer == nullptr) return;
 
@@ -112,29 +114,13 @@ void BleUartPeripheral::createServices()
 
 void BleUartPeripheral::destroyServices()
 {
-  BLEServer* currentServer = server();
-  if ((currentServer == nullptr) || (service == nullptr)) return;
-
-  service->stop();
-
-  if (rxCh)
-  {
-    service->removeCharacteristic(rxCh, true);
-    rxCh = nullptr;
-  }
-
-  if (txCh)
-  {
-    service->removeCharacteristic(txCh, true);
-    txCh = nullptr;
-  }
-
-  currentServer->removeService(service);
-  service = nullptr;
+  resetTxSession();
+  rxBuf.flush();
 }
 
 void BleUartPeripheral::configureAdvertising(BLEAdvertising& advertising)
 {
+  advertising.removeServiceUUID(UART_SERVICE_UUID);
   advertising.addServiceUUID(UART_SERVICE_UUID);
 }
 

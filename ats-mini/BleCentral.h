@@ -59,6 +59,7 @@ private:
   BLEAdvertisedDevice* peer_ = nullptr;
   String peerName_;
   bool started = false;
+  bool scanActive_ = false;
   bool pendingScanRestart = false;
 
   static BleCentral* activeScanner;
