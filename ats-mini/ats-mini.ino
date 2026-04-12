@@ -90,12 +90,6 @@ uint8_t  rssi = 0;
 uint8_t  snr  = 0;
 
 //
-// Remotes
-//
-RemoteState remoteSerialState;
-RemoteState remoteBLEState;
-
-//
 // Devices
 //
 Rotary encoder  = Rotary(ENCODER_PIN_B, ENCODER_PIN_A);
@@ -752,18 +746,12 @@ void loop()
 
   ButtonTracker::State pb1st = pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW);
 
-  bleUpdate(bleModeIdx);
-  pb1st.isPressed |= bleIsPressed(bleModeIdx);
-
-  // Periodically print status to remote interfaces
-  serialTickTime(&Serial, &remoteSerialState, usbModeIdx);
-  remoteBLETickTime(&remoteBLEState, bleModeIdx);
-
   // if(encCount && getCpuFrequencyMhz()!=240) setCpuFrequencyMhz(240);
 
   // Receive and execute serial command
-  int ser_event = serialDoCommand(&Serial, &remoteSerialState, usbModeIdx);
+  int ser_event = serialLoop(usbModeIdx);
   needRedraw |= !!(ser_event & REMOTE_CHANGED);
+  pb1st.isPressed |= !!(ser_event & REMOTE_PRESSED);
   pb1st.wasClicked |= !!(ser_event & REMOTE_CLICK);
   pb1st.wasShortPressed |= !!(ser_event & REMOTE_SHORT_PRESS);
   int ser_direction = ser_event >> REMOTE_DIRECTION;
@@ -772,8 +760,9 @@ void loop()
   if(ser_event & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
 
   // Receive and execute BLE command
-  int ble_event = bleDoCommand(&remoteBLEState, bleModeIdx);
+  int ble_event = bleLoop(bleModeIdx);
   needRedraw |= !!(ble_event & REMOTE_CHANGED);
+  pb1st.isPressed |= !!(ble_event & REMOTE_PRESSED);
   pb1st.wasClicked |= !!(ble_event & REMOTE_CLICK);
   pb1st.wasShortPressed |= !!(ble_event & REMOTE_SHORT_PRESS);
   int ble_direction = ble_event >> REMOTE_DIRECTION;
@@ -786,6 +775,14 @@ void loop()
 
   // Activate push and rotate mode (can span multiple loop iterations until the button is released)
   if (encCount && pb1st.isPressed) pushAndRotate = true;
+
+  // Deactivate push and rotate mode as soon as the button is released so
+  // click handling in this loop iteration follows the normal path.
+  if(!pb1st.isPressed && pushAndRotate)
+  {
+    pushAndRotate = false;
+    needRedraw = true;
+  }
 
   // If push and rotate mode is active...
   if(pushAndRotate)
@@ -917,13 +914,6 @@ void loop()
         needRedraw = true;
       }
     }
-  }
-
-  // Deactivate push and rotate mode
-  if(!pb1st.isPressed && pushAndRotate)
-  {
-    pushAndRotate = false;
-    needRedraw = true;
   }
 
   // Disable commands control

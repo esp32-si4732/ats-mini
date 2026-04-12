@@ -5,6 +5,8 @@
 #include "Draw.h"
 #include "Remote.h"
 
+static RemoteState remoteSerialState;
+
 static uint8_t char2nibble(char key)
 {
   if((key >= '0') && (key <= '9')) return(key - '0');
@@ -431,18 +433,18 @@ int remoteDoCommand(Stream* stream, RemoteState* state, char key)
   return(event | REMOTE_CHANGED);
 }
 
-int serialDoCommand(Stream* stream, RemoteState* state, uint8_t usbMode)
+static int serialLoop(Stream* stream, RemoteState* state, uint8_t usbMode)
 {
   if(usbMode == USB_OFF) return 0;
 
-  if (Serial.available())
-    return remoteDoCommand(stream, state, Serial.read());
+  remoteTickTime(stream, state);
+
+  if (stream->available())
+    return remoteDoCommand(stream, state, stream->read());
   return 0;
 }
 
-void serialTickTime(Stream* stream, RemoteState* state, uint8_t usbMode)
+int serialLoop(uint8_t usbMode)
 {
-  if(usbMode == USB_OFF) return;
-
-  remoteTickTime(stream, state);
+  return serialLoop(&Serial, &remoteSerialState, usbMode);
 }

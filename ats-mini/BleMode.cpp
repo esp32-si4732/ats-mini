@@ -7,6 +7,7 @@
 
 static BleUartPeripheral BLESerial;
 static BleHidCentral BLEHid;
+static RemoteState remoteBLEState;
 
 //
 // Get current connection status
@@ -35,26 +36,6 @@ void bleStop()
     BLEHid.end();
 }
 
-void bleUpdate(uint8_t bleMode)
-{
-  if (bleMode == BLE_HID)
-  {
-    if (BLEHid.isStarted() && !BLEHid.isConnected() && BLEHid.pendingConnect && BLEHid.peerName())
-    {
-      drawScreen();
-      drawScreen("Connecting BLE HID", BLEHid.peerName());
-      delay(1000);
-    }
-
-    BLEHid.loop();
-  }
-}
-
-bool bleIsPressed(uint8_t bleMode)
-{
-  return (bleMode == BLE_HID) && BLEHid.isConnected() && BLEHid.isPressed();
-}
-
 void bleInit(uint8_t bleMode)
 {
   bleStop();
@@ -70,23 +51,36 @@ void bleInit(uint8_t bleMode)
   }
 }
 
-int bleDoCommand(RemoteState* state, uint8_t bleMode)
+int bleLoop(uint8_t bleMode)
 {
   if (bleMode == BLE_ADHOC)
   {
+    if (BLESerial.isConnected())
+      remoteTickTime(&BLESerial, &remoteBLEState);
     if (!BLESerial.isConnected()) return 0;
     if (BLESerial.available())
-      return remoteDoCommand(&BLESerial, state, BLESerial.read());
+      return remoteDoCommand(&BLESerial, &remoteBLEState, BLESerial.read());
     return 0;
   }
 
-  if (bleMode != BLE_HID) return 0;
+  if (bleMode != BLE_HID)
+    return 0;
+
+  if (BLEHid.isStarted() && !BLEHid.isConnected() && BLEHid.pendingConnect && BLEHid.peerName())
+  {
+    drawScreen();
+    drawScreen("Connecting BLE HID", BLEHid.peerName());
+    delay(1000);
+  }
+
+  BLEHid.loop();
   if (!BLEHid.isConnected()) return 0;
 
   BleKnobInput input;
-  if (!BLEHid.read(input)) return 0;
+  int event = BLEHid.isPressed() ? REMOTE_PRESSED : 0;
+  if (!BLEHid.read(input)) return event;
 
-  int event = REMOTE_CHANGED;
+  event |= REMOTE_CHANGED;
   if (input.rotation)
   {
     event |= input.rotation << REMOTE_DIRECTION;
@@ -96,13 +90,5 @@ int bleDoCommand(RemoteState* state, uint8_t bleMode)
     event |= REMOTE_CLICK;
   if (input.shortPressed)
     event |= REMOTE_SHORT_PRESS;
-  (void)state;
   return event;
-}
-
-void remoteBLETickTime(RemoteState* state, uint8_t bleMode)
-{
-  if (bleMode != BLE_ADHOC) return;
-  if (BLESerial.isConnected())
-    remoteTickTime(&BLESerial, state);
 }
