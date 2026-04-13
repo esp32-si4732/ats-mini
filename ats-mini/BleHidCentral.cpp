@@ -1,9 +1,29 @@
+#include <functional>
+#include <map>
+#include <string>
+
+// Arduino-ESP32's NimBLE wrapper leaks BLERemoteDescriptor objects when HID notify
+// subscription goes through the normal public path:
+//   registerForNotify() -> subscribe() -> setNotify() -> retrieveDescriptors()
+// The wrapper scans descriptors from the current characteristic handle to the end
+// of the whole service, allocates descriptor objects before inserting them into a
+// UUID-keyed map, and orphaned duplicates are never reclaimed.
+//
+// We keep the hack confined to this translation unit and use it only to call the
+// private filtered descriptor lookup path with UUID 0x2902 (CCCD) before the public
+// subscribe() call. That forces the wrapper onto its early-exit path and avoids the
+// broad leaking descriptor walk.
+#define private public
+#include <BLEClient.h>
+#undef private
+
 #include "BleHidCentral.h"
 #include "Draw.h"
 #include <string.h>
 
 static BLEUUID hidServiceUUID((uint16_t)0x1812);
 static BLEUUID reportCharUUID((uint16_t)0x2A4D);
+static BLEUUID cccdUUID((uint16_t)0x2902);
 
 static constexpr uint16_t consumerUsagePlayPause = 0x00CD;
 static constexpr uint16_t consumerUsageScanNextTrack = 0x00B5;
@@ -17,6 +37,18 @@ static constexpr uint16_t consumerBitsScanNextTrack = 1u << 4;
 static constexpr uint16_t consumerBitsPlayPause = 1u << 5;
 
 BleHidCentral* BleHidCentral::activeInstance = nullptr;
+
+static bool subscribeWithFilteredCccd(BLERemoteCharacteristic* characteristic, notify_callback callback)
+{
+  if (characteristic == nullptr) return false;
+
+  // Preload only the CCCD so the later public subscribe() call skips the wrapper's
+  // broad descriptor discovery path.
+  if (!characteristic->m_descriptorsRetrieved && !characteristic->retrieveDescriptors(&cccdUUID))
+    return false;
+
+  return characteristic->subscribe(true, callback, true);
+}
 
 BleHidState BleHidCentral::update()
 {
@@ -99,7 +131,8 @@ bool BleHidCentral::discover()
     BLERemoteCharacteristic* characteristic = entry.second;
     if (!characteristic->getUUID().equals(reportCharUUID) || !characteristic->canNotify()) continue;
 
-    characteristic->registerForNotify(notifyCallback);
+    if (!subscribeWithFilteredCccd(characteristic, notifyCallback))
+      return false;
     subscribed = true;
   }
 
