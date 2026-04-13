@@ -35,6 +35,14 @@ private:
     ConsumerUsage16,
   };
 
+  enum PressBit : uint8_t {
+    ScanNextPressed = 1 << 0,
+    ScanPreviousPressed = 1 << 1,
+    VolumeIncrementPressed = 1 << 2,
+    VolumeDecrementPressed = 1 << 3,
+    PlayPausePressed = 1 << 4,
+  };
+
   static constexpr uint32_t virtualPushHoldMs = 150;
   static constexpr uint32_t playPauseDoubleClickMs = 400;
 
@@ -59,12 +67,7 @@ private:
   uint16_t reportHandle_ = 0;
   uint32_t virtualPushUntil = 0;
   uint32_t playPauseClickDeadline = 0;
-  bool scanNextPressed = false;
-  bool scanPreviousPressed = false;
-  bool volumeIncrementPressed = false;
-  bool volumeDecrementPressed = false;
-  bool playPauseClickPending = false;
-  bool playPausePressed = false;
+  uint8_t pressedMask_ = 0;
   BLESecurity security;
   SecurityCallbacks securityCallbacks;
 

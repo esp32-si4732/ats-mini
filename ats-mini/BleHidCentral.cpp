@@ -175,15 +175,15 @@ bool BleHidCentral::tryMatchVol20(
 BleHidState BleHidCentral::update()
 {
   if (!pendingState.rotation && !pendingState.wasClicked && !pendingState.wasShortPressed &&
-      playPauseClickPending && (int32_t)(millis() - playPauseClickDeadline) >= 0)
+      playPauseClickDeadline && (int32_t)(millis() - playPauseClickDeadline) >= 0)
   {
     pendingState.wasClicked = true;
-    playPauseClickPending = false;
     playPauseClickDeadline = 0;
   }
 
   pendingState.isPressed =
-    scanNextPressed || scanPreviousPressed || (virtualPushUntil && (int32_t)(virtualPushUntil - millis()) > 0);
+    (pressedMask_ & (ScanNextPressed | ScanPreviousPressed)) ||
+    (virtualPushUntil && (int32_t)(virtualPushUntil - millis()) > 0);
   BleHidState result = pendingState;
   pendingState = {};
   return result;
@@ -280,12 +280,7 @@ void BleHidCentral::resetPeerState()
   clearDecoder();
   virtualPushUntil = 0;
   playPauseClickDeadline = 0;
-  scanNextPressed = false;
-  scanPreviousPressed = false;
-  volumeIncrementPressed = false;
-  volumeDecrementPressed = false;
-  playPauseClickPending = false;
-  playPausePressed = false;
+  pressedMask_ = 0;
   if (activeInstance == this)
     activeInstance = nullptr;
 }
@@ -348,6 +343,12 @@ void BleHidCentral::handleInputReport(BLERemoteCharacteristic* characteristic, c
 
   if (!decoded) return;
 
+  bool volumeIncrementPressed = !!(pressedMask_ & VolumeIncrementPressed);
+  bool volumeDecrementPressed = !!(pressedMask_ & VolumeDecrementPressed);
+  bool scanNextPressed = !!(pressedMask_ & ScanNextPressed);
+  bool scanPreviousPressed = !!(pressedMask_ & ScanPreviousPressed);
+  bool playPausePressed = !!(pressedMask_ & PlayPausePressed);
+
   if (hasVolumeIncrement && !volumeIncrementPressed && pendingState.rotation < 32767)
     pendingState.rotation++;
 
@@ -368,24 +369,29 @@ void BleHidCentral::handleInputReport(BLERemoteCharacteristic* characteristic, c
 
   if (!hasPlayPause && playPausePressed)
   {
-    if (playPauseClickPending && (int32_t)(millis() - playPauseClickDeadline) < 0)
+    if (playPauseClickDeadline && (int32_t)(millis() - playPauseClickDeadline) < 0)
     {
       pendingState.wasShortPressed = true;
-      playPauseClickPending = false;
       playPauseClickDeadline = 0;
     }
     else
     {
-      playPauseClickPending = true;
       playPauseClickDeadline = millis() + playPauseDoubleClickMs;
     }
   }
 
-  volumeIncrementPressed = hasVolumeIncrement;
-  volumeDecrementPressed = hasVolumeDecrement;
-  scanNextPressed = hasScanNext;
-  scanPreviousPressed = hasScanPrevious;
-  playPausePressed = hasPlayPause;
+  auto setPressed = [this](uint8_t bit, bool isPressed) {
+    if (isPressed)
+      pressedMask_ |= bit;
+    else
+      pressedMask_ &= ~bit;
+  };
+
+  setPressed(VolumeIncrementPressed, hasVolumeIncrement);
+  setPressed(VolumeDecrementPressed, hasVolumeDecrement);
+  setPressed(ScanNextPressed, hasScanNext);
+  setPressed(ScanPreviousPressed, hasScanPrevious);
+  setPressed(PlayPausePressed, hasPlayPause);
 }
 
 void BleHidCentral::holdVirtualPush()
