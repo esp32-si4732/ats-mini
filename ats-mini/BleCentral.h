@@ -28,9 +28,9 @@ protected:
   virtual void configureSecurity() {}
   virtual void configureScan(BLEScan& scan) {}
   virtual void configureClient() {}
-  virtual bool matches(BLEAdvertisedDevice& device) = 0;
-  virtual bool discover() = 0;
-  virtual void resetPeerState() = 0;
+  virtual bool acceptsAdvertisement(BLEAdvertisedDevice& device) = 0;
+  virtual bool setupConnectedPeer() = 0;
+  virtual void resetConnectedPeerState() = 0;
 
   virtual void onConnectFailed() {}
   virtual void onScanStart() {}

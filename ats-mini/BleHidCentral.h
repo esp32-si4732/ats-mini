@@ -23,9 +23,9 @@ protected:
   void configureSecurity() override;
   void configureScan(BLEScan& scan) override;
   void configureClient() override;
-  bool matches(BLEAdvertisedDevice& device) override;
-  bool discover() override;
-  void resetPeerState() override;
+  bool acceptsAdvertisement(BLEAdvertisedDevice& device) override;
+  bool setupConnectedPeer() override;
+  void resetConnectedPeerState() override;
   void onScanStart() override;
 
 private:
@@ -58,7 +58,9 @@ private:
 
   static bool tryMatchMiniKeyboard(BLERemoteService* deviceInfoService, DecoderKind& decoder, uint16_t& reportHandle);
   static bool tryMatchVol20(BLERemoteService* deviceInfoService, DecoderKind& decoder, uint16_t& reportHandle);
-  void clearDecoder();
+  bool matchConnectedPeer(BLEClient& client, DecoderKind& decoder, uint16_t& reportHandle);
+  bool subscribeToInputReport(BLEClient& client, uint16_t reportHandle);
+  void clearReportBinding();
   void handleInputReport(BLERemoteCharacteristic* characteristic, const uint8_t* data, size_t length);
   void holdVirtualPush();
 

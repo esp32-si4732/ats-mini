@@ -228,44 +228,31 @@ void BleHidCentral::onScanStart()
   delay(500);
 }
 
-bool BleHidCentral::matches(BLEAdvertisedDevice& device)
+bool BleHidCentral::acceptsAdvertisement(BLEAdvertisedDevice& device)
 {
   return device.isConnectable() &&
          device.haveServiceUUID() &&
          device.isAdvertisingService(hidServiceUUID);
 }
 
-bool BleHidCentral::discover()
+bool BleHidCentral::setupConnectedPeer()
 {
-  clearDecoder();
+  clearReportBinding();
 
   BLEClient* currentClient = client();
   if (currentClient == nullptr) return false;
 
-  BLERemoteService* deviceInfoService = currentClient->getService(deviceInfoServiceUUID);
-  if (deviceInfoService == nullptr) return false;
-
-  // Add a new supported device by copying one tryMatch... helper and one line here.
   DecoderKind decoder = DecoderKind::None;
   uint16_t reportHandle = 0;
-
-  if (!tryMatchMiniKeyboard(deviceInfoService, decoder, reportHandle) &&
-      !tryMatchVol20(deviceInfoService, decoder, reportHandle))
-    return false;
-
-  BLERemoteService* hidService = currentClient->getService(hidServiceUUID);
-  if (hidService == nullptr) return false;
-
-  BLERemoteCharacteristic* report = findReportCharacteristic(hidService, reportHandle);
-  if (report == nullptr) return false;
+  if (!matchConnectedPeer(*currentClient, decoder, reportHandle)) return false;
 
   activeInstance = this;
   decoder_ = decoder;
   reportHandle_ = reportHandle;
 
-  if (!subscribeWithFilteredCccd(report, notifyCallback))
+  if (!subscribeToInputReport(*currentClient, reportHandle))
   {
-    clearDecoder();
+    clearReportBinding();
     if (activeInstance == this)
       activeInstance = nullptr;
     return false;
@@ -274,10 +261,10 @@ bool BleHidCentral::discover()
   return true;
 }
 
-void BleHidCentral::resetPeerState()
+void BleHidCentral::resetConnectedPeerState()
 {
   pendingState = {};
-  clearDecoder();
+  clearReportBinding();
   virtualPushUntil = 0;
   playPauseClickDeadline = 0;
   pressedMask_ = 0;
@@ -296,7 +283,28 @@ void BleHidCentral::notifyCallback(
     activeInstance->handleInputReport(characteristic, data, length);
 }
 
-void BleHidCentral::clearDecoder()
+bool BleHidCentral::matchConnectedPeer(BLEClient& client, DecoderKind& decoder, uint16_t& reportHandle)
+{
+  BLERemoteService* deviceInfoService = client.getService(deviceInfoServiceUUID);
+  if (deviceInfoService == nullptr) return false;
+
+  // Add a new supported device by copying one tryMatch... helper and one line here.
+  return tryMatchMiniKeyboard(deviceInfoService, decoder, reportHandle) ||
+         tryMatchVol20(deviceInfoService, decoder, reportHandle);
+}
+
+bool BleHidCentral::subscribeToInputReport(BLEClient& client, uint16_t reportHandle)
+{
+  BLERemoteService* hidService = client.getService(hidServiceUUID);
+  if (hidService == nullptr) return false;
+
+  BLERemoteCharacteristic* report = findReportCharacteristic(hidService, reportHandle);
+  if (report == nullptr) return false;
+
+  return subscribeWithFilteredCccd(report, notifyCallback);
+}
+
+void BleHidCentral::clearReportBinding()
 {
   decoder_ = DecoderKind::None;
   reportHandle_ = 0;

@@ -40,7 +40,7 @@ void BleCentral::end()
   pendingAction_ = PendingAction::None;
   scanAttempts = 0;
   stopScan();
-  resetPeerState();
+  resetConnectedPeerState();
   clearPeer();
   destroyClient(true);
 }
@@ -164,7 +164,7 @@ void BleCentral::onConnect(BLEClient* client)
 
 void BleCentral::onDisconnect(BLEClient* client)
 {
-  resetPeerState();
+  resetConnectedPeerState();
   clearPeer();
   scanAttempts = 0;
   pendingAction_ = started ? PendingAction::Scan : PendingAction::None;
@@ -173,7 +173,7 @@ void BleCentral::onDisconnect(BLEClient* client)
 
 void BleCentral::onResult(BLEAdvertisedDevice advertisedDevice)
 {
-  if (!matches(advertisedDevice)) return;
+  if (!acceptsAdvertisement(advertisedDevice)) return;
 
   if (peer_ != nullptr) return;
 
@@ -201,7 +201,7 @@ BleCentral::ConnectResult BleCentral::connectToPeer()
 
   scanAttempts = 0;
 
-  if (!discover())
+  if (!setupConnectedPeer())
   {
     if (client_->disconnect() != 0 && !client_->isConnected())
       return ConnectResult::RetryScan;
