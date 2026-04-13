@@ -624,14 +624,18 @@ static void doUSBMode(int16_t enc)
 
 static void doBleMode(int16_t enc)
 {
-  uint8_t newBleModeIdx = wrap_range(bleModeIdx, enc, 0, LAST_ITEM(bleModeDesc));
-  bleInit(newBleModeIdx);
-  bleModeIdx = newBleModeIdx;
+  bleModeIdx = wrap_range(bleModeIdx, enc, 0, LAST_ITEM(bleModeDesc));
 }
 
 static void doWiFiMode(int16_t enc)
 {
   wifiModeIdx = wrap_range(wifiModeIdx, enc, 0, LAST_ITEM(wifiModeDesc));
+}
+
+static void clickBleMode(uint8_t mode, bool shortPress)
+{
+  currentCmd = CMD_NONE;
+  bleInit(mode);
 }
 
 static void clickWiFiMode(uint8_t mode, bool shortPress)
@@ -973,6 +977,7 @@ bool clickHandler(uint16_t cmd, bool shortPress)
     case CMD_MENU:     clickMenu(menuIdx, shortPress);break;
     case CMD_SETTINGS: clickSettings(settingsIdx, shortPress);break;
     case CMD_MEMORY:   clickMemory(memoryIdx, shortPress);break;
+    case CMD_BLEMODE:  clickBleMode(bleModeIdx, shortPress);break;
     case CMD_WIFIMODE: clickWiFiMode(wifiModeIdx, shortPress);break;
     case CMD_VOLUME:   clickVolume(shortPress);break;
     case CMD_SQUELCH:  clickSquelch(shortPress);break;
