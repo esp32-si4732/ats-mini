@@ -66,7 +66,7 @@ private:
   void handleScanComplete(BLEScanResults& results);
   ConnectResult connectToPeer();
   void clearPeer();
-  void destroyClient(bool disconnect = false);
+  void disconnectClient(bool wait = false);
 
   BLEClient* client_ = nullptr;
   BLEAdvertisedDevice* peer_ = nullptr;

@@ -1,13 +1,3 @@
-#include <map>
-#include <string>
-
-// BLEDevice owns a global client pointer internally. When we explicitly destroy the
-// current central client to release the remote tree, clear the singleton as well so
-// the wrapper does not retain a dangling pointer.
-#define private public
-#include <BLEDevice.h>
-#undef private
-
 #include "BleCentral.h"
 
 BleCentral* BleCentral::activeScanner = nullptr;
@@ -40,9 +30,9 @@ void BleCentral::end()
   pendingAction_ = PendingAction::None;
   scanAttempts = 0;
   stopScan();
+  disconnectClient(true);
   resetConnectedPeerState();
   clearPeer();
-  destroyClient(true);
 }
 
 void BleCentral::loop()
@@ -186,19 +176,21 @@ BleCentral::ConnectResult BleCentral::connectToPeer()
 {
   if (peer_ == nullptr) return ConnectResult::RetryScan;
 
-  // Recreate the client for each peer connection so NimBLE doesn't reuse
-  // stale remote service/descriptor caches from the previous device.
-  destroyClient();
-
-  client_ = BLEDevice::createClient();
   if (client_ == nullptr)
-    return ConnectResult::RetryScan;
+  {
+    client_ = BLEDevice::createClient();
+    if (client_ == nullptr)
+      return ConnectResult::RetryScan;
+  }
   client_->setClientCallbacks(this);
 
   configureClient();
   if (!client_->connect(peer_))
     return (client_->getConnId() != ESP_GATT_IF_NONE) ? ConnectResult::WaitForDisconnect : ConnectResult::RetryScan;
 
+  // Rebuild the remote tree on each connection so cached services,
+  // characteristics, and descriptors do not leak across peers.
+  client_->getServices();
   scanAttempts = 0;
 
   if (!setupConnectedPeer())
@@ -237,21 +229,15 @@ void BleCentral::clearPeer()
   peerName_ = "";
 }
 
-void BleCentral::destroyClient(bool disconnect)
+void BleCentral::disconnectClient(bool wait)
 {
   if (client_ == nullptr) return;
 
-  if (disconnect && client_->isConnected())
+  if (wait && client_->isConnected())
   {
     client_->disconnect();
     uint32_t disconnectStart = millis();
     while (client_->isConnected() && ((uint32_t)(millis() - disconnectStart) < BLE_DISCONNECT_WAIT_MS))
       delay(10);
   }
-
-  if (BLEDevice::m_pClient == client_)
-    BLEDevice::m_pClient = nullptr;
-
-  delete client_;
-  client_ = nullptr;
 }
