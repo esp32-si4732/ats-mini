@@ -1,20 +1,13 @@
-#include <functional>
 #include <map>
 #include <string>
 
 // Arduino-ESP32's NimBLE wrapper leaks BLERemoteDescriptor objects when HID notify
 // subscription goes through the normal public path:
 //   registerForNotify() -> subscribe() -> setNotify() -> retrieveDescriptors()
-// The wrapper scans descriptors from the current characteristic handle to the end
-// of the whole service, allocates descriptor objects before inserting them into a
-// UUID-keyed map, and orphaned duplicates are never reclaimed.
-//
-// We keep the hack confined to this translation unit and use it only to call the
-// private filtered descriptor lookup path with UUID 0x2902 (CCCD) before the public
-// subscribe() call. That forces the wrapper onto its early-exit path and avoids the
-// broad leaking descriptor walk.
+// We keep the hack confined to this translation unit and use it only to preload
+// the CCCD through the private filtered path.
 #define private public
-#include <BLEClient.h>
+#include <BLERemoteCharacteristic.h>
 #undef private
 
 #include "BleHidCentral.h"
@@ -22,7 +15,9 @@
 #include <string.h>
 
 static BLEUUID hidServiceUUID((uint16_t)0x1812);
+static BLEUUID deviceInfoServiceUUID((uint16_t)0x180A);
 static BLEUUID reportCharUUID((uint16_t)0x2A4D);
+static BLEUUID pnpIdUUID((uint16_t)0x2A50);
 static BLEUUID cccdUUID((uint16_t)0x2902);
 
 static constexpr uint16_t consumerUsagePlayPause = 0x00CD;
@@ -30,37 +25,151 @@ static constexpr uint16_t consumerUsageScanNextTrack = 0x00B5;
 static constexpr uint16_t consumerUsageScanPreviousTrack = 0x00B6;
 static constexpr uint16_t consumerUsageVolumeIncrement = 0x00E9;
 static constexpr uint16_t consumerUsageVolumeDecrement = 0x00EA;
-static constexpr uint16_t consumerBitsVolumeDecrement = 1u << 0;
-static constexpr uint16_t consumerBitsVolumeIncrement = 1u << 1;
-static constexpr uint16_t consumerBitsScanPreviousTrack = 1u << 3;
-static constexpr uint16_t consumerBitsScanNextTrack = 1u << 4;
-static constexpr uint16_t consumerBitsPlayPause = 1u << 5;
+
+static constexpr uint16_t consumerBitfield16VolumeDecrement = 1u << 0;
+static constexpr uint16_t consumerBitfield16VolumeIncrement = 1u << 1;
+static constexpr uint16_t consumerBitfield16ScanPreviousTrack = 1u << 3;
+static constexpr uint16_t consumerBitfield16ScanNextTrack = 1u << 4;
+static constexpr uint16_t consumerBitfield16PlayPause = 1u << 5;
 
 BleHidCentral* BleHidCentral::activeInstance = nullptr;
 
-static bool subscribeWithFilteredCccd(BLERemoteCharacteristic* characteristic, notify_callback callback)
+namespace {
+
+static bool matchesDeviceInfoField(BLERemoteService* service, const BLEUUID& uuid, const uint8_t* expected, size_t expectedLength)
 {
+  if (service == nullptr || expected == nullptr) return false;
+
+  BLERemoteCharacteristic* characteristic = service->getCharacteristic(uuid);
   if (characteristic == nullptr) return false;
 
-  std::string cccdKey = cccdUUID.toString().c_str();
-  auto hasCccd = [&]() {
-    return characteristic->m_descriptorMap.find(cccdKey) != characteristic->m_descriptorMap.end();
-  };
+  String value = characteristic->readValue();
+  return value.length() == expectedLength && memcmp(value.c_str(), expected, expectedLength) == 0;
+}
 
-  // Preload only the CCCD so the later public subscribe() call skips the wrapper's
-  // broad descriptor discovery path. If the wrapper already marked descriptors as
-  // retrieved without retaining a CCCD entry, reset and force a filtered lookup.
-  if (!hasCccd())
+static BLERemoteDescriptor* getFilteredDescriptor(BLERemoteCharacteristic* characteristic, const BLEUUID& uuid)
+{
+  if (characteristic == nullptr) return nullptr;
+
+  std::string descriptorKey = uuid.toString().c_str();
+  auto found = characteristic->m_descriptorMap.find(descriptorKey);
+  if (found != characteristic->m_descriptorMap.end())
+    return found->second;
+
+  characteristic->removeDescriptors();
+  if (!characteristic->retrieveDescriptors(&uuid))
+    return nullptr;
+
+  found = characteristic->m_descriptorMap.find(descriptorKey);
+  return found == characteristic->m_descriptorMap.end() ? nullptr : found->second;
+}
+
+static bool subscribeWithFilteredCccd(BLERemoteCharacteristic* characteristic, notify_callback callback)
+{
+  if (getFilteredDescriptor(characteristic, cccdUUID) == nullptr) return false;
+
+  if (!characteristic->subscribe(true, callback, true)) return false;
+  return characteristic->m_descriptorMap.find(cccdUUID.toString().c_str()) != characteristic->m_descriptorMap.end();
+}
+
+static BLERemoteCharacteristic* findReportCharacteristic(BLERemoteService* service, uint16_t handle)
+{
+  if (service == nullptr) return nullptr;
+
+  std::map<uint16_t, BLERemoteCharacteristic*>* characteristics = nullptr;
+  service->getCharacteristics(&characteristics);
+  if (characteristics == nullptr) return nullptr;
+
+  for (auto const& entry : *characteristics)
   {
-    characteristic->removeDescriptors();
-    if (!characteristic->retrieveDescriptors(&cccdUUID) || !hasCccd())
-      return false;
+    BLERemoteCharacteristic* characteristic = entry.second;
+    if (characteristic->getHandle() == handle &&
+        characteristic->getUUID().equals(reportCharUUID) &&
+        characteristic->canNotify())
+      return characteristic;
   }
 
-  if (!characteristic->subscribe(true, callback, true))
+  return nullptr;
+}
+
+static bool decodeConsumerBitfield16(
+  const uint8_t* data,
+  size_t length,
+  bool& hasScanNext,
+  bool& hasScanPrevious,
+  bool& hasVolumeIncrement,
+  bool& hasVolumeDecrement,
+  bool& hasPlayPause)
+{
+  if (data == nullptr || length < 2) return false;
+
+  uint16_t bits = (uint16_t)data[0] | ((uint16_t)data[1] << 8);
+  hasScanNext = (bits & consumerBitfield16ScanNextTrack) != 0;
+  hasScanPrevious = (bits & consumerBitfield16ScanPreviousTrack) != 0;
+  hasVolumeIncrement = (bits & consumerBitfield16VolumeIncrement) != 0;
+  hasVolumeDecrement = (bits & consumerBitfield16VolumeDecrement) != 0;
+  hasPlayPause = (bits & consumerBitfield16PlayPause) != 0;
+  return true;
+}
+
+static bool decodeConsumerUsage16(
+  const uint8_t* data,
+  size_t length,
+  bool& hasScanNext,
+  bool& hasScanPrevious,
+  bool& hasVolumeIncrement,
+  bool& hasVolumeDecrement,
+  bool& hasPlayPause)
+{
+  if (data == nullptr || length != 2) return false;
+
+  uint16_t usage = (uint16_t)data[0] | ((uint16_t)data[1] << 8);
+  hasScanNext = usage == consumerUsageScanNextTrack;
+  hasScanPrevious = usage == consumerUsageScanPreviousTrack;
+  hasVolumeIncrement = usage == consumerUsageVolumeIncrement;
+  hasVolumeDecrement = usage == consumerUsageVolumeDecrement;
+  hasPlayPause = usage == consumerUsagePlayPause;
+  return true;
+}
+
+}  // namespace
+
+bool BleHidCentral::tryMatchMiniKeyboard(
+  BLERemoteService* deviceInfoService,
+  DecoderKind& decoder,
+  uint16_t& reportHandle)
+{
+  // MINI_KEYBOARD:
+  // - Device Information PnP ID  = 02 AC 05 2C 02 1B 01
+  // - Consumer report value handle = 50
+  static constexpr uint8_t pnpId[] = {0x02, 0xAC, 0x05, 0x2C, 0x02, 0x1B, 0x01};
+  static constexpr uint16_t matchedReportHandle = 50;
+
+  if (!matchesDeviceInfoField(deviceInfoService, pnpIdUUID, pnpId, sizeof(pnpId)))
     return false;
 
-  return hasCccd();
+  decoder = DecoderKind::ConsumerUsage16;
+  reportHandle = matchedReportHandle;
+  return true;
+}
+
+bool BleHidCentral::tryMatchVol20(
+  BLERemoteService* deviceInfoService,
+  DecoderKind& decoder,
+  uint16_t& reportHandle)
+{
+  // VOL20:
+  // - Device Information PnP ID  = 01 D7 07 00 00 10 01
+  // - Consumer report value handle = 56
+  static constexpr uint8_t pnpId[] = {0x01, 0xD7, 0x07, 0x00, 0x00, 0x10, 0x01};
+  static constexpr uint16_t matchedReportHandle = 56;
+
+  if (!matchesDeviceInfoField(deviceInfoService, pnpIdUUID, pnpId, sizeof(pnpId)))
+    return false;
+
+  decoder = DecoderKind::ConsumerBitfield16;
+  reportHandle = matchedReportHandle;
+  return true;
 }
 
 BleHidState BleHidCentral::update()
@@ -128,37 +237,35 @@ bool BleHidCentral::matches(BLEAdvertisedDevice& device)
 
 bool BleHidCentral::discover()
 {
+  clearDecoder();
+
   BLEClient* currentClient = client();
   if (currentClient == nullptr) return false;
+
+  BLERemoteService* deviceInfoService = currentClient->getService(deviceInfoServiceUUID);
+  if (deviceInfoService == nullptr) return false;
+
+  // Add a new supported device by copying one tryMatch... helper and one line here.
+  DecoderKind decoder = DecoderKind::None;
+  uint16_t reportHandle = 0;
+
+  if (!tryMatchMiniKeyboard(deviceInfoService, decoder, reportHandle) &&
+      !tryMatchVol20(deviceInfoService, decoder, reportHandle))
+    return false;
 
   BLERemoteService* hidService = currentClient->getService(hidServiceUUID);
   if (hidService == nullptr) return false;
 
-  bool subscribed = false;
-  std::map<uint16_t, BLERemoteCharacteristic*>* characteristics = nullptr;
-  hidService->getCharacteristics(&characteristics);
-  if (characteristics == nullptr) return false;
+  BLERemoteCharacteristic* report = findReportCharacteristic(hidService, reportHandle);
+  if (report == nullptr) return false;
 
-  // Notifications can arrive immediately after the first CCCD write, so arm the
-  // active instance before we start subscribing and clear it again on failure.
   activeInstance = this;
+  decoder_ = decoder;
+  reportHandle_ = reportHandle;
 
-  for (auto const& entry : *characteristics)
+  if (!subscribeWithFilteredCccd(report, notifyCallback))
   {
-    BLERemoteCharacteristic* characteristic = entry.second;
-    if (!characteristic->getUUID().equals(reportCharUUID) || !characteristic->canNotify()) continue;
-
-    if (!subscribeWithFilteredCccd(characteristic, notifyCallback))
-    {
-      if (activeInstance == this)
-        activeInstance = nullptr;
-      return false;
-    }
-    subscribed = true;
-  }
-
-  if (!subscribed)
-  {
+    clearDecoder();
     if (activeInstance == this)
       activeInstance = nullptr;
     return false;
@@ -170,6 +277,7 @@ bool BleHidCentral::discover()
 void BleHidCentral::resetPeerState()
 {
   pendingState = {};
+  clearDecoder();
   virtualPushUntil = 0;
   playPauseClickDeadline = 0;
   scanNextPressed = false;
@@ -190,37 +298,55 @@ void BleHidCentral::notifyCallback(
 {
   (void)isNotify;
   if (activeInstance && characteristic && characteristic->getUUID().equals(reportCharUUID))
-    activeInstance->handleInputReport(data, length);
+    activeInstance->handleInputReport(characteristic, data, length);
 }
 
-void BleHidCentral::handleInputReport(const uint8_t* data, size_t length)
+void BleHidCentral::clearDecoder()
 {
+  decoder_ = DecoderKind::None;
+  reportHandle_ = 0;
+}
+
+void BleHidCentral::handleInputReport(BLERemoteCharacteristic* characteristic, const uint8_t* data, size_t length)
+{
+  if (characteristic == nullptr || characteristic->getHandle() != reportHandle_) return;
+
   bool hasScanNext = false;
   bool hasScanPrevious = false;
   bool hasVolumeIncrement = false;
   bool hasVolumeDecrement = false;
   bool hasPlayPause = false;
 
-  if (length == 2)
+  bool decoded = false;
+  switch (decoder_)
   {
-    uint16_t usage = (uint16_t)data[0] | ((uint16_t)data[1] << 8);
-    hasScanNext = usage == consumerUsageScanNextTrack;
-    hasScanPrevious = usage == consumerUsageScanPreviousTrack;
-    hasVolumeIncrement = usage == consumerUsageVolumeIncrement;
-    hasVolumeDecrement = usage == consumerUsageVolumeDecrement;
-    hasPlayPause = usage == consumerUsagePlayPause;
+    case DecoderKind::ConsumerBitfield16:
+      decoded = decodeConsumerBitfield16(
+        data,
+        length,
+        hasScanNext,
+        hasScanPrevious,
+        hasVolumeIncrement,
+        hasVolumeDecrement,
+        hasPlayPause);
+      break;
+
+    case DecoderKind::ConsumerUsage16:
+      decoded = decodeConsumerUsage16(
+        data,
+        length,
+        hasScanNext,
+        hasScanPrevious,
+        hasVolumeIncrement,
+        hasVolumeDecrement,
+        hasPlayPause);
+      break;
+
+    case DecoderKind::None:
+      return;
   }
-  else if (length == 3)
-  {
-    uint16_t bits = (uint16_t)data[0] | ((uint16_t)data[1] << 8);
-    hasScanNext = (bits & consumerBitsScanNextTrack) != 0;
-    hasScanPrevious = (bits & consumerBitsScanPreviousTrack) != 0;
-    hasVolumeIncrement = (bits & consumerBitsVolumeIncrement) != 0;
-    hasVolumeDecrement = (bits & consumerBitsVolumeDecrement) != 0;
-    hasPlayPause = (bits & consumerBitsPlayPause) != 0;
-  }
-  else
-    return;
+
+  if (!decoded) return;
 
   if (hasVolumeIncrement && !volumeIncrementPressed && pendingState.rotation < 32767)
     pendingState.rotation++;

@@ -29,6 +29,12 @@ protected:
   void onScanStart() override;
 
 private:
+  enum class DecoderKind : uint8_t {
+    None,
+    ConsumerBitfield16,
+    ConsumerUsage16,
+  };
+
   static constexpr uint32_t virtualPushHoldMs = 150;
   static constexpr uint32_t playPauseDoubleClickMs = 400;
 
@@ -42,10 +48,15 @@ private:
     size_t length,
     bool isNotify);
 
-  void handleInputReport(const uint8_t* data, size_t length);
+  static bool tryMatchMiniKeyboard(BLERemoteService* deviceInfoService, DecoderKind& decoder, uint16_t& reportHandle);
+  static bool tryMatchVol20(BLERemoteService* deviceInfoService, DecoderKind& decoder, uint16_t& reportHandle);
+  void clearDecoder();
+  void handleInputReport(BLERemoteCharacteristic* characteristic, const uint8_t* data, size_t length);
   void holdVirtualPush();
 
   BleHidState pendingState{};
+  DecoderKind decoder_ = DecoderKind::None;
+  uint16_t reportHandle_ = 0;
   uint32_t virtualPushUntil = 0;
   uint32_t playPauseClickDeadline = 0;
   bool scanNextPressed = false;
