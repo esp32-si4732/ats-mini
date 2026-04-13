@@ -1,3 +1,13 @@
+#include <map>
+#include <string>
+
+// BLEDevice owns a global client pointer internally. When we explicitly destroy the
+// current central client to release the remote tree, clear the singleton as well so
+// the wrapper does not retain a dangling pointer.
+#define private public
+#include <BLEDevice.h>
+#undef private
+
 #include "BleCentral.h"
 
 BleCentral* BleCentral::activeScanner = nullptr;
@@ -5,7 +15,7 @@ static constexpr uint32_t BLE_DISCONNECT_WAIT_MS = 500;
 
 BleCentral::~BleCentral()
 {
-  delete peer_;
+  clearPeer();
 }
 
 void BleCentral::begin(const char* deviceName)
@@ -14,10 +24,9 @@ void BleCentral::begin(const char* deviceName)
 
   BLEDevice::init(deviceName);
   configureSecurity();
-  peerName_ = "";
+  clearPeer();
   scanAttempts = 0;
-  pendingConnect = false;
-  pendingScanRestart = false;
+  pendingAction_ = PendingAction::None;
   scanActive_ = false;
   started = true;
   startScan();
@@ -28,45 +37,49 @@ void BleCentral::end()
   if (!started) return;
 
   started = false;
-  pendingConnect = false;
-  pendingScanRestart = false;
+  pendingAction_ = PendingAction::None;
+  scanAttempts = 0;
   stopScan();
-  if (client_)
-  {
-    client_->disconnect();
-    uint32_t disconnectStart = millis();
-    while (client_->isConnected() && ((uint32_t)(millis() - disconnectStart) < BLE_DISCONNECT_WAIT_MS))
-      delay(10);
-  }
   resetPeerState();
-  delete peer_;
-  peer_ = nullptr;
-  peerName_ = "";
+  clearPeer();
+  destroyClient(true);
 }
 
 void BleCentral::loop()
 {
-  if (!started) return;
+  if (!started || pendingAction_ == PendingAction::None) return;
+  if (isScanning() || isConnected()) return;
 
-  if (pendingScanRestart && !pendingConnect && !isScanning() && !isConnected())
+  PendingAction action = pendingAction_;
+  pendingAction_ = PendingAction::None;
+  switch (action)
   {
-    pendingScanRestart = false;
-    startScan(scanDuration);
-    return;
-  }
-
-  if (pendingConnect)
-  {
-    pendingConnect = false;
-    if (!connectToPeer())
-    {
-      delete peer_;
-      peer_ = nullptr;
-      peerName_ = "";
-      onConnectFailed();
+    case PendingAction::Scan:
       startScan(scanDuration);
+      return;
+
+    case PendingAction::Connect:
+    {
+      ConnectResult result = connectToPeer();
+      switch (result)
+      {
+        case ConnectResult::Connected:
+          return;
+
+        case ConnectResult::RetryScan:
+          clearPeer();
+          onConnectFailed();
+          pendingAction_ = PendingAction::Scan;
+          return;
+
+        case ConnectResult::WaitForDisconnect:
+          onConnectFailed();
+          return;
+      }
     }
-    return;
+
+    case PendingAction::None:
+      return;
   }
 }
 
@@ -83,6 +96,11 @@ bool BleCentral::isConnected() const
 bool BleCentral::isScanning() const
 {
   return started && scanActive_;
+}
+
+bool BleCentral::isConnectPending() const
+{
+  return pendingAction_ == PendingAction::Connect;
 }
 
 const char* BleCentral::peerName() const
@@ -147,12 +165,9 @@ void BleCentral::onConnect(BLEClient* client)
 void BleCentral::onDisconnect(BLEClient* client)
 {
   resetPeerState();
-  delete peer_;
-  peer_ = nullptr;
-  peerName_ = "";
+  clearPeer();
   scanAttempts = 0;
-  pendingConnect = false;
-  pendingScanRestart = started;
+  pendingAction_ = started ? PendingAction::Scan : PendingAction::None;
   (void)client;
 }
 
@@ -167,36 +182,33 @@ void BleCentral::onResult(BLEAdvertisedDevice advertisedDevice)
   stopScan();
 }
 
-bool BleCentral::connectToPeer()
+BleCentral::ConnectResult BleCentral::connectToPeer()
 {
-  if (peer_ == nullptr) return false;
+  if (peer_ == nullptr) return ConnectResult::RetryScan;
 
   // Recreate the client for each peer connection so NimBLE doesn't reuse
   // stale remote service/descriptor caches from the previous device.
-  if (client_ != nullptr)
-  {
-    delete client_;
-    client_ = nullptr;
-  }
+  destroyClient();
 
   client_ = BLEDevice::createClient();
   if (client_ == nullptr)
-    return false;
+    return ConnectResult::RetryScan;
   client_->setClientCallbacks(this);
 
   configureClient();
   if (!client_->connect(peer_))
-    return false;
+    return (client_->getConnId() != ESP_GATT_IF_NONE) ? ConnectResult::WaitForDisconnect : ConnectResult::RetryScan;
 
   scanAttempts = 0;
 
   if (!discover())
   {
-    client_->disconnect();
-    return false;
+    if (client_->disconnect() != 0 && !client_->isConnected())
+      return ConnectResult::RetryScan;
+    return ConnectResult::WaitForDisconnect;
   }
 
-  return true;
+  return ConnectResult::Connected;
 }
 
 void BleCentral::scanCompleteCallback(BLEScanResults results)
@@ -213,12 +225,33 @@ void BleCentral::handleScanComplete(BLEScanResults& results)
 
   onScanComplete(results);
 
-  if (started && !isConnected() && (peer_ != nullptr))
+  if (!started || isConnected()) return;
+
+  pendingAction_ = (peer_ != nullptr) ? PendingAction::Connect : PendingAction::Scan;
+}
+
+void BleCentral::clearPeer()
+{
+  delete peer_;
+  peer_ = nullptr;
+  peerName_ = "";
+}
+
+void BleCentral::destroyClient(bool disconnect)
+{
+  if (client_ == nullptr) return;
+
+  if (disconnect && client_->isConnected())
   {
-    pendingConnect = true;
-    return;
+    client_->disconnect();
+    uint32_t disconnectStart = millis();
+    while (client_->isConnected() && ((uint32_t)(millis() - disconnectStart) < BLE_DISCONNECT_WAIT_MS))
+      delay(10);
   }
 
-  if (started && !isConnected() && (peer_ == nullptr))
-    pendingScanRestart = true;
+  if (BLEDevice::m_pClient == client_)
+    BLEDevice::m_pClient = nullptr;
+
+  delete client_;
+  client_ = nullptr;
 }

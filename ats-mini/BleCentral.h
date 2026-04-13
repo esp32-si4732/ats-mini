@@ -21,10 +21,8 @@ public:
   bool isStarted() const;
   bool isConnected() const;
   bool isScanning() const;
+  bool isConnectPending() const;
   const char* peerName() const;
-
-  uint8_t scanAttempts = 0;
-  bool pendingConnect = false;
 
 protected:
   virtual void configureSecurity() {}
@@ -44,6 +42,7 @@ protected:
   void startScan(uint32_t seconds = BLE_SCAN_DURATION);
   void stopScan();
 
+  uint8_t scanAttempts = 0;
   uint32_t scanDuration = BLE_SCAN_DURATION;
 
   void onConnect(BLEClient* client) override;
@@ -51,16 +50,30 @@ protected:
   void onResult(BLEAdvertisedDevice advertisedDevice) override;
 
 private:
+  enum class PendingAction : uint8_t {
+    None,
+    Scan,
+    Connect,
+  };
+
+  enum class ConnectResult : uint8_t {
+    Connected,
+    RetryScan,
+    WaitForDisconnect,
+  };
+
   static void scanCompleteCallback(BLEScanResults results);
   void handleScanComplete(BLEScanResults& results);
-  bool connectToPeer();
+  ConnectResult connectToPeer();
+  void clearPeer();
+  void destroyClient(bool disconnect = false);
 
   BLEClient* client_ = nullptr;
   BLEAdvertisedDevice* peer_ = nullptr;
   String peerName_;
   bool started = false;
   bool scanActive_ = false;
-  bool pendingScanRestart = false;
+  PendingAction pendingAction_ = PendingAction::None;
 
   static BleCentral* activeScanner;
 };

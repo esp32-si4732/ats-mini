@@ -42,12 +42,25 @@ static bool subscribeWithFilteredCccd(BLERemoteCharacteristic* characteristic, n
 {
   if (characteristic == nullptr) return false;
 
+  std::string cccdKey = cccdUUID.toString().c_str();
+  auto hasCccd = [&]() {
+    return characteristic->m_descriptorMap.find(cccdKey) != characteristic->m_descriptorMap.end();
+  };
+
   // Preload only the CCCD so the later public subscribe() call skips the wrapper's
-  // broad descriptor discovery path.
-  if (!characteristic->m_descriptorsRetrieved && !characteristic->retrieveDescriptors(&cccdUUID))
+  // broad descriptor discovery path. If the wrapper already marked descriptors as
+  // retrieved without retaining a CCCD entry, reset and force a filtered lookup.
+  if (!hasCccd())
+  {
+    characteristic->removeDescriptors();
+    if (!characteristic->retrieveDescriptors(&cccdUUID) || !hasCccd())
+      return false;
+  }
+
+  if (!characteristic->subscribe(true, callback, true))
     return false;
 
-  return characteristic->subscribe(true, callback, true);
+  return hasCccd();
 }
 
 BleHidState BleHidCentral::update()
@@ -126,18 +139,31 @@ bool BleHidCentral::discover()
   hidService->getCharacteristics(&characteristics);
   if (characteristics == nullptr) return false;
 
+  // Notifications can arrive immediately after the first CCCD write, so arm the
+  // active instance before we start subscribing and clear it again on failure.
+  activeInstance = this;
+
   for (auto const& entry : *characteristics)
   {
     BLERemoteCharacteristic* characteristic = entry.second;
     if (!characteristic->getUUID().equals(reportCharUUID) || !characteristic->canNotify()) continue;
 
     if (!subscribeWithFilteredCccd(characteristic, notifyCallback))
+    {
+      if (activeInstance == this)
+        activeInstance = nullptr;
       return false;
+    }
     subscribed = true;
   }
 
-  if (!subscribed) return false;
-  activeInstance = this;
+  if (!subscribed)
+  {
+    if (activeInstance == this)
+      activeInstance = nullptr;
+    return false;
+  }
+
   return true;
 }
 
