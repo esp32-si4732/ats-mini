@@ -137,7 +137,8 @@ static bool decodeConsumerUsage16(
 bool BleHidCentral::tryMatchMiniKeyboard(
   BLERemoteService* deviceInfoService,
   DecoderKind& decoder,
-  uint16_t& reportHandle)
+  uint16_t& reportHandle,
+  bool& supportsDoubleClick)
 {
   // MINI_KEYBOARD:
   // - Device Information PnP ID  = 02 AC 05 2C 02 1B 01
@@ -150,13 +151,15 @@ bool BleHidCentral::tryMatchMiniKeyboard(
 
   decoder = DecoderKind::ConsumerUsage16;
   reportHandle = matchedReportHandle;
+  supportsDoubleClick = true;
   return true;
 }
 
 bool BleHidCentral::tryMatchVol20(
   BLERemoteService* deviceInfoService,
   DecoderKind& decoder,
-  uint16_t& reportHandle)
+  uint16_t& reportHandle,
+  bool& supportsDoubleClick)
 {
   // VOL20:
   // - Device Information PnP ID  = 01 D7 07 00 00 10 01
@@ -169,6 +172,7 @@ bool BleHidCentral::tryMatchVol20(
 
   decoder = DecoderKind::ConsumerBitfield16;
   reportHandle = matchedReportHandle;
+  supportsDoubleClick = false;
   return true;
 }
 
@@ -244,11 +248,13 @@ bool BleHidCentral::setupConnectedPeer()
 
   DecoderKind decoder = DecoderKind::None;
   uint16_t reportHandle = 0;
-  if (!matchConnectedPeer(*currentClient, decoder, reportHandle)) return false;
+  bool supportsDoubleClick = true;
+  if (!matchConnectedPeer(*currentClient, decoder, reportHandle, supportsDoubleClick)) return false;
 
   activeInstance = this;
   decoder_ = decoder;
   reportHandle_ = reportHandle;
+  supportsDoubleClick_ = supportsDoubleClick;
 
   if (!subscribeToInputReport(*currentClient, reportHandle))
   {
@@ -267,6 +273,7 @@ void BleHidCentral::resetConnectedPeerState()
   clearReportBinding();
   virtualPushUntil = 0;
   playPauseClickDeadline = 0;
+  supportsDoubleClick_ = true;
   pressedMask_ = 0;
   if (activeInstance == this)
     activeInstance = nullptr;
@@ -283,14 +290,14 @@ void BleHidCentral::notifyCallback(
     activeInstance->handleInputReport(characteristic, data, length);
 }
 
-bool BleHidCentral::matchConnectedPeer(BLEClient& client, DecoderKind& decoder, uint16_t& reportHandle)
+bool BleHidCentral::matchConnectedPeer(BLEClient& client, DecoderKind& decoder, uint16_t& reportHandle, bool& supportsDoubleClick)
 {
   BLERemoteService* deviceInfoService = client.getService(deviceInfoServiceUUID);
   if (deviceInfoService == nullptr) return false;
 
   // Add a new supported device by copying one tryMatch... helper and one line here.
-  return tryMatchMiniKeyboard(deviceInfoService, decoder, reportHandle) ||
-         tryMatchVol20(deviceInfoService, decoder, reportHandle);
+  return tryMatchMiniKeyboard(deviceInfoService, decoder, reportHandle, supportsDoubleClick) ||
+         tryMatchVol20(deviceInfoService, decoder, reportHandle, supportsDoubleClick);
 }
 
 bool BleHidCentral::subscribeToInputReport(BLEClient& client, uint16_t reportHandle)
@@ -377,14 +384,19 @@ void BleHidCentral::handleInputReport(BLERemoteCharacteristic* characteristic, c
 
   if (!hasPlayPause && playPausePressed)
   {
-    if (playPauseClickDeadline && (int32_t)(millis() - playPauseClickDeadline) < 0)
+    if (supportsDoubleClick_ && playPauseClickDeadline && (int32_t)(millis() - playPauseClickDeadline) < 0)
     {
       pendingState.wasShortPressed = true;
       playPauseClickDeadline = 0;
     }
-    else
+    else if (supportsDoubleClick_)
     {
       playPauseClickDeadline = millis() + playPauseDoubleClickMs;
+    }
+    else
+    {
+      pendingState.wasClicked = true;
+      playPauseClickDeadline = 0;
     }
   }
 

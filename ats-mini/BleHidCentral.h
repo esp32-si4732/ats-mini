@@ -56,9 +56,9 @@ private:
     size_t length,
     bool isNotify);
 
-  static bool tryMatchMiniKeyboard(BLERemoteService* deviceInfoService, DecoderKind& decoder, uint16_t& reportHandle);
-  static bool tryMatchVol20(BLERemoteService* deviceInfoService, DecoderKind& decoder, uint16_t& reportHandle);
-  bool matchConnectedPeer(BLEClient& client, DecoderKind& decoder, uint16_t& reportHandle);
+  static bool tryMatchMiniKeyboard(BLERemoteService* deviceInfoService, DecoderKind& decoder, uint16_t& reportHandle, bool& supportsDoubleClick);
+  static bool tryMatchVol20(BLERemoteService* deviceInfoService, DecoderKind& decoder, uint16_t& reportHandle, bool& supportsDoubleClick);
+  bool matchConnectedPeer(BLEClient& client, DecoderKind& decoder, uint16_t& reportHandle, bool& supportsDoubleClick);
   bool subscribeToInputReport(BLEClient& client, uint16_t reportHandle);
   void clearReportBinding();
   void handleInputReport(BLERemoteCharacteristic* characteristic, const uint8_t* data, size_t length);
@@ -69,6 +69,7 @@ private:
   uint16_t reportHandle_ = 0;
   uint32_t virtualPushUntil = 0;
   uint32_t playPauseClickDeadline = 0;
+  bool supportsDoubleClick_ = true;
   uint8_t pressedMask_ = 0;
   BLESecurity security;
   SecurityCallbacks securityCallbacks;
