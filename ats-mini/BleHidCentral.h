@@ -18,6 +18,7 @@ public:
   BleHidCentral() = default;
 
   BleHidState update();
+  bool consumeAbortPending();
 
 protected:
   void configureSecurity() override;
@@ -65,6 +66,7 @@ private:
   void holdVirtualPush();
 
   BleHidState pendingState{};
+  volatile bool abortPending = false;
   DecoderKind decoder_ = DecoderKind::None;
   uint16_t reportHandle_ = 0;
   uint32_t virtualPushUntil = 0;

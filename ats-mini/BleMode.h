@@ -8,5 +8,6 @@ void bleInit(uint8_t bleMode);
 void bleStop();
 int8_t getBleStatus();
 int bleLoop(uint8_t bleMode);
+bool bleConsumeAbortPending(uint8_t bleMode);
 
 #endif

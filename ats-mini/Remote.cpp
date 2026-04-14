@@ -451,3 +451,10 @@ int serialLoop(uint8_t usbMode)
 {
   return serialLoop(&Serial, &remoteSerialState, usbMode);
 }
+
+bool serialConsumeAbortPending(uint8_t usbMode)
+{
+  if(usbMode == USB_OFF || !Serial.available()) return false;
+  Serial.read();
+  return true;
+}

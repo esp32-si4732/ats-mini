@@ -10,5 +10,6 @@ typedef struct {
 void remoteTickTime(Stream* stream, RemoteState* state);
 int remoteDoCommand(Stream* stream, RemoteState* state, char key);
 int serialLoop(uint8_t usbMode);
+bool serialConsumeAbortPending(uint8_t usbMode);
 
 #endif

@@ -92,3 +92,14 @@ int bleLoop(uint8_t bleMode)
     event |= REMOTE_SHORT_PRESS;
   return event;
 }
+
+bool bleConsumeAbortPending(uint8_t bleMode)
+{
+  if (bleMode == BLE_ADHOC)
+    return BLESerial.consumeAbortPending();
+
+  if (bleMode == BLE_HID)
+    return BLEHid.consumeAbortPending();
+
+  return false;
+}

@@ -36,7 +36,7 @@ uint8_t disableAgc = 0;
 int8_t agcNdx = 0;
 int8_t softMuteMaxAttIdx = 4;
 
-bool seekStop = false;        // G8PTN: Added flag to abort seeking on rotary encoder detection
+volatile bool seekStop = false; // G8PTN: Added flag to abort seeking on rotary encoder detection
 bool pushAndRotate = false;   // Push and rotate is active, ignore the long press
 
 long elapsedRSSI = millis();
@@ -515,14 +515,15 @@ bool updateFrequency(int newFreq, bool wrap)
   return true;
 }
 
-// This function is called by the seek function process.
-bool checkStopSeeking()
+// This function is called by blocking operations that need a lightweight abort check.
+bool consumeAbortPending()
 {
-  // Returns true if the user rotates the encoder
   if(seekStop) return true;
+  if(bleConsumeAbortPending(bleModeIdx)) return true;
+  if(serialConsumeAbortPending(usbModeIdx)) return true;
 
-  // Checking isPressed without debouncing because this callback
-  // is not invoked often enough to register a click
+  // Checking isPressed without debouncing because this helper is used from
+  // blocking operations that do not run the normal event loop often enough.
   if(pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW, 0).isPressed)
   {
     // Wait till the button is released, otherwise the main loop will register a click
@@ -562,7 +563,7 @@ bool doSeek(int16_t enc, int16_t enca)
 
       // Flag is set by rotary encoder and cleared on seek/scan entry
       seekStop = false;
-      rx.seekStationProgress(showFrequencySeek, checkStopSeeking, enc>0? 1 : 0);
+      rx.seekStationProgress(showFrequencySeek, consumeAbortPending, enc>0? 1 : 0);
       updateFrequency(rx.getFrequency(), true);
     }
   }

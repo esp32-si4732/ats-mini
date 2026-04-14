@@ -421,12 +421,8 @@ bool eibiLoadSchedule()
 
   for(byteCnt = charCnt = lineCnt = 0 ; http.connected() && (totalLen<0 || byteCnt<totalLen) ; )
   {
-    if(pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW, 0).isPressed)
+    if(consumeAbortPending())
     {
-      // Wait till the button is released, otherwise the main loop will register a click
-      while(pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW).isPressed)
-        delay(100);
-
       file.close();
       http.end();
       LittleFS.remove(TEMP_PATH);

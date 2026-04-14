@@ -31,6 +31,7 @@ public:
   int peek() override;
   int read() override;
   void flush() override;
+  bool consumeAbortPending();
 
   size_t write(uint8_t byte) override;
   size_t write(const uint8_t* data, size_t size) override;
@@ -65,6 +66,7 @@ private:
 
   cbuf rxBuf{BLE_BUFFER_SIZE};
   cbuf txBuf{BLE_BUFFER_SIZE};
+  volatile bool abortPending = false;
   // Flat notify payload assembled from txBuf, even when the ring wraps.
   uint8_t txChunk[BLE_MAX_MTU - 3];
   // Bytes currently retained for notify/retry outside txBuf.

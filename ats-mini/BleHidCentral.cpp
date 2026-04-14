@@ -190,7 +190,22 @@ BleHidState BleHidCentral::update()
     (virtualPushUntil && (int32_t)(virtualPushUntil - millis()) > 0);
   BleHidState result = pendingState;
   pendingState = {};
+  abortPending = false;
   return result;
+}
+
+bool BleHidCentral::consumeAbortPending()
+{
+  bool pending = abortPending;
+  abortPending = false;
+  if (pending)
+  {
+    pendingState = {};
+    virtualPushUntil = 0;
+    playPauseClickDeadline = 0;
+    pressedMask_ = 0;
+  }
+  return pending;
 }
 
 void BleHidCentral::configureSecurity()
@@ -270,6 +285,7 @@ bool BleHidCentral::setupConnectedPeer()
 void BleHidCentral::resetConnectedPeerState()
 {
   pendingState = {};
+  abortPending = false;
   clearReportBinding();
   virtualPushUntil = 0;
   playPauseClickDeadline = 0;
@@ -357,6 +373,7 @@ void BleHidCentral::handleInputReport(BLERemoteCharacteristic* characteristic, c
   }
 
   if (!decoded) return;
+  abortPending = true;
 
   bool volumeIncrementPressed = !!(pressedMask_ & VolumeIncrementPressed);
   bool volumeDecrementPressed = !!(pressedMask_ & VolumeDecrementPressed);

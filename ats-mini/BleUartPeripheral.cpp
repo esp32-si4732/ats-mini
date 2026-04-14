@@ -1,5 +1,15 @@
 #include "BleUartPeripheral.h"
 #include <host/ble_hs.h>
+#include "Remote.h"
+
+bool BleUartPeripheral::consumeAbortPending()
+{
+  bool pending = abortPending;
+  abortPending = false;
+  if (pending)
+    rxBuf.flush();
+  return pending;
+}
 
 bool BleUartPeripheral::canSend() const
 {
@@ -84,6 +94,7 @@ void BleUartPeripheral::clearPendingTx()
 
 void BleUartPeripheral::resetTxSession()
 {
+  abortPending = false;
   clearPendingTx();
   txBuf.flush();
   txConnHandle = BLE_HS_CONN_HANDLE_NONE;
@@ -115,6 +126,7 @@ void BleUartPeripheral::createServices()
 void BleUartPeripheral::destroyServices()
 {
   resetTxSession();
+  abortPending = false;
   rxBuf.flush();
 }
 
@@ -148,6 +160,7 @@ void BleUartPeripheral::onWrite(BLECharacteristic* characteristic, ble_gap_conn_
 
   uint8_t* data = characteristic->getData();
   size_t byteCount = characteristic->getLength();
+  abortPending |= byteCount > 0;
   size_t room = rxBuf.room();
   if (byteCount > room)
     byteCount = room;
@@ -239,7 +252,10 @@ int BleUartPeripheral::peek()
 int BleUartPeripheral::read()
 {
   pumpTx();
-  return rxBuf.read();
+  int value = rxBuf.read();
+  if (value >= 0)
+    abortPending = false;
+  return value;
 }
 
 void BleUartPeripheral::flush()

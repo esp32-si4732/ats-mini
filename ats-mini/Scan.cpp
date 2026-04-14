@@ -121,7 +121,7 @@ static bool scanTickTime()
   freq += scanStep;
 
   // Set next frequency to scan or expire scan
-  if((++scanCount >= SCAN_POINTS) || !isFreqInBand(getCurrentBand(), freq) || checkStopSeeking())
+  if((++scanCount >= SCAN_POINTS) || !isFreqInBand(getCurrentBand(), freq) || consumeAbortPending())
     scanStatus = SCAN_DONE;
   else
     rx.setFrequency(freq); // Implies tuning delay
