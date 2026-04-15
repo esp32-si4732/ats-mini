@@ -10,87 +10,81 @@ BleCentral::~BleCentral()
 
 void BleCentral::begin(const char* deviceName)
 {
-  if (started) return;
+  if (state_ != State::Idle) return;
 
   BLEDevice::init(deviceName);
   configureSecurity();
   clearPeer();
   scanAttempts = 0;
-  pendingAction_ = PendingAction::None;
-  scanActive_ = false;
-  started = true;
-  startScan();
+  state_ = State::Started;
+  enterScanning();
 }
 
 void BleCentral::end()
 {
-  if (!started) return;
-
-  started = false;
-  pendingAction_ = PendingAction::None;
-  scanAttempts = 0;
-  stopScan();
-  disconnectClient(true);
-  resetConnectedPeerState();
-  clearPeer();
+  if (state_ == State::Idle) return;
+  enterIdle();
 }
 
 void BleCentral::loop()
 {
-  if (!started || pendingAction_ == PendingAction::None) return;
-  if (isScanning() || isConnected()) return;
-
-  PendingAction action = pendingAction_;
-  pendingAction_ = PendingAction::None;
-  switch (action)
+  switch (state_)
   {
-    case PendingAction::Scan:
-      startScan(scanDuration);
+    case State::PendingScan:
+      enterScanning(scanDuration);
       return;
 
-    case PendingAction::Connect:
+    case State::PendingConnect:
     {
+      state_ = State::Connecting;
       ConnectResult result = connectToPeer();
+      if (state_ != State::Connecting)
+        return;
+
       switch (result)
       {
         case ConnectResult::Connected:
+          state_ = State::Connected;
           return;
 
         case ConnectResult::RetryScan:
           clearPeer();
           onConnectFailed();
-          pendingAction_ = PendingAction::Scan;
+          state_ = State::PendingScan;
           return;
 
         case ConnectResult::WaitForDisconnect:
           onConnectFailed();
+          state_ = State::Disconnecting;
           return;
       }
+      return;
     }
 
-    case PendingAction::None:
+    case State::Idle:
+    case State::Started:
+    case State::Disconnecting:
+    case State::Scanning:
+    case State::Stopping:
+    case State::Connecting:
+    case State::Connected:
       return;
   }
 }
 
 bool BleCentral::isStarted() const
 {
-  return started;
+  return state_ != State::Idle;
 }
 
 bool BleCentral::isConnected() const
 {
-  return client_ && client_->isConnected();
-}
-
-bool BleCentral::isScanning() const
-{
-  return started && scanActive_;
+  return state_ == State::Connected && client_ && client_->isConnected();
 }
 
 bool BleCentral::isConnectPending() const
 {
-  return pendingAction_ == PendingAction::Connect;
+  return state_ == State::PendingConnect;
 }
 
 const char* BleCentral::peerName() const
@@ -103,41 +97,33 @@ BLEClient* BleCentral::client() const
   return client_;
 }
 
-BLEAdvertisedDevice* BleCentral::peer() const
+bool BleCentral::beginScan(uint32_t seconds)
 {
-  return peer_;
-}
-
-void BleCentral::startScan(uint32_t seconds)
-{
-  if (!started) return;
-  if (isScanning() || isConnected()) return;
-  if (MAX_SCAN_ATTEMPTS && scanAttempts >= MAX_SCAN_ATTEMPTS) return;
-  if (!BLEDevice::getInitialized()) return;
+  if (state_ == State::Idle || state_ == State::Stopping) return false;
+  if (isConnected()) return false;
+  if (MAX_SCAN_ATTEMPTS && scanAttempts >= MAX_SCAN_ATTEMPTS) return false;
+  if (!BLEDevice::getInitialized()) return false;
 
   BLEScan* scan = BLEDevice::getScan();
-  if (scan == nullptr) return;
+  if (scan == nullptr) return false;
   scan->setAdvertisedDeviceCallbacks(this);
   configureScan(*scan);
   scanDuration = seconds;
   ++scanAttempts;
   onScanStart();
   activeScanner = this;
-  scanActive_ = false;
 
   if (!scan->start(seconds, scanCompleteCallback, false))
   {
     if (activeScanner == this)
       activeScanner = nullptr;
-    return;
+    return false;
   }
-
-  scanActive_ = true;
+  return true;
 }
 
 void BleCentral::stopScan()
 {
-  scanActive_ = false;
   if (!BLEDevice::getInitialized()) return;
 
   BLEScan* scan = BLEDevice::getScan();
@@ -147,23 +133,17 @@ void BleCentral::stopScan()
     activeScanner = nullptr;
 }
 
-void BleCentral::onConnect(BLEClient* client)
-{
-  (void)client;
-}
-
 void BleCentral::onDisconnect(BLEClient* client)
 {
-  resetConnectedPeerState();
-  clearPeer();
-  scanAttempts = 0;
-  pendingAction_ = started ? PendingAction::Scan : PendingAction::None;
+  if (state_ == State::Connected || state_ == State::Connecting || state_ == State::Disconnecting)
+    recoverFromDisconnect();
   (void)client;
 }
 
 void BleCentral::onResult(BLEAdvertisedDevice advertisedDevice)
 {
   if (!acceptsAdvertisement(advertisedDevice)) return;
+  if (state_ != State::Scanning) return;
 
   if (peer_ != nullptr) return;
 
@@ -211,15 +191,45 @@ void BleCentral::scanCompleteCallback(BLEScanResults results)
 
 void BleCentral::handleScanComplete(BLEScanResults& results)
 {
-  scanActive_ = false;
   if (activeScanner == this)
     activeScanner = nullptr;
+  (void)results;
 
-  onScanComplete(results);
+  if (state_ != State::Scanning) return;
 
-  if (!started || isConnected()) return;
+  state_ = (peer_ != nullptr) ? State::PendingConnect : State::PendingScan;
+}
 
-  pendingAction_ = (peer_ != nullptr) ? PendingAction::Connect : PendingAction::Scan;
+void BleCentral::enterIdle()
+{
+  state_ = State::Stopping;
+  stopScan();
+  disconnectClient(true);
+  resetConnectedPeerState();
+  clearPeer();
+  scanAttempts = 0;
+  state_ = State::Idle;
+}
+
+void BleCentral::enterScanning(uint32_t seconds)
+{
+  if (state_ == State::Idle || state_ == State::Stopping) return;
+
+  state_ = State::Scanning;
+  if (!beginScan(seconds))
+    state_ = State::Started;
+}
+
+void BleCentral::recoverFromDisconnect()
+{
+  resetConnectedPeerState();
+  clearPeer();
+  scanAttempts = 0;
+
+  if (state_ == State::Stopping || state_ == State::Idle)
+    return;
+
+  state_ = State::PendingScan;
 }
 
 void BleCentral::clearPeer()
