@@ -167,3 +167,13 @@ In this mode the receiver looks for supported BLE HID devices and maps their key
 | Play/Pause double click | Encoder short press           | Only available on devices that support the double-click mapping        |
 
 The press-and-rotate mapping is useful for actions that already depend on that gesture, such as direct frequency input mode and fine tuning in Seek mode.
+
+## Community software
+
+The following community projects may be useful if you want a richer remote-control interface:
+
+* [ATS Mini Controller](https://ats-mini-controller.vercel.app/) - a browser-based controller with on-screen controls, a terminal, screenshot capture, and memory-slot tools. Introduced in [Issue #128](https://github.com/esp32-si4732/ats-mini/issues/128).
+* [ATS Mini Companion](https://github.com/rodillo69/ATS-Mini-Companion) - an Android app for controlling the receiver over USB or Bluetooth LE. Introduced in [Discussion #264](https://github.com/esp32-si4732/ats-mini/discussions/264).
+* [Mini-Radio Control GUI](https://github.com/Kabuse/Mini-Radio-Control) - a Python desktop GUI for serial control with real-time status display and related tools. Introduced in [Discussion #101](https://github.com/esp32-si4732/ats-mini/discussions/101).
+* [Mini-Radio-Control](https://github.com/dustinsterk/Mini-Radio-Control) - another community remote-control project hosted on GitHub. Introduced in [Discussion #101](https://github.com/esp32-si4732/ats-mini/discussions/101#discussioncomment-13848383).
+* [ATS-MINI-Remote](https://github.com/Spectral-Source/ATS-MINI-Remote) - a web-based remote control with a Flask backend and a responsive interface for controlling the receiver from devices on the local network. Introduced in [Discussion #101](https://github.com/esp32-si4732/ats-mini/discussions/101#discussioncomment-14549132).
