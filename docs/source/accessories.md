@@ -57,6 +57,12 @@ TwelveSouth Air Fly Pro (or Pro 2) ([twelvesouth.com](https://www.twelvesouth.co
 
 ![](_static/bluetooth-airfly-pro2.jpg)
 
+## Bluetooth LE input devices
+
+Bluetooth volume control knob ([aliexpress.com](https://www.aliexpress.com/item/1005008941450701.html)):
+
+![](_static/volume-control-knob.jpg)
+
 ## Line-level to Smartphone Mic adapter
 
 It allows you to connect the receiver headphone output to a smartphone 3.5mm headset socket (or a 3.5mm jack to USB-C/Lightning adapter if there is no socket) to record audio or decode Morse/RTTY/SSTV/Fax on a smartphone.

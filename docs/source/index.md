@@ -4,6 +4,7 @@ maxdepth: 1
 hidden: true
 ---
 manual.md
+remote.md
 flash.md
 recovery.md
 accessories.md
