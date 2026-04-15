@@ -175,6 +175,7 @@ extern const int CALMax;
 static inline bool isSSB() { return(currentMode>FM && currentMode<AM); }
 
 void useBand(const Band *band);
+bool updateFrequency(int newFreq, bool wrap = true);
 bool updateBFO(int newBFO, bool wrap = true);
 bool doSeek(int16_t enc);
 bool clickFreq(bool shortPress);

@@ -125,6 +125,36 @@ static bool remoteShowError(Stream* stream, const char *message)
   return false;
 }
 
+static bool remoteSetFrequency(Stream *stream)
+{
+  stream->print('F');
+
+  long int freqHz = remoteReadInteger(stream);
+  if(freqHz <= 0)
+    return remoteShowError(stream, "Invalid frequency");
+  if(!expectNewline(stream))
+    return remoteShowError(stream, "Expected newline");
+  stream->println();
+
+  Band *band = getCurrentBand();
+  uint16_t targetFreq = freqFromHz(freqHz, currentMode);
+  int targetBfo = isSSB() ? bfoFromHz(freqHz) : 0;
+  if(!isFreqInBand(band, targetFreq) || (isSSB() && targetFreq == band->maximumFreq && targetBfo))
+    return remoteShowError(stream, "Frequency is out of range for the current band");
+  if(!updateFrequency(targetFreq, false))
+    return remoteShowError(stream, "Frequency is out of range for the current band");
+
+  if(isSSB())
+    updateBFO(targetBfo, false);
+  else if(currentBFO)
+    updateBFO(0, true);
+
+  clearStationInfo();
+  identifyFrequency(currentFrequency + currentBFO / 1000);
+
+  return true;
+}
+
 static void remoteGetMemories(Stream* stream)
 {
   for (uint8_t i = 0; i < getTotalMemories(); i++) {
@@ -414,6 +444,10 @@ int remoteDoCommand(Stream* stream, RemoteState* state, char key)
       break;
     case '#':
       if (remoteSetMemory(stream))
+        event |= REMOTE_PREFS;
+      break;
+    case 'F':
+      if (remoteSetFrequency(stream))
         event |= REMOTE_PREFS;
       break;
 

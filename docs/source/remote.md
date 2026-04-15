@@ -107,6 +107,7 @@ The ad hoc protocol is the main remote-control protocol. It can be used over:
 | <kbd>C</kbd> | Screenshot          | Capture a screenshot and print it as a BMP image in HEX format                                   |
 | <kbd>$</kbd> | Show Memory Slots   | Show memory slots in a format suitable for restoring them after the reset                        |
 | <kbd>#</kbd> | Set Memory Slot     | Example `#01,VHF,107900000,FM` (slot, band, frequency, mode). Set freq to 0 to clear a slot.     |
+| <kbd>F</kbd> | Set Frequency       | Example `F107900000`. Frequency is in Hz and must stay within the current band. In SSB modes, sub-kHz digits set the BFO. |
 | <kbd>T</kbd> | Theme Editor        | Toggle the [theme editor](development.md#theme-editor) on and off                                |
 | <kbd>@</kbd> | Get Theme           | Print the current color theme                                                                    |
 | <kbd>^</kbd> | Set Theme           | Set the current color theme as a list of HEX numbers (effective until a power cycle)             |
