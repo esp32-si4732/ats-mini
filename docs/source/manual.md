@@ -6,13 +6,14 @@
 
 * **RSSI meter** (top left corner), also serves as a mono/stereo indicator in FM mode (one/two rows).
 * **Settings save icon** (right after the RSSI meter). The settings are saved to non-volatile memory after 10 seconds of inactivity.
+* **Bluetooth icon** (right after the save icon). Different colors indicate the connection status.
 * **Wi-Fi icon** (top right area near the battery). Different colors indicate the connection status.
 * **Battery status** (top right corner). It doesn't show the voltage when charged, see [#36](https://github.com/esp32-si4732/ats-mini/issues/36#issuecomment-2778356143). The only indication that the battery is charging is the hardware LED on the bottom of the receiver, which turns ON during charging.
 * **Band name and modulation** (VHF & FM, top center). See the [Bands table](#bands-table) for more details.
 * **Info panel** (the box on the left side), also **Menu**. The parameters are explained in the [Menu](#menu) section.
 * **Frequency** (center of the screen).
 * **FM station name** (RDS PS) or **frequency name** (right below the frequency). A frequency name appears for some popular frequencies like FT8, SSTV, CB channels, or a shortwave [schedule](#schedule). Can also display current **menu option** using a bigger font when the Zoom Menu setting is enabled.
-* **Tuning scale** (bottom of the screen). Can be replaced with additional RDS fields (RT, PTY) when extended RDS is enabled.
+* **Tuning scale** (bottom of the screen). Can be replaced with additional RDS fields (RT, PTY) when extended RDS is enabled, or RSSI/SNR graphs in Scan mode.
 
 ## Alternative UI
 
@@ -25,7 +26,7 @@ The differences are:
 * **S/N Meter** (in dB). The range is 0...127 and the visual indicator linearly displays this range.
 * **RSSI & S-Meter** (the number is in dBµV, the meter is in S-points). Please note that the RSSI range is also 0...127 (no negative values) and according to [these tables](https://dl4zao.de/_downloads/Dezibel.pdf) any values below S4 on HF (rssi < 4) and below S7 on VHF (rssi < 2) are bogus. Thus it is very far from being precise, and also depends on the antenna impedance.
 
-Both meters can be replaced with additional RDS fields (RT, PTY) when extended RDS is enabled.
+Both meters can be replaced with additional RDS fields (RT, PTY) when extended RDS is enabled, or RSSI/SNR graphs in Scan mode.
 
 ## Controls
 
@@ -56,7 +57,7 @@ The menu can be invoked by clicking the encoder button and is closed automatical
 * **Step** - Tuning step (not every step is available on every band and mode).
 * **Seek** - Seek up or down on AM/FM, normal tuning on LSB/USB (hardware seek function is not supported by SI4732 on SSB). Rotate or click the encoder to stop the seek. Use short press to switch between the seek and [schedule](#schedule) modes. Use press and rotate for manual fine tuning.
 * **Scan** - Scan a frequency range and plot the RSSI (S) and SNR (N) graphs (unfortunately, these metrics are almost meaningless in SSB modes due to SI4732 patch limitations). Both graphs are normalized to 0.0 - 1.0 range. While the Scan mode is active, short press the encoder for 0.5 seconds to rescan. To abort a running scan process click or rotate the encoder.
-* **Memory** - 99 slots to store favorite frequencies. Short press on an empty slot to store the current frequency, short press to erase a slot, switch between stored slots by rotating the encoder, click to exit the menu. It is also possible to edit the memory slots via [remote control](remote.md) or via the [web based tool](memory.md) in Google Chrome.
+* **Memory** - 99 slots to store favorite frequencies. Short press (>0.5 sec) on an empty slot to store the current frequency, short press to erase a slot, switch between stored slots by rotating the encoder, click to exit the menu. It is also possible to edit the memory slots via [remote control](remote.md) or via the [web based tool](memory.md) in Google Chrome.
 * **Squelch** - mute the speaker when the RSSI level is lower than the defined threshold. Unlikely to work in SSB mode. To turn it off quickly, short press the encoder button while in the Squelch menu mode.
 * **Bandwidth** - Selects the bandwidth of the channel filter.
 * **AGC/ATTN** - Automatic Gain Control (on/off) or Attenuation level. The attenuator is not applicable to SSB mode.
