@@ -38,6 +38,27 @@
 #define SLEEP_UNLOCKED 1 // Do not lock the encoder
 #define SLEEP_LIGHT    2 // ESP32 light sleep
 
+#if defined(LILYGO_SI473X)
+
+// SI4732/5 PINs for LilyGo T-Embed SI473x Shield
+#define PIN_POWER_ON  46            // GPIO46   Board/shield power enable (1 = Enable)
+#define RESET_PIN     16            // GPIO16   SI4732/5 Reset
+#define ESP32_I2C_SCL  8            // GPIO8    SI4732/5 Clock
+#define ESP32_I2C_SDA 18            // GPIO18   SI4732/5 Data
+#define AUDIO_MUTE    17            // GPIO17   Hardware L/R mute, controlled via SI4735 code (1 = Mute)
+#define PIN_AMP_EN    -1            // T-Embed shield has no separate amp enable pin
+
+// Display PINs
+#define PIN_LCD_BL    15            // GPIO15   LCD backlight (PWM brightness control)
+// All other pins are defined by the TFT_eSPI library
+
+// Rotary Enconder PINs
+#define ENCODER_PIN_A  2            // GPIO02
+#define ENCODER_PIN_B  1            // GPIO01
+#define ENCODER_PUSH_BUTTON 0       // GPIO0
+
+#else
+
 // SI4732/5 PINs
 #define PIN_POWER_ON  15            // GPIO15   External LDO regulator enable (1 = Enable)
 #define RESET_PIN     16            // GPIO16   SI4732/5 Reset
@@ -54,6 +75,8 @@
 #define ENCODER_PIN_A  2            // GPIO02
 #define ENCODER_PIN_B  1            // GPIO01
 #define ENCODER_PUSH_BUTTON 21      // GPIO21
+
+#endif
 
 // Compute number of items in an array
 #define ITEM_COUNT(array) (sizeof(array) / sizeof((array)[0]))

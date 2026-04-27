@@ -111,10 +111,13 @@ void setup()
   pinMode(ENCODER_PIN_A, INPUT_PULLUP);
   pinMode(ENCODER_PIN_B, INPUT_PULLUP);
 
-  // Enable audio amplifier
-  // Initally disable the audio amplifier until the SI4732 has been setup
-  pinMode(PIN_AMP_EN, OUTPUT);
-  digitalWrite(PIN_AMP_EN, LOW);
+  // Initially disable the audio amplifier until the SI4732 has been setup,
+  // if the target board exposes a separate amplifier enable pin.
+  if(PIN_AMP_EN >= 0)
+  {
+    pinMode(PIN_AMP_EN, OUTPUT);
+    digitalWrite(PIN_AMP_EN, LOW);
+  }
 
   // Enable SI4732 VDD
   pinMode(PIN_POWER_ON, OUTPUT);
@@ -133,6 +136,7 @@ void setup()
   tft.begin();
   tft.setRotation(3);
 
+  #if !defined(LILYGO_SI473X)
   // Detect and fix the mirrored & inverted display
   // https://github.com/esp32-si4732/ats-mini/issues/41
   uint8_t did3 = tft.readcommand8(ST7789_RDDID, 3);
@@ -153,6 +157,7 @@ void setup()
     tft.writecommand(0x55); // WRCACE (content adaptive brightness and color)
     tft.writedata(0xB1);    // High enhancement, UI mode
   }
+  #endif
 
   tft.fillScreen(TH.bg);
   spr.createSprite(320, 170);
@@ -240,7 +245,7 @@ void setup()
 
   // Audio Amplifier Enable. G8PTN: Added
   // After the SI4732 has been setup, enable the audio amplifier
-  digitalWrite(PIN_AMP_EN, HIGH);
+  if(PIN_AMP_EN >= 0) digitalWrite(PIN_AMP_EN, HIGH);
 
   // SI4732 STARTUP!
   selectBand(bandIdx, false);

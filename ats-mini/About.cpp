@@ -108,9 +108,13 @@ static void drawAboutSystem(uint8_t arrow)
   sprintf(
     text,
     "Display ID: %08lX, STAT: %02X%08lX",
+#if !defined(LILYGO_SI473X)
     tft.readcommand32(ST7789_RDDID, 1),
     tft.readcommand8(ST7789_RDDST, 1),
     tft.readcommand32(ST7789_RDDST, 2)
+#else
+    0, 0, 0
+#endif
   );
   spr.drawString(text, 2, 70 + 16 * 3, 2);
 
