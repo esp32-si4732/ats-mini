@@ -30,7 +30,7 @@ on:
 
 jobs:
   build:
-    name: build ${{ matrix.board.profile }}
+    name: build ${{ matrix.board.artifact-suffix }}
     runs-on: ubuntu-latest
     permissions: {}
     strategy:
@@ -41,10 +41,28 @@ jobs:
             # If you change this line, change it in sketch.yaml as well
             fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=8M,PSRAM=opi,CPUFreq=80,USBMode=hwcdc,FlashMode=qio,PartitionScheme=custom,DebugLevel=none
             artifact-suffix: ospi
+            cli-compile-flags: |
+              - --profile
+              - esp32s3-ospi
+              - --export-binaries
           - profile: esp32s3-qspi
             # If you change this line, change it in sketch.yaml as well
             fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=8M,PSRAM=enabled,CPUFreq=80,USBMode=hwcdc,FlashMode=qio,PartitionScheme=custom,DebugLevel=none
             artifact-suffix: qspi
+            cli-compile-flags: |
+              - --profile
+              - esp32s3-qspi
+              - --export-binaries
+          - profile: esp32s3-ospi
+            # If you change this line, change it in sketch.yaml as well
+            fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=8M,PSRAM=opi,CPUFreq=80,USBMode=hwcdc,FlashMode=qio,PartitionScheme=custom,DebugLevel=none
+            artifact-suffix: lilygo-t-embed
+            cli-compile-flags: |
+              - --profile
+              - esp32s3-ospi
+              - --export-binaries
+              - --build-property
+              - compiler.cpp.extra_flags=-DLILYGO_SI473X
 
     outputs:
       slug: ${{ steps.slug.outputs.slug }}
@@ -69,10 +87,7 @@ jobs:
           sketch-paths: |
             - ats-mini
           fqbn: ${{ matrix.board.fqbn }}
-          cli-compile-flags: |
-            - --profile
-            - ${{ matrix.board.profile }}
-            - --export-binaries
+          cli-compile-flags: ${{ matrix.board.cli-compile-flags }}
           # Disabled to prevent building artifact for a previous commit
           enable-deltas-report: false
           enable-warnings-report: true
