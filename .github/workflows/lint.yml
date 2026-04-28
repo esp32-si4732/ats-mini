@@ -15,5 +15,5 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Pre-commit
-        uses: pre-commit/action@v3.0.1
+      - name: Prek
+        uses: j178/prek-action@v2

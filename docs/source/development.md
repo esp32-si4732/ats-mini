@@ -55,7 +55,7 @@ To decode a stack trace (printed via serial port) use the following tool: <https
 
 1. Install `uv` <https://docs.astral.sh/uv/getting-started/installation/>
 2. Run `uv sync`
-3. run `uv run pre-commit install --install-hooks`
+3. run `uv run prek install`
 
 ## Adding a changelog entry
 
