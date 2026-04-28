@@ -31,6 +31,7 @@ arduino-cli lib update-index
 The available options are:
 
 * `HALF_STEP` - enable encoder half-steps (useful for EC11E encoder)
+* `LILYGO_SI473X` - compile for [LILYGO T-Embed SI4732](hardware.md#lilygo-t-embed-si4732) hardware variant
 
 To set an option, add the `--build-property` command line argument like this:
 

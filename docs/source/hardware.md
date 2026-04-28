@@ -72,3 +72,31 @@ The relevant columns are ESP32-S3-WROOM-1 "Pin Name" and "ATS-Mini Sketch Pin De
 ## BOOT and RESET buttons
 
 Some of the ESP32-SI4732 receivers do not have the BOOT and RESET buttons soldered in. You will need these buttons if you want to recover a receiver that was bricked because of a failed flashing process. Here is how to add the [BOOT & RESET](mods.md#boot-and-reset-buttons) buttons.
+
+## LILYGO T-Embed SI4732
+
+![](_static/lilygo-t-embed-si4732.jpg)
+
+Impressions so far:
+
+- Due to the lack of a power switch, the stock firmware uses deep sleep, triggered by a long press, but it still drains the battery. The ATS Mini firmware already uses the long-press gesture for other purposes, so there is no way to turn the receiver off.
+- The reset button is external, and the boot button is combined with the encoder button. This makes triggering bootloader mode much easier, but it also means that to reset the receiver settings, you have to press and hold the encoder button right after powering the receiver on, not before.
+- The display is connected via SPI, but the MISO pin is used for different purposes. This means the display controller registers are write-only.
+- The display color palette is a bit off, so the themes look different.
+- There are separate FM and AM antenna connectors on the SI4732 board.
+- The encoder is nice, but the push-and-rotate gesture is harder to use.
+- There is no headphone jack.
+- The speaker is on the top.
+- The antenna connector on the back cover can be used as a stand to tilt the receiver back.
+
+It is highly recommended to do a little hardware mod and install a physical power switch (without it you won't be able to switch the receiver off after you flash the ATS Mini firmware):
+
+![](_static/lilygo-t-embed-si4732-internals.jpg)
+
+Links:
+
+* <https://lilygo.cc/products/t-embed-si4732> - product page
+* <https://github.com/Xinyuan-LilyGO/LILYGO_wiki/blob/main/docs/get_started/en/Wearable/T-Embed-SI4732/T-Embed-SI4732.md> - wiki
+* <https://github.com/Xinyuan-LilyGO/T-Embed/blob/main/schematic/> - schematic
+* <https://github.com/Xinyuan-LilyGO/T-Embed/tree/main/examples/SI4735_Shield> - stock firmware source code
+* <https://github.com/Xinyuan-LilyGO/T-Embed/blob/main/firmware/SI4735_Shield_250308.bin> - stock firmware binary

@@ -14,6 +14,8 @@ The firmware releases are available on [GitHub](https://github.com/esp32-si4732/
 ![](_static/esp32-psram-variants.png)
 
 With the right firmware variant you should see a non-zero PSRAM amount on the Settings->About system info screen. Also check out the following discussion: [OSPI vs QSPI: How can I see what I have?](https://github.com/esp32-si4732/ats-mini/discussions/174).
+
+The `lilygo-t-embed` variant only works on [LILYGO T-Embed SI4732](hardware.md#lilygo-t-embed-si4732) receiver. WARNING: flashing a different firmware can damage the receiver.
 ```
 
 A firmware archive contains the following files:
