@@ -240,7 +240,7 @@ void BleHidCentral::onScanStart()
   drawScreen();
   if (maxAttempts)
   {
-    snprintf(statusLine, sizeof(statusLine), "Scanning for BLE HID... %u/%u", scanAttempts, maxAttempts);
+    snprintf(statusLine, sizeof(statusLine), "Scanning for BLE HID %u/%u...", scanAttempts, maxAttempts);
     drawScreen(statusLine);
   }
   else
