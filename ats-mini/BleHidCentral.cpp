@@ -203,6 +203,8 @@ bool BleHidCentral::consumeAbortPending()
     pendingState = {};
     virtualPushUntil = 0;
     playPauseClickDeadline = 0;
+    playPausePressedAt = 0;
+    ignoreNextPlayPauseRelease = false;
     pressedMask_ = 0;
   }
   return pending;
@@ -289,6 +291,8 @@ void BleHidCentral::resetConnectedPeerState()
   clearReportBinding();
   virtualPushUntil = 0;
   playPauseClickDeadline = 0;
+  playPausePressedAt = 0;
+  ignoreNextPlayPauseRelease = false;
   supportsDoubleClick_ = true;
   pressedMask_ = 0;
   if (activeInstance == this)
@@ -380,12 +384,42 @@ void BleHidCentral::handleInputReport(BLERemoteCharacteristic* characteristic, c
   bool scanNextPressed = !!(pressedMask_ & ScanNextPressed);
   bool scanPreviousPressed = !!(pressedMask_ & ScanPreviousPressed);
   bool playPausePressed = !!(pressedMask_ & PlayPausePressed);
+  uint32_t now = millis();
+  bool isReleaseReport =
+    !hasScanNext &&
+    !hasScanPrevious &&
+    !hasVolumeIncrement &&
+    !hasVolumeDecrement &&
+    !hasPlayPause;
+
+  if (hasPlayPause && !playPausePressed)
+  {
+    playPausePressedAt = now;
+    ignoreNextPlayPauseRelease = false;
+  }
+
+  if (playPausePressed && !isReleaseReport)
+    hasPlayPause = true;
 
   if (hasVolumeIncrement && !volumeIncrementPressed && pendingState.rotation < 32767)
+  {
     pendingState.rotation++;
+    if (playPausePressed)
+    {
+      holdVirtualPush();
+      ignoreNextPlayPauseRelease = true;
+    }
+  }
 
   if (hasVolumeDecrement && !volumeDecrementPressed && pendingState.rotation > -32768)
+  {
     pendingState.rotation--;
+    if (playPausePressed)
+    {
+      holdVirtualPush();
+      ignoreNextPlayPauseRelease = true;
+    }
+  }
 
   if (hasScanNext && !scanNextPressed && pendingState.rotation < 32767)
   {
@@ -399,19 +433,41 @@ void BleHidCentral::handleInputReport(BLERemoteCharacteristic* characteristic, c
     holdVirtualPush();
   }
 
-  if (!hasPlayPause && playPausePressed)
+  if (isReleaseReport && playPausePressed)
   {
-    if (supportsDoubleClick_ && playPauseClickDeadline && (int32_t)(millis() - playPauseClickDeadline) < 0)
+    uint32_t heldMs = playPausePressedAt ? (uint32_t)(now - playPausePressedAt) : 0;
+
+    if (ignoreNextPlayPauseRelease)
     {
+      ignoreNextPlayPauseRelease = false;
+      hasPlayPause = true;
+    }
+    else if (heldMs >= keyboardLongPressMs)
+    {
+      playPausePressedAt = 0;
+      pendingState.wasShortPressed = true;
+      playPauseClickDeadline = 0;
+    }
+    else if (heldMs >= keyboardPressMinMs)
+    {
+      playPausePressedAt = 0;
+      pendingState.wasClicked = true;
+      playPauseClickDeadline = 0;
+    }
+    else if (supportsDoubleClick_ && playPauseClickDeadline && (int32_t)(now - playPauseClickDeadline) < 0)
+    {
+      playPausePressedAt = 0;
       pendingState.wasShortPressed = true;
       playPauseClickDeadline = 0;
     }
     else if (supportsDoubleClick_)
     {
-      playPauseClickDeadline = millis() + playPauseDoubleClickMs;
+      playPausePressedAt = 0;
+      playPauseClickDeadline = now + playPauseDoubleClickMs;
     }
     else
     {
+      playPausePressedAt = 0;
       pendingState.wasClicked = true;
       playPauseClickDeadline = 0;
     }

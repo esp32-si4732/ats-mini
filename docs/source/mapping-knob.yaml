@@ -1,0 +1,38 @@
+# ch57x-keyboard-tool --vendor-id 0x514c --product-id 0x8850 upload mapping-knob.yaml
+
+orientation: normal
+
+rows: 0
+columns: 0
+knobs: 2
+
+layers:
+  - buttons: []
+    knobs:
+      - ccw: "volumedown"
+        press: "play"
+        cw: "volumeup"
+
+      - ccw: "previous"
+        press: "<34>"
+        cw: "next"
+
+  - buttons: []
+    knobs:
+      - ccw: "volumedown"
+        press: "play"
+        cw: "volumeup"
+
+      - ccw: "previous"
+        press: "<34>"
+        cw: "next"
+
+  - buttons: []
+    knobs:
+      - ccw: "volumedown"
+        press: "play"
+        cw: "volumeup"
+
+      - ccw: "previous"
+        press: "<34>"
+        cw: "next"

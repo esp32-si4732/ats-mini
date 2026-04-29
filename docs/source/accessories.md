@@ -59,9 +59,25 @@ TwelveSouth Air Fly Pro (or Pro 2) ([twelvesouth.com](https://www.twelvesouth.co
 
 ## Bluetooth LE input devices
 
+Instead of the stock configuration software you can use the following tool: <https://github.com/kriomant/ch57x-keyboard-tool>
+
+### Volume knob
+
 Bluetooth volume control knob ([aliexpress.com](https://www.aliexpress.com/item/1005008941450701.html)):
 
 ![](_static/volume-control-knob.jpg)
+
+```{literalinclude} mapping-knob.yaml
+:language: yaml
+```
+
+### Media keyboard
+
+![](_static/keyboard-3-1.jpg)
+
+```{literalinclude} mapping-kbd.yaml
+:language: yaml
+```
 
 ## Line-level to Smartphone Mic adapter
 

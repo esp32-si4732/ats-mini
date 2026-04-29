@@ -1,0 +1,29 @@
+# ch57x-keyboard-tool upload mapping-kbd.yaml
+
+orientation: normal
+
+rows: 1
+columns: 3
+knobs: 1
+
+layers:
+  - buttons:
+      - ["prev", "play", "next"]
+    knobs:
+      - ccw: "volumedown"
+        press: "play"
+        cw: "volumeup"
+
+  - buttons:
+      - ["prev", "play", "next"]
+    knobs:
+      - ccw: "volumedown"
+        press: "play"
+        cw: "volumeup"
+
+  - buttons:
+      - ["prev", "play", "next"]
+    knobs:
+      - ccw: "volumedown"
+        press: "play"
+        cw: "volumeup"

@@ -46,6 +46,8 @@ private:
 
   static constexpr uint32_t virtualPushHoldMs = 150;
   static constexpr uint32_t playPauseDoubleClickMs = 400;
+  static constexpr uint32_t keyboardPressMinMs = 50;
+  static constexpr uint32_t keyboardLongPressMs = 500;
 
   class SecurityCallbacks : public BLESecurityCallbacks {
     void onAuthenticationComplete(ble_gap_conn_desc *desc) override { (void)desc; }
@@ -71,6 +73,8 @@ private:
   uint16_t reportHandle_ = 0;
   uint32_t virtualPushUntil = 0;
   uint32_t playPauseClickDeadline = 0;
+  uint32_t playPausePressedAt = 0;
+  bool ignoreNextPlayPauseRelease = false;
   bool supportsDoubleClick_ = true;
   uint8_t pressedMask_ = 0;
   BLESecurity security;
