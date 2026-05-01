@@ -4,6 +4,31 @@ The user manual is available at <https://esp32-si4732.github.io/ats-mini/manual.
 
 <!-- towncrier release notes start -->
 
+## 2.34 (2026-05-01)
+
+
+### Added
+
+- "PSRAM not detected" fatal error screen (shown if a wrong f/w variant was flashed).
+- Add `E` serial command that emulates encoder short press.
+- Add `F` serial command to tune directly to a frequency in Hz within the current band. In SSB modes, sub-kHz digits set the BFO as well.
+- Experimental Bluetooth LE control is available under Settings->Bluetooth: use Ad hoc for the BLE remote-control protocol, or HID to connect supported Bluetooth remotes/keyboards for tuning and menu actions. It may be unstable.
+- Experimental support for LILYGO T-Embed SI4732, see <https://esp32-si4732.github.io/ats-mini/hardware.html#lilygo-t-embed-si4732> for more details.
+
+
+### Changed
+
+- Abort the long running operations (Seek, Scan, EiBi) via any remote command
+- Change the set theme serial command from ! to ^.
+- Drop workaround for https://github.com/espressif/arduino-esp32/issues/11742. Use faster method (WiFiMulti) to connect to 2-nd or 3-rd configured access point.
+- Remote control over USB serial port is disabled by default. To enable it, go to Settings->USB Port and set it to Ad hoc mode.
+
+
+### Fixed
+
+- Add an exhaustive (hopefully) list of UTC offsets. WARNING: please adjust your UTC offset again (the stored index is no longer valid). [#287](https://github.com/esp32-si4732/ats-mini/issues/287)
+- Fix out of range menu controls due to fast encoder rotation.
+
 ## 2.33 (2025-09-22)
 
 

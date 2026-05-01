@@ -1,1 +1,0 @@
-Add `E` serial command that emulates encoder short press.

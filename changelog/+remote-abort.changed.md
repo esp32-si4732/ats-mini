@@ -1,1 +1,0 @@
-Abort the long running operations (Seek, Scan, EiBi) via any remote command

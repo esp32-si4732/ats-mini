@@ -1,1 +1,0 @@
-Experimental Bluetooth LE control is available under Settings->Bluetooth: use Ad hoc for the BLE remote-control protocol, or HID to connect supported Bluetooth remotes/keyboards for tuning and menu actions. It may be unstable.
