@@ -14,7 +14,7 @@ layers:
         cw: "volumeup"
 
       - ccw: "previous"
-        press: "<34>"
+        press: "play"
         cw: "next"
 
   - buttons: []
@@ -24,7 +24,7 @@ layers:
         cw: "volumeup"
 
       - ccw: "previous"
-        press: "<34>"
+        press: "play"
         cw: "next"
 
   - buttons: []
@@ -34,5 +34,5 @@ layers:
         cw: "volumeup"
 
       - ccw: "previous"
-        press: "<34>"
+        press: "play"
         cw: "next"
