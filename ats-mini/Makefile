@@ -13,6 +13,10 @@ DEBUG_LEVEL ?= 0
 #
 DEFINES = -DDEBUG=$(DEBUG_LEVEL)
 
+ifdef LILYGO_SI473X
+        DEFINES += -DLILYGO_SI473X
+endif
+
 ifdef HALF_STEP
         DEFINES += -DHALF_STEP
 endif
