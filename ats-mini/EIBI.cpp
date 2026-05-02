@@ -391,7 +391,9 @@ bool eibiLoadSchedule()
   HTTPClient http;
 
   // Need to be connected to the network
-  if(getWiFiStatus() < 2) return(false);
+  consumeAbortPending();
+  if(getWiFiStatus() < 2)
+    return(false);
 
   drawScreen(eibiMessage, "Connecting...");
 

@@ -523,7 +523,11 @@ bool updateFrequency(int newFreq, bool wrap)
 // This function is called by blocking operations that need a lightweight abort check.
 bool consumeAbortPending()
 {
-  if(seekStop) return true;
+  if(seekStop)
+  {
+    seekStop = false;
+    return true;
+  }
   if(bleConsumeAbortPending(bleModeIdx)) return true;
   if(serialConsumeAbortPending(usbModeIdx)) return true;
 
@@ -566,8 +570,8 @@ bool doSeek(int16_t enc, int16_t enca)
       clearStationInfo();
       rssi = snr = 0;
 
-      // Flag is set by rotary encoder and cleared on seek/scan entry
-      seekStop = false;
+      // Clear stale abort state before starting seek
+      consumeAbortPending();
       rx.seekStationProgress(showFrequencySeek, consumeAbortPending, enc>0? 1 : 0);
       updateFrequency(rx.getFrequency(), true);
     }
