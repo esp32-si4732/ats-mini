@@ -14,6 +14,7 @@
 #include <ESPmDNS.h>
 
 #define CONNECT_TIME  3000  // Time of inactivity to start connecting WiFi
+#define WIFI_MULTI_TOTAL_TIMEOUT  30000
 
 WiFiMulti wifiMulti;
 
@@ -274,8 +275,25 @@ static bool wifiConnect()
 
   drawScreen(status.c_str());
 
+  consumeAbortPending();
+  wl_status_t wifiStatus = WL_NO_SSID_AVAIL;
+  uint32_t start = millis();
+  while(((millis() - start)<WIFI_MULTI_TOTAL_TIMEOUT) && (wifiStatus!=WL_CONNECTED))
+  {
+    wifiStatus = (wl_status_t)wifiMulti.run();
+
+    if(consumeAbortPending())
+    {
+      WiFi.disconnect();
+      break;
+    }
+
+    if((wifiStatus!=WL_CONNECTED) && ((millis() - start)<WIFI_MULTI_TOTAL_TIMEOUT))
+      delay(1000);
+  }
+
   // If failed connecting to WiFi network...
-  if (wifiMulti.run() != WL_CONNECTED)
+  if (wifiStatus != WL_CONNECTED)
   {
     // WiFi connection failed
     drawScreen(status.c_str(), "No WiFi connection");
