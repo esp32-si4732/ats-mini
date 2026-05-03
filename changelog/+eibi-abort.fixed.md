@@ -1,1 +1,0 @@
-Do not abort the EiBi download process immediately <https://github.com/esp32-si4732/ats-mini/discussions/325>.

@@ -4,6 +4,14 @@ The user manual is available at <https://esp32-si4732.github.io/ats-mini/manual.
 
 <!-- towncrier release notes start -->
 
+## 2.35 (2026-05-03)
+
+
+### Fixed
+
+- Try to connect to other WiFi access points besides the strongest one (including hidden SSIDs if the corresponding option is enabled). [#326](https://github.com/esp32-si4732/ats-mini/issues/326)
+- Do not abort the EiBi download process immediately <https://github.com/esp32-si4732/ats-mini/discussions/325>.
+
 ## 2.34 (2026-05-01)
 
 
