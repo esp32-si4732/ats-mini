@@ -321,6 +321,13 @@ bool prefsLoad(uint32_t items)
 
 bool diskInit(bool force)
 {
+  if(!force)
+  {
+    prefs.begin("storage", true, STORAGE_PARTITION);
+    force = prefs.getUChar("Version", 0) != VER_STORAGE;
+    prefs.end();
+  }
+
   if(force)
   {
     LittleFS.end();
@@ -331,24 +338,22 @@ bool diskInit(bool force)
 
   if(!mounted)
   {
-    // Serial.println("Formatting LittleFS...");
-
     if(!LittleFS.format())
     {
-      // Serial.println("ERROR: format failed");
       return(false);
     }
 
-    // Serial.println("Re-mounting LittleFS...");
     mounted = LittleFS.begin(false, "/littlefs", 10, "littlefs");
     if(!mounted)
     {
-      // Serial.println("ERROR: remount failed");
       return(false);
     }
   }
 
-  // Serial.println("Mounted LittleFS!");
+  prefs.begin("storage", false, STORAGE_PARTITION);
+  prefs.putUChar("Version", VER_STORAGE);
+  prefs.end();
+
   return(true);
 }
 
