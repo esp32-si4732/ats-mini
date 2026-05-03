@@ -35,6 +35,7 @@ static uint32_t connectTime = millis();
 // Settings
 String loginUsername = "";
 String loginPassword = "";
+static bool wifiScanHidden = false;
 
 // AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -255,6 +256,7 @@ static bool wifiConnect()
   prefs.begin("network", true, STORAGE_PARTITION);
   loginUsername = prefs.getString("loginusername", "");
   loginPassword = prefs.getString("loginpassword", "");
+  wifiScanHidden = prefs.getBool("wifiscanhidden", false);
 
   // Try connecting to known WiFi networks
   for(int j=0 ; (j<3) ; j++)
@@ -280,7 +282,7 @@ static bool wifiConnect()
   uint32_t start = millis();
   while(((millis() - start)<WIFI_MULTI_TOTAL_TIMEOUT) && (wifiStatus!=WL_CONNECTED))
   {
-    wifiStatus = (wl_status_t)wifiMulti.run(5000, true);
+    wifiStatus = (wl_status_t)wifiMulti.run(5000, wifiScanHidden);
 
     if(consumeAbortPending())
     {
@@ -379,6 +381,10 @@ void webSetConfig(AsyncWebServerRequest *request)
       haveSSID |= ssid != "" && pass != "";
     }
   }
+
+  // Save hidden SSID scanning preference
+  wifiScanHidden = request->hasParam("wifiscanhidden", true);
+  prefs.putBool("wifiscanhidden", wifiScanHidden);
 
   // Save time zone
   if(request->hasParam("utcoffset", true))
@@ -636,6 +642,7 @@ const String webConfigPage()
   String pass2 = prefs.getString("wifipass2", "");
   String ssid3 = prefs.getString("wifissid3", "");
   String pass3 = prefs.getString("wifipass3", "");
+  bool scanHidden = prefs.getBool("wifiscanhidden", false);
   prefs.end();
 
   return webPage(
@@ -683,6 +690,11 @@ const String webConfigPage()
     "<TD>" + webInputField("password", loginPassword, true) + "</TD>"
   "</TR>"
   "<TR><TH COLSPAN=2 CLASS='HEADING'>Settings</TH></TR>"
+  "<TR>"
+    "<TD CLASS='LABEL'>Scan Hidden SSIDs</TD>"
+    "<TD><INPUT TYPE='CHECKBOX' NAME='wifiscanhidden' VALUE='on'" +
+    (scanHidden? " CHECKED ":"") + "></TD>"
+  "</TR>"
   "<TR>"
     "<TD CLASS='LABEL'>Time Zone</TD>"
     "<TD>"
