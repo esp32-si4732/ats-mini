@@ -280,7 +280,7 @@ static bool wifiConnect()
   uint32_t start = millis();
   while(((millis() - start)<WIFI_MULTI_TOTAL_TIMEOUT) && (wifiStatus!=WL_CONNECTED))
   {
-    wifiStatus = (wl_status_t)wifiMulti.run();
+    wifiStatus = (wl_status_t)wifiMulti.run(5000, true);
 
     if(consumeAbortPending())
     {
