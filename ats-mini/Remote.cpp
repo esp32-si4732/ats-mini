@@ -476,6 +476,7 @@ static int serialLoop(Stream* stream, RemoteState* state, uint8_t usbMode)
   if(usbMode == USB_OFF) return 0;
 
   remoteTickTime(stream, state);
+  jsonTick(stream);
 
   if (stream->available())
     return remoteDoCommand(stream, state, stream->read());
@@ -493,4 +494,5 @@ bool serialConsumeAbortPending(uint8_t usbMode)
   Serial.read();
   return true;
 }
+
 

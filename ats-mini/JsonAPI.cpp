@@ -15,6 +15,20 @@ static uint32_t jsonReadWriteUntil = 0;
 static bool jsonBusy = false;
 static const char* jsonBusyOperation = nullptr;
 
+// Async events / subscriptions
+static bool jsonEventsEnabled = false;
+static bool jsonSignalEventsEnabled = false;
+
+static uint32_t jsonLastSignalEventMs = 0;
+static uint32_t jsonLastStateCheckMs = 0;
+
+static uint16_t jsonLastFrequency = 0;
+static int16_t jsonLastBfo = 0;
+static uint8_t jsonLastMode = 0xFF;
+static uint8_t jsonLastVolume = 0xFF;
+static uint8_t jsonLastRssi = 0xFF;
+static uint8_t jsonLastSnr = 0xFF;
+
 static void jsonCheckReadWriteTimeout()
 {
   if(jsonApiReadWrite && millis() > jsonReadWriteUntil)
@@ -45,6 +59,13 @@ static uint32_t jsonReadWriteRemainingMs()
   return jsonReadWriteUntil - now;
 }
 
+static int32_t jsonEffectiveFrequencyHz()
+{
+  int32_t effectiveFrequencyHz = ((int32_t)currentFrequency * 1000L);
+  if(isSSB()) effectiveFrequencyHz += currentBFO;
+  return effectiveFrequencyHz;
+}
+
 static void jsonSendResponse(Stream* stream, JsonDocument& doc)
 {
   serializeJson(doc, *stream);
@@ -65,7 +86,7 @@ static void jsonSendError(Stream* stream, const char* error, const char* command
   jsonSendResponse(stream, doc);
 }
 
-static void jsonSendEvent(Stream* stream, const char* eventName, const char* operation)
+static void jsonSendEvent(Stream* stream, const char* eventName, const char* operation = nullptr)
 {
   StaticJsonDocument<256> doc;
   doc["status"] = "event";
@@ -78,6 +99,49 @@ static void jsonSendEvent(Stream* stream, const char* eventName, const char* ope
   jsonSendResponse(stream, doc);
 }
 
+static void jsonSendStateEvent(Stream* stream, const char* eventName)
+{
+  StaticJsonDocument<JSON_BUFFER_SIZE> doc;
+
+  doc["status"] = "event";
+  doc["protocol"] = JSON_API_VERSION;
+  doc["event"] = eventName;
+  doc["readonly"] = !jsonIsReadWrite();
+  doc["busy"] = jsonBusy;
+  if(jsonBusyOperation) doc["operation"] = jsonBusyOperation;
+
+  doc["frequency_hz"] = jsonEffectiveFrequencyHz();
+  doc["frequency_khz"] = currentFrequency;
+  doc["mode"] = bandModeDesc[currentMode];
+  doc["band"] = getCurrentBand()->bandName;
+  doc["volume"] = volume;
+  doc["bfo"] = isSSB() ? currentBFO : 0;
+
+  jsonSendResponse(stream, doc);
+}
+
+static void jsonSendSignalEvent(Stream* stream)
+{
+  rx.getCurrentReceivedSignalQuality();
+  uint8_t currentRssi = rx.getCurrentRSSI();
+  uint8_t currentSnr = rx.getCurrentSNR();
+
+  StaticJsonDocument<256> doc;
+  doc["status"] = "event";
+  doc["protocol"] = JSON_API_VERSION;
+  doc["event"] = "signal";
+  doc["frequency_hz"] = jsonEffectiveFrequencyHz();
+  doc["rssi"] = currentRssi;
+  doc["snr"] = currentSnr;
+  doc["busy"] = jsonBusy;
+  if(jsonBusyOperation) doc["operation"] = jsonBusyOperation;
+
+  jsonSendResponse(stream, doc);
+
+  jsonLastRssi = currentRssi;
+  jsonLastSnr = currentSnr;
+}
+
 static void jsonSendStatus(Stream* stream, bool full = false)
 {
   StaticJsonDocument<JSON_BUFFER_SIZE> doc;
@@ -88,9 +152,6 @@ static void jsonSendStatus(Stream* stream, bool full = false)
   uint8_t currentRssi = rx.getCurrentRSSI();
   uint8_t currentSnr = rx.getCurrentSNR();
 
-  int32_t effectiveFrequencyHz = ((int32_t)currentFrequency * 1000L);
-  if(isSSB()) effectiveFrequencyHz += currentBFO;
-
   doc["status"] = "ok";
   doc["protocol"] = JSON_API_VERSION;
   doc["readonly"] = !jsonApiReadWrite;
@@ -98,7 +159,10 @@ static void jsonSendStatus(Stream* stream, bool full = false)
   doc["busy"] = jsonBusy;
   if(jsonBusyOperation) doc["operation"] = jsonBusyOperation;
 
-  doc["frequency_hz"] = effectiveFrequencyHz;
+  doc["events"] = jsonEventsEnabled;
+  doc["signal_events"] = jsonSignalEventsEnabled;
+
+  doc["frequency_hz"] = jsonEffectiveFrequencyHz();
   doc["frequency_khz"] = currentFrequency;
   doc["mode"] = bandModeDesc[currentMode];
   doc["band"] = getCurrentBand()->bandName;
@@ -164,13 +228,19 @@ static int cmdHelp(Stream* stream, JsonDocument& req)
   doc["rw_timeout_ms"] = JSON_API_RW_TIMEOUT_MS;
   doc["rw_remaining_ms"] = jsonReadWriteRemainingMs();
   doc["busy"] = jsonBusy;
-  if(jsonBusyOperation) doc["operation"] = jsonBusyOperation;
+  doc["events"] = jsonEventsEnabled;
+  doc["signal_events"] = jsonSignalEventsEnabled;
+  doc["signal_interval_ms"] = JSON_API_SIGNAL_INTERVAL_MS;
 
   JsonArray cmds = doc.createNestedArray("commands");
   cmds.add("help");
   cmds.add("ping");
   cmds.add("get_status");
   cmds.add("get_status_full");
+  cmds.add("subscribe_events");
+  cmds.add("unsubscribe_events");
+  cmds.add("subscribe_signal");
+  cmds.add("unsubscribe_signal");
   cmds.add("enable_readwrite");
   cmds.add("disable_readwrite");
 
@@ -184,6 +254,15 @@ static int cmdHelp(Stream* stream, JsonDocument& req)
     cmds.add("seek_down");
   }
 
+  JsonArray events = doc.createNestedArray("event_types");
+  events.add("frequency_changed");
+  events.add("mode_changed");
+  events.add("bfo_changed");
+  events.add("volume_changed");
+  events.add("signal");
+  events.add("seek_up_started");
+  events.add("seek_down_started");
+
   JsonArray modes = doc.createNestedArray("modes");
   modes.add("FM");
   modes.add("AM");
@@ -193,7 +272,69 @@ static int cmdHelp(Stream* stream, JsonDocument& req)
   doc["frequency_unit"] = "Hz";
   doc["volume_range"] = "0-63";
   doc["bfo_unit"] = "Hz";
-  doc["note"] = "For SSB prefer explicit bfo parameter to avoid sub-kHz ambiguity";
+
+  jsonSendResponse(stream, doc);
+  return REMOTE_CHANGED;
+}
+
+static int cmdSubscribeEvents(Stream* stream, JsonDocument& req)
+{
+  jsonEventsEnabled = true;
+
+  StaticJsonDocument<256> doc;
+  doc["status"] = "ok";
+  doc["protocol"] = JSON_API_VERSION;
+  doc["events"] = true;
+  doc["message"] = "State events enabled";
+
+  jsonSendResponse(stream, doc);
+
+  jsonLastFrequency = currentFrequency;
+  jsonLastBfo = currentBFO;
+  jsonLastMode = currentMode;
+  jsonLastVolume = volume;
+
+  return REMOTE_CHANGED;
+}
+
+static int cmdUnsubscribeEvents(Stream* stream, JsonDocument& req)
+{
+  jsonEventsEnabled = false;
+
+  StaticJsonDocument<256> doc;
+  doc["status"] = "ok";
+  doc["protocol"] = JSON_API_VERSION;
+  doc["events"] = false;
+  doc["message"] = "State events disabled";
+
+  jsonSendResponse(stream, doc);
+  return REMOTE_CHANGED;
+}
+
+static int cmdSubscribeSignal(Stream* stream, JsonDocument& req)
+{
+  jsonSignalEventsEnabled = true;
+
+  StaticJsonDocument<256> doc;
+  doc["status"] = "ok";
+  doc["protocol"] = JSON_API_VERSION;
+  doc["signal_events"] = true;
+  doc["signal_interval_ms"] = JSON_API_SIGNAL_INTERVAL_MS;
+  doc["message"] = "Signal events enabled";
+
+  jsonSendResponse(stream, doc);
+  return REMOTE_CHANGED;
+}
+
+static int cmdUnsubscribeSignal(Stream* stream, JsonDocument& req)
+{
+  jsonSignalEventsEnabled = false;
+
+  StaticJsonDocument<256> doc;
+  doc["status"] = "ok";
+  doc["protocol"] = JSON_API_VERSION;
+  doc["signal_events"] = false;
+  doc["message"] = "Signal events disabled";
 
   jsonSendResponse(stream, doc);
   return REMOTE_CHANGED;
@@ -464,6 +605,38 @@ static int cmdSeekDown(Stream* stream, JsonDocument& req)
   return jsonDoSeek(stream, false, "seek_down");
 }
 
+void jsonTick(Stream* stream)
+{
+  jsonCheckReadWriteTimeout();
+
+  uint32_t now = millis();
+
+  if(jsonEventsEnabled && now - jsonLastStateCheckMs >= JSON_API_STATE_INTERVAL_MS)
+  {
+    jsonLastStateCheckMs = now;
+
+    if(jsonLastMode != 0xFF && currentMode != jsonLastMode)
+      jsonSendStateEvent(stream, "mode_changed");
+    else if(jsonLastFrequency != 0 && currentFrequency != jsonLastFrequency)
+      jsonSendStateEvent(stream, "frequency_changed");
+    else if(currentBFO != jsonLastBfo)
+      jsonSendStateEvent(stream, "bfo_changed");
+    else if(jsonLastVolume != 0xFF && volume != jsonLastVolume)
+      jsonSendStateEvent(stream, "volume_changed");
+
+    jsonLastFrequency = currentFrequency;
+    jsonLastBfo = currentBFO;
+    jsonLastMode = currentMode;
+    jsonLastVolume = volume;
+  }
+
+  if(jsonSignalEventsEnabled && now - jsonLastSignalEventMs >= JSON_API_SIGNAL_INTERVAL_MS)
+  {
+    jsonLastSignalEventMs = now;
+    jsonSendSignalEvent(stream);
+  }
+}
+
 int jsonProcessCommand(Stream* stream)
 {
   jsonCheckReadWriteTimeout();
@@ -505,6 +678,14 @@ int jsonProcessCommand(Stream* stream)
         return cmdGetStatus(stream, doc);
       else if(strcmp(cmd, "get_status_full") == 0)
         return cmdGetStatusFull(stream, doc);
+      else if(strcmp(cmd, "subscribe_events") == 0)
+        return cmdSubscribeEvents(stream, doc);
+      else if(strcmp(cmd, "unsubscribe_events") == 0)
+        return cmdUnsubscribeEvents(stream, doc);
+      else if(strcmp(cmd, "subscribe_signal") == 0)
+        return cmdSubscribeSignal(stream, doc);
+      else if(strcmp(cmd, "unsubscribe_signal") == 0)
+        return cmdUnsubscribeSignal(stream, doc);
       else if(strcmp(cmd, "enable_readwrite") == 0)
         return cmdEnableReadWrite(stream, doc);
       else if(strcmp(cmd, "disable_readwrite") == 0)
