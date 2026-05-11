@@ -198,29 +198,13 @@ static bool showRdsPiCode(uint16_t rdsPiCode)
   return(false);
 }
 
-static bool showRdsTime(const char *rdsTime)
+static bool showRdsTime()
 {
-  // If NTP time available, do not use RDS time
-  if(!rdsTime || ntpIsAvailable()) return(false);
+  // If NTP time is available or the clock is already set, do not use RDS time
+  if(ntpIsAvailable() || clockAvailable()) return(false);
 
-  // The standard RDS time format is “HH:MM”.
-  // or sometimes more complex like “DD.MM.YY,HH:MM”.
-  const char *timeField = strstr(rdsTime, ":");
-
-  // If we find a valid time format...
-  if(timeField && (timeField>=rdsTime+2) && timeField[1] && timeField[2])
-  {
-    // Extract hours and minutes
-    int hours = (timeField[-2] - '0') * 10 + timeField[-1] - '0';
-    int mins  = (timeField[1] - '0') * 10 + timeField[2] - '0';
-
-    // If hours and minutes are valid, update clock
-    if(hours>=0 && hours<24 && mins>=0 && mins<60)
-      return(clockSet(hours, mins));
-  }
-
-  // No time
-  return(false);
+  uint32_t epoch;
+  return(rx.getRdsUTCEpoch(&epoch) && clockSetEpoch(epoch));
 }
 
 bool checkRds()
@@ -235,7 +219,7 @@ bool checkRds()
     needRedraw |= (mode & RDS_PS) && showStationName(rx.getRdsStationName());
     needRedraw |= (mode & RDS_RT) && showRadioText(rx.getRdsVersionCode()? rx.getRdsText2B() : rx.getRdsText2A());
     needRedraw |= (mode & RDS_PI) && showRdsPiCode(rx.getRdsPI());
-    needRedraw |= (mode & RDS_CT) && showRdsTime(rx.getRdsTime());
+    needRedraw |= (mode & RDS_CT) && showRdsTime();
     needRedraw |= (mode & RDS_PT) && showRdsProgramType(rx.getRdsProgramTypeX(), !!(mode & RDS_RBDS));
   }
 

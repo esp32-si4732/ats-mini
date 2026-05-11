@@ -6,6 +6,9 @@
 #include "Menu.h"
 #include "Draw.h"
 
+#include <sys/time.h>
+#include <time.h>
+
 // SSB patch for whole SSBRX initialization string
 #include "patch_init.h"
 
@@ -19,11 +22,7 @@ static bool ssbLoaded = false;
 
 // Time
 static bool clockHasBeenSet = false;
-static uint32_t clockTimer  = 0;
-static uint8_t clockSeconds = 0;
-static uint8_t clockMinutes = 0;
-static uint8_t clockHours   = 0;
-static char    clockText[8] = {0};
+static const time_t validDateEpoch = 1767225600; // 2026-01-01 00:00:00 UTC
 
 //
 // Get firmware version and build time, as a string
@@ -274,94 +273,78 @@ bool clockAvailable()
 
 const char *clockGet()
 {
-  if(switchThemeEditor())
-    return("00:00");
-  else
-    return(clockHasBeenSet? clockText : NULL);
+  static char text[6];
+  if(switchThemeEditor()) return("00:00");
+  if(!clockHasBeenSet) return(NULL);
+
+  time_t now = time(NULL) + getCurrentUTCOffset() * 15 * 60;
+  struct tm tm;
+  gmtime_r(&now, &tm);
+  sprintf(text, "%02d:%02d", tm.tm_hour, tm.tm_min);
+  return(text);
 }
 
 bool clockGetHM(uint8_t *hours, uint8_t *minutes)
 {
   if(!clockHasBeenSet) return(false);
-  else
-  {
-    *hours   = clockHours;
-    *minutes = clockMinutes;
-    return(true);
-  }
+
+  time_t now = time(NULL);
+  struct tm tm;
+  gmtime_r(&now, &tm);
+
+  if(hours) *hours = tm.tm_hour;
+  if(minutes) *minutes = tm.tm_min;
+  return(true);
+}
+
+bool clockGetDate(uint16_t *year, uint8_t *month, uint8_t *day, uint8_t *weekday)
+{
+  if(!clockHasBeenSet) return(false);
+
+  time_t now = time(NULL);
+  if(now < validDateEpoch) return(false);
+
+  now += getCurrentUTCOffset() * 15 * 60;
+  struct tm tm;
+  gmtime_r(&now, &tm);
+
+  if(year) *year = tm.tm_year + 1900;
+  if(month) *month = tm.tm_mon + 1;
+  if(day) *day = tm.tm_mday;
+  if(weekday) *weekday = tm.tm_wday == 0? 7 : tm.tm_wday;
+  return(true);
 }
 
 void clockReset()
 {
   clockHasBeenSet = false;
-  clockText[0] = '\0';
-  clockTimer = 0;
-  clockHours = clockMinutes = clockSeconds = 0;
 }
 
-static void formatClock(uint8_t hours, uint8_t minutes)
+bool clockUpdate()
 {
-  int t = (int)hours * 60 + minutes + getCurrentUTCOffset() * 15;
-  t = t < 0? t + 24*60 : t;
-  sprintf(clockText, "%02d:%02d", (t / 60) % 24, t % 60);
+  static time_t lastMinute = -1;
+  if(!clockHasBeenSet) return(false);
+
+  time_t minute = time(NULL) / 60;
+  if(minute == lastMinute) return(false);
+
+  lastMinute = minute;
+  return(true);
 }
 
-void clockRefreshTime()
+bool clockSetEpoch(uint32_t epoch)
 {
-  if(clockHasBeenSet) formatClock(clockHours, clockMinutes);
-}
+  time_t now = epoch;
+  bool changed = !clockHasBeenSet || time(NULL) / 60 != now / 60;
+  struct timeval tv = { now, 0 };
 
-bool clockSet(uint8_t hours, uint8_t minutes, uint8_t seconds)
-{
-  // Verify input before setting clock
-  if(!clockHasBeenSet && hours < 24 && minutes < 60 && seconds < 60)
-  {
-    clockHasBeenSet = true;
-    clockTimer   = micros();
-    clockHours   = hours;
-    clockMinutes = minutes;
-    clockSeconds = seconds;
-    clockRefreshTime();
+  if(settimeofday(&tv, NULL)) return(false);
+  clockHasBeenSet = true;
+
+  if(changed)
     identifyFrequency(currentFrequency + currentBFO / 1000);
-    return(true);
-  }
 
-  // Failed
-  return(false);
-}
-
-bool clockTickTime()
-{
-  // Need to set the clock first, then accumulate one second of time
-  if(clockHasBeenSet && (micros() - clockTimer >= 1000000))
-  {
-    uint32_t delta;
-
-    delta = (micros() - clockTimer) / 1000000;
-    clockTimer += delta * 1000000;
-    clockSeconds += delta;
-
-    if(clockSeconds>=60)
-    {
-      delta = clockSeconds / 60;
-      clockSeconds -= delta * 60;
-      clockMinutes += delta;
-
-      if(clockMinutes>=60)
-      {
-        delta = clockMinutes / 60;
-        clockMinutes -= delta * 60;
-        clockHours = (clockHours + delta) % 24;
-      }
-
-      // Format clock for display and ask for screen update
-      clockRefreshTime();
-      return(true);
-    }
-  }
-
-  // No screen update
-  return(false);
+  return(changed);
 }
 
 //

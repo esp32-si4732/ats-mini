@@ -29,10 +29,10 @@ bool muteOn(uint8_t mode, int x = 2);
 const char *clockGet();
 bool clockAvailable();
 bool clockGetHM(uint8_t *hours, uint8_t *minutes);
-bool clockSet(uint8_t hours, uint8_t minutes, uint8_t seconds = 0);
+bool clockGetDate(uint16_t *year, uint8_t *month, uint8_t *day, uint8_t *weekday);
+bool clockSetEpoch(uint32_t epoch);
 void clockReset();
-bool clockTickTime();
-void clockRefreshTime();
+bool clockUpdate();
 
 // Check if given memory entry belongs to a band
 bool isMemoryInBand(const Band *band, const Memory *memory);

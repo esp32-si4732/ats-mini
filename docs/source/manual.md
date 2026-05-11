@@ -10,7 +10,7 @@
 * **Wi-Fi icon** (top right area near the battery). Different colors indicate the connection status.
 * **Battery status** (top right corner). It doesn't show the voltage when charged, see [#36](https://github.com/esp32-si4732/ats-mini/issues/36#issuecomment-2778356143). The only indication that the battery is charging is the hardware LED on the bottom of the receiver, which turns ON during charging.
 * **Band name and modulation** (VHF & FM, top center). See the [Bands table](#bands-table) for more details.
-* **Info panel** (the box on the left side), also **Menu**. The parameters are explained in the [Menu](#menu) section.
+* **Info panel** (the box on the left side), also **Menu**. The parameters are explained in the [Menu](#menu) section. Also it can show the current time, or the date and time after a successful synchronization.
 * **Frequency** (center of the screen).
 * **FM station name** (RDS PS) or **frequency name** (right below the frequency). A frequency name appears for some popular frequencies like FT8, SSTV, CB channels, or a shortwave [schedule](#schedule). Can also display current **menu option** using a bigger font when the Zoom Menu setting is enabled.
 * **Tuning scale** (bottom of the screen). Can be replaced with additional RDS fields (RT, PTY) when extended RDS is enabled, or RSSI/SNR graphs in Scan mode.
@@ -69,8 +69,8 @@ The menu can be invoked by clicking the encoder button and is closed automatical
 
 * **Brightness** - Display brightness level (10...255). The minimal one draws about 80mA of the battery power, the default one about 100mA, the max level about 120mA.
 * **Calibration** - SSB calibration offset (-2000...2000, per mode/band).
-* **RDS** - Radio Data System options: PS - radio station name, CT - time, RT - text, PTY - genre, ALL (EU/US) - everything. Note that the time can be transmitted either in UTC or in local timezone, as well as be completely bogus. The clock is synchronized only once, so you can pick the right time source (switch the receiver power off and on to resync it again).
-* **UTC Offset** - Affects the displayed time, whether it was received via RDS or NTP. Please note that automatic DST transitions are not supported, the offset needs to be adjusted manually.
+* **RDS** - Radio Data System options: PS - radio station name, CT - date and time, RT - text, PTY - genre, ALL (EU/US) - everything. RDS CT should contain UTC date and time, but some stations incorrectly transmit local or completely bogus values. The clock is synchronized from RDS only once. To synchronize it again, disable and re-enable RDS CT or switch the receiver off and on.
+* **UTC Offset** - Affects the displayed date and time, whether they were received via RDS or NTP. Please note that automatic DST transitions are not supported; the offset needs to be adjusted manually.
 * **FM Region** - FM de-emphasis time constant by region (50µs for EU/JP/AU and 70µs for the US).
 * **Theme** - Color theme.
 * **UI Layout** - Alternative UI layouts. For now there is just one alternative UI with large S-meter and S/N-meter.

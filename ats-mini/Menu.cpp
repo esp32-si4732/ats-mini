@@ -663,7 +663,6 @@ static void doRDSMode(int16_t enc)
 static void doUTCOffset(int16_t enc)
 {
   utcOffsetIdx = wrap_range(utcOffsetIdx, enc, 0, LAST_ITEM(utcOffsets));
-  clockRefreshTime();
 }
 
 static void doZoom(int16_t enc)
@@ -1690,7 +1689,19 @@ static void drawInfo(int x, int y, int sx)
   // Draw current time
   if(clockGet())
   {
-    spr.drawString("Time:", 6+x, 64+y+(2*16), 2);
+    uint16_t year;
+    uint8_t month, day, weekday;
+    char date[6];
+    const char *label = "Time:";
+
+    if(clockGetDate(&year, &month, &day, &weekday))
+    {
+      if(month > 12 || day > 31) return;
+      sprintf(date, "%02d.%02d", month, day);
+      label = date;
+    }
+
+    spr.drawString(label, 6+x, 64+y+(2*16), 2);
     spr.drawString(clockGet(), 48+x, 64+y+(2*16), 2);
   }
 }

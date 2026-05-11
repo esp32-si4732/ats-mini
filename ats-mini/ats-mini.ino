@@ -989,8 +989,8 @@ void loop()
   // Tick NETWORK time, connecting to WiFi if requested
   netTickTime();
 
-  // Run clock
-  needRedraw |= clockTickTime();
+  // Update clock display
+  needRedraw |= clockUpdate();
 
   // Periodically refresh the main screen
   // This covers the case where there is nothing else triggering a refresh

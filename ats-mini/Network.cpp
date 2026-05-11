@@ -235,11 +235,7 @@ bool ntpSyncTime()
     ntpClient.update();
 
     if(ntpClient.isTimeSet())
-      return(clockSet(
-        ntpClient.getHours(),
-        ntpClient.getMinutes(),
-        ntpClient.getSeconds()
-      ));
+      return(clockSetEpoch(ntpClient.getEpochTime()));
   }
   return(false);
 }
@@ -533,7 +529,6 @@ void webSetConfig(AsyncWebServerRequest *request)
   {
     String utcOffset = request->getParam("utcoffset", true)->value();
     utcOffsetIdx = utcOffset.toInt();
-    clockRefreshTime();
     prefsSave |= SAVE_SETTINGS;
   }
 
