@@ -529,7 +529,17 @@ static void clickVolume(bool shortPress)
 
 static void clickSquelch(bool shortPress)
 {
-  if(shortPress) currentSquelch = 0; else currentCmd = CMD_NONE;
+  if(shortPress)
+  {
+    if(currentSquelch & 0x7f)
+      currentSquelch &= 0x80;
+    else
+      currentSquelch ^= 0x80;
+  }
+  else
+  {
+    currentCmd = CMD_NONE;
+  }
 }
 
 static void clickSeek(bool shortPress)
@@ -798,7 +808,9 @@ void doMode(int16_t enc)
 
 void doSquelch(int16_t enc)
 {
-  currentSquelch = clamp_range(currentSquelch, enc, 0, 127);
+  uint8_t squelchParam = currentSquelch & 0x80;
+  uint8_t squelchValue = currentSquelch & 0x7f;
+  currentSquelch = squelchParam | clamp_range(squelchValue, enc, 0, 0x7f);
 }
 
 void doSoftMute(int16_t enc)
@@ -1478,14 +1490,17 @@ static void drawSquelch(int x, int y, int sx)
   drawZoomedMenu(menu[MENU_SQUELCH]);
   spr.setTextDatum(MC_DATUM);
 
-  if(currentSquelch)
+  uint8_t squelchValue = currentSquelch & 0x7f;
+  bool squelchParam = currentSquelch & 0x80;
+  if(squelchValue)
   {
-    spr.drawNumber(currentSquelch, 40+x+(sx/2), 60+y, 4);
-    spr.drawString("dBuV", 40+x+(sx/2), 90+y, 4);
+    spr.drawNumber(squelchValue, 40+x+(sx/2), 60+y, 4);
+    spr.drawString(squelchParam? "dB":"dBuV", 40+x+(sx/2), 90+y, 4);
   }
   else
   {
     spr.drawString("Off", 40+x+(sx/2), 60+y, 4);
+    spr.drawString(squelchParam? "(snr)":"(rssi)", 40+x+(sx/2), 90+y, 4);
   }
 }
 

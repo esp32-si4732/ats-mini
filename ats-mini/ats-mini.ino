@@ -67,7 +67,7 @@ int8_t SsbSoftMuteIdx = 4;              // Default SSB = 4, range = 0 to 32
 
 // Menu options
 uint8_t volume = DEFAULT_VOLUME;        // Volume, range = 0 (muted) - 63
-uint8_t currentSquelch = 0;             // Squelch, range = 0 (disabled) - 127
+uint8_t currentSquelch = 0;             // Squelch: lower 7 bits = threshold, high bit selects SNR (1) vs RSSI (0)
 uint8_t FmRegionIdx = 0;                // FM Region
 
 uint16_t currentBrt = 130;              // Display brightness, range = 10 to 255 in steps of 5
@@ -707,13 +707,15 @@ bool processRssiSnr()
   int newSNR = rx.getCurrentSNR();
 
   // Apply squelch if the volume is not muted
-  if(currentSquelch && currentSquelch <= 127)
+  uint8_t squelchValue = currentSquelch & 0x7f;
+  uint8_t squelchParam = (currentSquelch & 0x80)? newSNR:newRSSI;
+  if(squelchValue)
   {
-    if(newRSSI >= currentSquelch && muteOn(MUTE_SQUELCH))
+    if(squelchParam >= squelchValue && muteOn(MUTE_SQUELCH))
     {
       muteOn(MUTE_SQUELCH, false);
     }
-    else if(newRSSI < currentSquelch && !muteOn(MUTE_SQUELCH))
+    else if(squelchParam < squelchValue && !muteOn(MUTE_SQUELCH))
     {
       muteOn(MUTE_SQUELCH, true);
     }

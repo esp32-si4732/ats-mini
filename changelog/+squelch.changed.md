@@ -1,0 +1,1 @@
+Make possible using either RSSI or SNR for Squelch.
