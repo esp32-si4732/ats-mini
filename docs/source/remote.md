@@ -158,14 +158,15 @@ In this mode the receiver looks for supported BLE HID devices and maps their key
 
 #### Key bindings
 
-| Bluetooth HID key event | Receiver action               | Comments                                                               |
-|-------------------------|-------------------------------|------------------------------------------------------------------------|
-| Volume Increment        | Rotate encoder up             | Same effect as turning the encoder clockwise                           |
-| Volume Decrement        | Rotate encoder down           | Same effect as turning the encoder counter-clockwise                   |
-| Next Track              | Press and rotate encoder up   | Uses the receiver's press-and-rotate gesture                           |
-| Previous Track          | Press and rotate encoder down | Uses the receiver's press-and-rotate gesture                           |
-| Play/Pause single click | Encoder click                 | On double-click capable devices, this is emitted after a short timeout |
-| Play/Pause double click | Encoder short press           | Only available on devices that support the double-click mapping        |
+| Bluetooth HID key event | Receiver action               | Comments                                                        |
+|-------------------------|-------------------------------|-----------------------------------------------------------------|
+| Volume Increment        | Rotate encoder up             | Same effect as turning the encoder clockwise                    |
+| Volume Decrement        | Rotate encoder down           | Same effect as turning the encoder counter-clockwise            |
+| Next Track              | Press and rotate encoder up   | Uses the receiver's press-and-rotate gesture                    |
+| Previous Track          | Press and rotate encoder down | Uses the receiver's press-and-rotate gesture                    |
+| Play/Pause single click | Encoder click                 |                                                                 |
+| Play/Pause double click | Encoder short press           | Only available on devices that do not report the click duration |
+| Play/Pause short press  | Encoder short press           | Only available on devices that report the click duration        |
 
 The press-and-rotate mapping is useful for actions that already depend on that gesture, such as direct frequency input mode and fine tuning in Seek mode.
 
@@ -174,7 +175,7 @@ The press-and-rotate mapping is useful for actions that already depend on that g
 The following community projects may be useful if you want a richer remote-control interface:
 
 * [ATS Mini Controller](https://ats-mini-controller.vercel.app/) - a browser-based controller with on-screen controls, a terminal, screenshot capture, and memory-slot tools. Introduced in [Issue #128](https://github.com/esp32-si4732/ats-mini/issues/128).
-* [ATS Mini Companion](https://github.com/rodillo69/ATS-Mini-Companion) - an Android app for controlling the receiver over USB or Bluetooth LE. Introduced in [Discussion #264](https://github.com/esp32-si4732/ats-mini/discussions/264).
+* [ATS Mini Companion](https://github.com/rodillo69/ATS-Mini-Companion) - an Android app for controlling the receiver over USB or Bluetooth LE. Introduced in [Discussion #264](https://github.com/esp32-si4732/ats-mini/discussions/264). The custom firmware is no longer required.
 * [Mini-Radio Control GUI](https://github.com/Kabuse/Mini-Radio-Control) - a Python desktop GUI for serial control with real-time status display and related tools. Introduced in [Discussion #101](https://github.com/esp32-si4732/ats-mini/discussions/101).
 * [Mini-Radio-Control](https://github.com/dustinsterk/Mini-Radio-Control) - another community remote-control project hosted on GitHub. Introduced in [Discussion #101](https://github.com/esp32-si4732/ats-mini/discussions/101#discussioncomment-13848383).
 * [ATS-MINI-Remote](https://github.com/Spectral-Source/ATS-MINI-Remote) - a web-based remote control with a Flask backend and a responsive interface for controlling the receiver from devices on the local network. Introduced in [Discussion #101](https://github.com/esp32-si4732/ats-mini/discussions/101#discussioncomment-14549132).
