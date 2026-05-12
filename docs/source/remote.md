@@ -156,6 +156,7 @@ The Bluetooth HID protocol is available only over **Bluetooth LE** in `Settings 
 
 In this mode the receiver looks for supported BLE HID devices and maps their key events to receiver actions. A list of supported devices is available in [Accessories: Bluetooth LE input devices](accessories.md#bluetooth-le-input-devices). At the moment, support is limited to the specific HID devices recognized by the firmware.
 
+(key-bindings)=
 #### Key bindings
 
 | Bluetooth HID key event | Receiver action               | Comments                                                        |

@@ -59,7 +59,7 @@ TwelveSouth Air Fly Pro (or Pro 2) ([twelvesouth.com](https://www.twelvesouth.co
 
 ## Bluetooth LE input devices
 
-The keys should be mapped as described in the [key bindings](remote.md#key-bindings) section. Instead of the stock configuration software you can use the following tool: <https://github.com/kriomant/ch57x-keyboard-tool>
+The keys should be mapped as described in the {ref}`key bindings <key-bindings>` section. Instead of the stock configuration software you can use the following tool: <https://github.com/kriomant/ch57x-keyboard-tool>
 
 ### Volume knob
 
