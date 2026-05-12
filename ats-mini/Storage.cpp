@@ -189,7 +189,10 @@ void prefsSave(uint32_t items)
     prefs.putUChar("ZoomMenu",    zoomMenu);       // TRUE: Zoom menu
     prefs.putBool("ScrollDir", scrollDirection<0); // TRUE: Reverse scroll
     prefs.putUChar("UTCOffset",   utcOffsetIdx);   // UTC Offset
-    prefs.putUChar("Squelch",     currentSquelch); // Squelch
+    prefs.putUInt("Squelch",      ((uint32_t)currentSquelch[FM]) |
+                                  ((uint32_t)currentSquelch[LSB] << 8) |
+                                  ((uint32_t)currentSquelch[USB] << 16) |
+                                  ((uint32_t)currentSquelch[AM] << 24)); // Squelch
     prefs.putUChar("FmRegion",    FmRegionIdx);    // FM region
     prefs.putUChar("UILayout",    uiLayoutIdx);    // UI Layout
     prefs.putUChar("BLEMode",     bleModeIdx);     // Bluetooth mode
@@ -263,7 +266,14 @@ bool prefsLoad(uint32_t items)
     zoomMenu       = prefs.getUChar("ZoomMenu", zoomMenu);      // TRUE: Zoom menu
     scrollDirection = prefs.getBool("ScrollDir", scrollDirection<0)? -1:1; // TRUE: Reverse scroll
     utcOffsetIdx   = prefs.getUChar("UTCOffset", utcOffsetIdx); // UTC Offset
-    currentSquelch = prefs.getUChar("Squelch", currentSquelch); // Squelch
+    uint32_t squelch = prefs.getUInt("Squelch", ((uint32_t)currentSquelch[FM]) |
+                                                ((uint32_t)currentSquelch[LSB] << 8) |
+                                                ((uint32_t)currentSquelch[USB] << 16) |
+                                                ((uint32_t)currentSquelch[AM] << 24)); // Squelch
+    currentSquelch[FM]  = squelch & 0xff;
+    currentSquelch[LSB] = (squelch >> 8) & 0xff;
+    currentSquelch[USB] = (squelch >> 16) & 0xff;
+    currentSquelch[AM]  = (squelch >> 24) & 0xff;
     FmRegionIdx    = prefs.getUChar("FmRegion", FmRegionIdx);   // FM region
     uiLayoutIdx    = prefs.getUChar("UILayout", uiLayoutIdx);   // UI Layout
     bleModeIdx     = prefs.getUChar("BLEMode", bleModeIdx);     // Bluetooth mode

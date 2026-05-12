@@ -531,10 +531,10 @@ static void clickSquelch(bool shortPress)
 {
   if(shortPress)
   {
-    if(currentSquelch & 0x7f)
-      currentSquelch &= 0x80;
+    if(currentSquelch[currentMode] & 0x7f)
+      currentSquelch[currentMode] &= 0x80;
     else
-      currentSquelch ^= 0x80;
+      currentSquelch[currentMode] ^= 0x80;
   }
   else
   {
@@ -808,9 +808,9 @@ void doMode(int16_t enc)
 
 void doSquelch(int16_t enc)
 {
-  uint8_t squelchParam = currentSquelch & 0x80;
-  uint8_t squelchValue = currentSquelch & 0x7f;
-  currentSquelch = squelchParam | clamp_range(squelchValue, enc, 0, 0x7f);
+  uint8_t squelchParam = currentSquelch[currentMode] & 0x80;
+  uint8_t squelchValue = currentSquelch[currentMode] & 0x7f;
+  currentSquelch[currentMode] = squelchParam | clamp_range(squelchValue, enc, 0, 0x7f);
 }
 
 void doSoftMute(int16_t enc)
@@ -1490,8 +1490,8 @@ static void drawSquelch(int x, int y, int sx)
   drawZoomedMenu(menu[MENU_SQUELCH]);
   spr.setTextDatum(MC_DATUM);
 
-  uint8_t squelchValue = currentSquelch & 0x7f;
-  bool squelchParam = currentSquelch & 0x80;
+  uint8_t squelchValue = currentSquelch[currentMode] & 0x7f;
+  bool squelchParam = currentSquelch[currentMode] & 0x80;
   if(squelchValue)
   {
     spr.drawNumber(squelchValue, 40+x+(sx/2), 60+y, 4);
