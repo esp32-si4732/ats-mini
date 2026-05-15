@@ -1,9 +1,10 @@
-#include "Common.h"
+﻿#include "Common.h"
 #include "Themes.h"
 #include "Utils.h"
 #include "Menu.h"
 #include "Draw.h"
 #include "Remote.h"
+#include "JsonAPI.h"
 
 static RemoteState remoteSerialState;
 
@@ -492,3 +493,4 @@ bool serialConsumeAbortPending(uint8_t usbMode)
   Serial.read();
   return true;
 }
+

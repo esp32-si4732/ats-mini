@@ -1,4 +1,4 @@
-// =================================
+﻿// =================================
 // INCLUDE FILES
 // =================================
 
@@ -14,6 +14,7 @@
 #include "EIBI.h"
 #include "Remote.h"
 #include "BleMode.h"
+#include "JsonAPI.h"
 
 // SI473/5 and UI
 #define MIN_ELAPSED_TIME         5  // 300
@@ -1001,3 +1002,4 @@ void loop()
   // Add a small default delay in the main loop
   delay(5);
 }
+
