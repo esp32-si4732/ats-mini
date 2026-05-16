@@ -1772,7 +1772,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_SLEEP:      drawSleep(x, y, sx);      break;
     case CMD_SLEEPMODE:  drawSleepMode(x, y, sx);  break;
     case CMD_SLEEPTIMER: drawSleepTimer(x, y, sx); break;
-    case CMD_LOADEIBI:   drawLoadEiBi(x, y, sx);   break;
+    case CMD_USBMODE:    drawUSBMode(x, y, sx);    break;
     case CMD_BLEMODE:    drawBleMode(x, y, sx);    break;
     case CMD_WIFIMODE:   drawWiFiMode(x, y, sx);   break;
     case CMD_ZOOM:       drawZoom(x, y, sx);       break;
