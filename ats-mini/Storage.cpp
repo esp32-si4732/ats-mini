@@ -183,6 +183,7 @@ void prefsSave(uint32_t items)
     prefs.putUChar("AmSoftMute",  AmSoftMuteIdx);  // AM soft mute
     prefs.putUChar("SsbSoftMute", SsbSoftMuteIdx); // SSB soft mute
     prefs.putUShort("Sleep",      currentSleep);   // Sleep delay
+    prefs.putUShort("SleepTmr",   currentSleepTimer); // Sleep timer
     prefs.putUChar("Theme",       themeIdx);       // Color theme
     prefs.putUChar("RDSMode",     rdsModeIdx);     // RDS mode
     prefs.putUChar("SleepMode",   sleepModeIdx);   // Sleep mode
@@ -260,6 +261,7 @@ bool prefsLoad(uint32_t items)
     AmSoftMuteIdx  = prefs.getUChar("AmSoftMute", AmSoftMuteIdx);   // AM soft mute
     SsbSoftMuteIdx = prefs.getUChar("SsbSoftMute", SsbSoftMuteIdx); // SSB soft mute
     currentSleep   = prefs.getUShort("Sleep", currentSleep);    // Sleep delay
+    currentSleepTimer = prefs.getUShort("SleepTmr", 0);        // Sleep timer
     themeIdx       = prefs.getUChar("Theme", themeIdx);         // Color theme
     rdsModeIdx     = prefs.getUChar("RDSMode", rdsModeIdx);     // RDS mode
     sleepModeIdx   = prefs.getUChar("SleepMode", sleepModeIdx); // Sleep mode

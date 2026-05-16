@@ -47,6 +47,28 @@ void drawBleIndicator(int x, int y)
 }
 
 //
+// Draw Sleep Timer indicator
+//
+void drawSleepTimerIndicator(int x, int y)
+{
+  if(currentSleepTimer > 0)
+  {
+    uint16_t color = TH.text_muted;
+
+    // Draw Zzz
+    // Big Z
+    spr.drawLine(x, y+2, x+6, y+2, color);
+    spr.drawLine(x+6, y+2, x, y+8, color);
+    spr.drawLine(x, y+8, x+6, y+8, color);
+
+    // Small z
+    spr.drawLine(x+8, y+7, x+12, y+7, color);
+    spr.drawLine(x+12, y+7, x+8, y+11, color);
+    spr.drawLine(x+8, y+11, x+12, y+11, color);
+  }
+}
+
+//
 // Draw WiFi indicator
 //
 void drawWiFiIndicator(int x, int y)

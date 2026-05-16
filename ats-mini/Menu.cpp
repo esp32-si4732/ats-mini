@@ -121,11 +121,12 @@ static const char *menu[] =
 #define MENU_SCROLL       8
 #define MENU_SLEEP        9
 #define MENU_SLEEPMODE    10
-#define MENU_LOADEIBI     11
-#define MENU_USBMODE      12
-#define MENU_BLEMODE      13
-#define MENU_WIFIMODE     14
-#define MENU_ABOUT        15
+#define MENU_SLEEPTIMER   11
+#define MENU_LOADEIBI     12
+#define MENU_USBMODE      13
+#define MENU_BLEMODE      14
+#define MENU_WIFIMODE     15
+#define MENU_ABOUT        16
 
 
 int8_t settingsIdx = MENU_BRIGHTNESS;
@@ -143,6 +144,7 @@ static const char *settings[] =
   "Scroll Dir.",
   "Sleep",
   "Sleep Mode",
+  "Sleep Timer",
   "Load EiBi",
   "USB Port",
   "Bluetooth",
@@ -627,6 +629,29 @@ static void doSleepMode(int16_t enc)
   sleepModeIdx = wrap_range(sleepModeIdx, enc, 0, LAST_ITEM(sleepModeDesc));
 }
 
+void doSleepTimer(int16_t enc)
+{
+  int16_t val = currentSleepTimer;
+  if (enc > 0) {
+    for(int i=0; i<enc; i++) {
+      if (val < 20) val++;
+      else val += 5;
+    }
+  } else if (enc < 0) {
+    for(int i=0; i<-enc; i++) {
+      if (val <= 20) val--;
+      else val -= 5;
+    }
+  }
+  if (val < 0) val = 0;
+  if (val > 120) val = 120;
+
+  if (currentSleepTimer != (uint16_t)val) {
+    currentSleepTimer = val;
+    sleepTimerStart = millis();
+  }
+}
+
 static void doUSBMode(int16_t enc)
 {
   usbModeIdx = wrap_range(usbModeIdx, enc, 0, LAST_ITEM(usbModeDesc));
@@ -924,6 +949,7 @@ static void clickSettings(int cmd, bool shortPress)
     case MENU_SCROLL:     currentCmd = CMD_SCROLL;     break;
     case MENU_SLEEP:      currentCmd = CMD_SLEEP;      break;
     case MENU_SLEEPMODE:  currentCmd = CMD_SLEEPMODE;  break;
+    case MENU_SLEEPTIMER: currentCmd = CMD_SLEEPTIMER; break;
     case MENU_UTCOFFSET:  currentCmd = CMD_UTCOFFSET;  break;
     case MENU_USBMODE:    currentCmd = CMD_USBMODE;    break;
     case MENU_BLEMODE:    currentCmd = CMD_BLEMODE;    break;
@@ -967,6 +993,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_MEMORY:     doMemory(scrollDirection * enca);break;
     case CMD_SLEEP:      doSleep(enca);break;
     case CMD_SLEEPMODE:  doSleepMode(scrollDirection * enc);break;
+    case CMD_SLEEPTIMER: doSleepTimer(enc);break;
     case CMD_USBMODE:    doUSBMode(scrollDirection * enc);break;
     case CMD_BLEMODE:    doBleMode(scrollDirection * enc);break;
     case CMD_WIFIMODE:   doWiFiMode(scrollDirection * enc);break;
@@ -1254,6 +1281,25 @@ static void drawSleepMode(int x, int y, int sx)
 
     spr.setTextDatum(MC_DATUM);
     spr.drawString(sleepModeDesc[abs((sleepModeIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
+  }
+}
+
+static void drawSleepTimer(int x, int y, int sx)
+{
+  drawCommon(settings[MENU_SLEEPTIMER], x, y, sx);
+  drawZoomedMenu(settings[MENU_SLEEPTIMER]);
+  spr.setTextDatum(MC_DATUM);
+
+  spr.setTextColor(TH.menu_param);
+  if(currentSleepTimer)
+  {
+    char text[16];
+    sprintf(text, "%d m", currentSleepTimer);
+    spr.drawString(text, 40+x+(sx/2), 60+y, 4);
+  }
+  else
+  {
+    spr.drawString("Off", 40+x+(sx/2), 60+y, 4);
   }
 }
 
@@ -1725,7 +1771,8 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_MEMORY:     drawMemory(x, y, sx);     break;
     case CMD_SLEEP:      drawSleep(x, y, sx);      break;
     case CMD_SLEEPMODE:  drawSleepMode(x, y, sx);  break;
-    case CMD_USBMODE:    drawUSBMode(x, y, sx);    break;
+    case CMD_SLEEPTIMER: drawSleepTimer(x, y, sx); break;
+    case CMD_LOADEIBI:   drawLoadEiBi(x, y, sx);   break;
     case CMD_BLEMODE:    drawBleMode(x, y, sx);    break;
     case CMD_WIFIMODE:   drawWiFiMode(x, y, sx);   break;
     case CMD_ZOOM:       drawZoom(x, y, sx);       break;
