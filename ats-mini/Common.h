@@ -172,6 +172,7 @@ extern uint16_t currentBrt;
 extern uint16_t currentSleep;
 extern uint16_t currentSleepTimer;
 extern uint32_t sleepTimerStart;
+extern bool sleepTimerMuted;
 extern uint8_t sleepModeIdx;
 extern bool zoomMenu;
 extern int8_t scrollDirection;

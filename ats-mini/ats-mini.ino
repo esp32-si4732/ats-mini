@@ -74,6 +74,7 @@ uint16_t currentBrt = 130;              // Display brightness, range = 10 to 255
 uint16_t currentSleep = DEFAULT_SLEEP;  // Display sleep timeout, range = 0 to 255 in steps of 5
 uint16_t currentSleepTimer = 0;         // Audio sleep timer, minutes
 uint32_t sleepTimerStart = millis();    // Audio sleep timer start time
+bool sleepTimerMuted = false;           // Flag to restore volume on soft power-on
 long elapsedSleep = millis();           // Display sleep timer
 bool zoomMenu = false;                  // Display zoomed menu item
 int8_t scrollDirection = 1;             // Menu scroll direction
@@ -957,6 +958,7 @@ void loop()
     currentSleepTimer = 0;
     prefsRequestSave(SAVE_SETTINGS);
     muteOn(MUTE_MAIN, true);
+    sleepTimerMuted = true;
     if(!sleepOn()) sleepOn(1);
     elapsedSleep = elapsedCommand = currentTime = millis();
   }

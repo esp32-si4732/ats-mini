@@ -249,6 +249,13 @@ bool sleepOn(int x)
   else if((x==0) && sleep_on)
   {
     sleep_on = false;
+
+    // Restore volume if muted by Sleep Timer
+    if (sleepTimerMuted) {
+      muteOn(MUTE_MAIN, false);
+      sleepTimerMuted = false;
+    }
+
     tft.writecommand(ST7789_SLPOUT);
     delay(120);
     tft.writecommand(ST7789_DISPON);
