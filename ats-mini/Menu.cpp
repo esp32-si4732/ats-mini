@@ -639,12 +639,11 @@ void doSleepTimer(int16_t enc)
     }
   } else if (enc < 0) {
     for(int i=0; i<-enc; i++) {
-      if (val <= 20) val--;
+      if (val == 0) val = 120;
+      else if (val <= 20) val--;
       else val -= 5;
     }
   }
-  if (val < 0) val = 0;
-  if (val > 120) val = 120;
 
   if (currentSleepTimer != (uint16_t)val) {
     currentSleepTimer = val;
