@@ -17,3 +17,6 @@ __pycache__/
 # Project
 build/
 ats-mini/build/
+
+.gemini/
+gha-creds-*.json

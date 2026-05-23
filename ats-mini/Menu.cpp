@@ -95,7 +95,7 @@ static const char *menu[] =
   "Band",
   "Volume",
   "Step",
-  "Seek",
+  "Tune",
   "Scan",
   "Memory",
   "Squelch",
@@ -546,7 +546,7 @@ static void clickSquelch(bool shortPress)
 
 static void clickSeek(bool shortPress)
 {
-  if(shortPress) seekMode(true); else currentCmd = CMD_NONE;
+  currentCmd = CMD_NONE;
 }
 
 static void clickScan(bool shortPress)
@@ -1196,12 +1196,7 @@ static void drawSeek(int x, int y, int sx)
   spr.drawSmoothArc(40+x+(sx/2), 66+y, 30, 27, 225, 360, TH.menu_param, TH.menu_bg);
   spr.fillTriangle(40+x+(sx/2)+5, 66+y+32, 40+x+(sx/2)-5, 66+y+27, 40+x+(sx/2)+5, 66+y+22, TH.menu_param);
 
-  if(seekMode()==SEEK_SCHEDULE)
-  {
-    spr.drawCircle(40+x+(sx/2), 66+y, 10, TH.menu_param);
-    spr.drawLine(40+x+(sx/2), 66+y, 40+x+(sx/2), 66+y-7, TH.menu_param);
-    spr.drawLine(40+x+(sx/2), 66+y, 40+x+(sx/2)+4, 66+y+4, TH.menu_param);
-  }
+  // No special icon for Tune mode
 }
 
 static void drawScan(int x, int y, int sx)

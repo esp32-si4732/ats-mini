@@ -836,6 +836,11 @@ void loop()
       switch(currentCmd)
       {
         case CMD_NONE:
+          // Default to seek mode
+          needRedraw |= doSeek(encCount, encCountAccel);
+          // Current frequency may have changed
+          prefsRequestSave(SAVE_CUR_BAND);
+          break;
         case CMD_SCAN:
           // Tuning
           needRedraw |= doTune(encCountAccel);
@@ -849,10 +854,8 @@ void loop()
           prefsRequestSave(SAVE_CUR_BAND);
           break;
         case CMD_SEEK:
-          // Seek mode
-          needRedraw |= doSeek(encCount, encCountAccel);
-          // Seek can take long time, renew the timestamp
-          currentTime = millis();
+          // VFO tuning mode (accessible via menu)
+          needRedraw |= doTune(encCountAccel);
           // Current frequency may have changed
           prefsRequestSave(SAVE_CUR_BAND);
           break;
