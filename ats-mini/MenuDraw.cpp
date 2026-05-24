@@ -88,21 +88,21 @@ static void drawMode(int x, int y, int sx)
   for(int i=-2 ; i<3 ; i++)
   {
     if(i==0) {
-      drawZoomedMenu(bandModeDesc[abs((currentMode+count+i)%count)]);
+      drawZoomedMenu(bandModeDesc[abs((radioState.mode+count+i)%count)]);
       spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
     } else {
       spr.setTextColor(TH.menu_item);
     }
 
     spr.setTextDatum(MC_DATUM);
-    if((currentMode!=FM) || (i==0))
-     spr.drawString(bandModeDesc[abs((currentMode+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
+    if((radioState.mode!=FM) || (i==0))
+     spr.drawString(bandModeDesc[abs((radioState.mode+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
   }
 }
 
 static void drawStep(int x, int y, int sx)
 {
-  int count = getLastStep(currentMode) + 1;
+  int count = getLastStep(radioState.mode) + 1;
   int idx   = bands[bandIdx].currentStepIdx + count;
 
   drawCommon(menu[MENU_STEP], x, y, sx, true);
@@ -110,14 +110,14 @@ static void drawStep(int x, int y, int sx)
   for(int i=-2 ; i<3 ; i++)
   {
     if(i==0) {
-      drawZoomedMenu(steps[currentMode][abs((idx+i)%count)].desc);
+      drawZoomedMenu(steps[radioState.mode][abs((idx+i)%count)].desc);
       spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
     } else {
       spr.setTextColor(TH.menu_item);
     }
 
     spr.setTextDatum(MC_DATUM);
-    spr.drawString(steps[currentMode][abs((idx+i)%count)].desc, 40+x+(sx/2), 64+y+(i*16), 2);
+    spr.drawString(steps[radioState.mode][abs((idx+i)%count)].desc, 40+x+(sx/2), 64+y+(i*16), 2);
   }
 }
 
@@ -178,7 +178,7 @@ static void drawBand(int x, int y, int sx)
 
 static void drawBandwidth(int x, int y, int sx)
 {
-  int count = getLastBandwidth(currentMode) + 1;
+  int count = getLastBandwidth(radioState.mode) + 1;
   int idx   = bands[bandIdx].bandwidthIdx + count;
 
   drawCommon(menu[MENU_BW], x, y, sx, true);
@@ -186,14 +186,14 @@ static void drawBandwidth(int x, int y, int sx)
   for(int i=-2 ; i<3 ; i++)
   {
     if(i==0) {
-      drawZoomedMenu(bandwidths[currentMode][abs((idx+i)%count)].desc);
+      drawZoomedMenu(bandwidths[radioState.mode][abs((idx+i)%count)].desc);
       spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
     } else {
       spr.setTextColor(TH.menu_item);
     }
 
     spr.setTextDatum(MC_DATUM);
-    spr.drawString(bandwidths[currentMode][abs((idx+i)%count)].desc, 40+x+(sx/2), 64+y+(i*16), 2);
+    spr.drawString(bandwidths[radioState.mode][abs((idx+i)%count)].desc, 40+x+(sx/2), 64+y+(i*16), 2);
   }
 }
 
@@ -205,14 +205,14 @@ static void drawSleepMode(int x, int y, int sx)
   for(int i=-2 ; i<3 ; i++)
   {
     if(i==0) {
-      drawZoomedMenu(sleepModeDesc[abs((sleepModeIdx+count+i)%count)]);
+      drawZoomedMenu(sleepModeDesc[abs((radioState.sleepMode+count+i)%count)]);
       spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
     } else {
       spr.setTextColor(TH.menu_item);
     }
 
     spr.setTextDatum(MC_DATUM);
-    spr.drawString(sleepModeDesc[abs((sleepModeIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
+    spr.drawString(sleepModeDesc[abs((radioState.sleepMode+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
   }
 }
 
@@ -224,19 +224,19 @@ static void drawUSBMode(int x, int y, int sx)
   for(int i=-2 ; i<3 ; i++)
   {
     if(i==0) {
-      drawZoomedMenu(usbModeDesc[abs((usbModeIdx+count+i)%count)]);
+      drawZoomedMenu(usbModeDesc[abs((radioState.usbMode+count+i)%count)]);
       spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
     } else {
       spr.setTextColor(TH.menu_item);
     }
 
     // Prevent repeats for short menus
-    if (count < 5 && ((usbModeIdx+i) < 0 || (usbModeIdx+i) >= count)) {
+    if (count < 5 && ((radioState.usbMode+i) < 0 || (radioState.usbMode+i) >= count)) {
       continue;
     }
 
     spr.setTextDatum(MC_DATUM);
-    spr.drawString(usbModeDesc[abs((usbModeIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
+    spr.drawString(usbModeDesc[abs((radioState.usbMode+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
   }
 }
 
@@ -248,19 +248,19 @@ static void drawBleMode(int x, int y, int sx)
   for(int i=-2 ; i<3 ; i++)
   {
     if(i==0) {
-      drawZoomedMenu(bleModeDesc[abs((bleModeIdx+count+i)%count)]);
+      drawZoomedMenu(bleModeDesc[abs((radioState.bleMode+count+i)%count)]);
       spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
     } else {
       spr.setTextColor(TH.menu_item);
     }
 
     // Prevent repeats for short menus
-    if (count < 5 && ((bleModeIdx+i) < 0 || (bleModeIdx+i) >= count)) {
+    if (count < 5 && ((radioState.bleMode+i) < 0 || (radioState.bleMode+i) >= count)) {
       continue;
     }
 
     spr.setTextDatum(MC_DATUM);
-    spr.drawString(bleModeDesc[abs((bleModeIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
+    spr.drawString(bleModeDesc[abs((radioState.bleMode+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
   }
 }
 
@@ -272,14 +272,14 @@ static void drawWiFiMode(int x, int y, int sx)
   for(int i=-2 ; i<3 ; i++)
   {
     if(i==0) {
-      drawZoomedMenu(wifiModeDesc[abs((wifiModeIdx+count+i)%count)]);
+      drawZoomedMenu(wifiModeDesc[abs((radioState.wifiMode+count+i)%count)]);
       spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
     } else {
       spr.setTextColor(TH.menu_item);
     }
 
     spr.setTextDatum(MC_DATUM);
-    spr.drawString(wifiModeDesc[abs((wifiModeIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
+    spr.drawString(wifiModeDesc[abs((radioState.wifiMode+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
   }
 }
 
@@ -310,19 +310,19 @@ static void drawUILayout(int x, int y, int sx)
   for(int i=-2 ; i<3 ; i++)
   {
     if(i==0) {
-      drawZoomedMenu(uiLayoutDesc[abs((uiLayoutIdx+count+i)%count)]);
+      drawZoomedMenu(uiLayoutDesc[abs((radioState.uiLayout+count+i)%count)]);
       spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
     } else {
       spr.setTextColor(TH.menu_item);
     }
 
     // Prevent repeats for short menus
-    if (count < 5 && ((uiLayoutIdx+i) < 0 || (uiLayoutIdx+i) >= count)) {
+    if (count < 5 && ((radioState.uiLayout+i) < 0 || (radioState.uiLayout+i) >= count)) {
       continue;
     }
 
     spr.setTextDatum(MC_DATUM);
-    spr.drawString(uiLayoutDesc[abs((uiLayoutIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
+    spr.drawString(uiLayoutDesc[abs((radioState.uiLayout+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
   }
 }
 
@@ -334,14 +334,14 @@ static void drawRDSMode(int x, int y, int sx)
   for(int i=-2 ; i<3 ; i++)
   {
     if(i==0) {
-      drawZoomedMenu(rdsMode[abs((rdsModeIdx+count+i)%count)].desc);
+      drawZoomedMenu(rdsMode[abs((radioState.rdsMode+count+i)%count)].desc);
       spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
     } else {
       spr.setTextColor(TH.menu_item);
     }
 
     spr.setTextDatum(MC_DATUM);
-    spr.drawString(rdsMode[abs((rdsModeIdx+count+i)%count)].desc, 40+x+(sx/2), 64+y+(i*16), 2);
+    spr.drawString(rdsMode[abs((radioState.rdsMode+count+i)%count)].desc, 40+x+(sx/2), 64+y+(i*16), 2);
   }
 }
 
@@ -350,7 +350,7 @@ static void drawUTCOffset(int x, int y, int sx)
   drawCommon(settings[MENU_UTCOFFSET], x, y, sx, true);
 
   int count = getTotalUTCOffsets();
-  uint8_t idx = utcOffsetIdx;
+  uint8_t idx = radioState.utcOffset;
 
   for(int i=-2 ; i<3 ; i++)
   {
@@ -408,7 +408,7 @@ static void drawVolume(int x, int y, int sx)
   spr.setTextDatum(MC_DATUM);
 
   spr.setTextColor(TH.menu_param);
-  spr.drawNumber(volume, 40+x+(sx/2), 66+y, 7);
+  spr.drawNumber(radioState.vol, 40+x+(sx/2), 66+y, 7);
 
   if(muteOn(MUTE_MAIN))
   {
@@ -428,7 +428,7 @@ static void drawAgc(int x, int y, int sx)
 
   // G8PTN: Read back value is not used
   // rx.getAutomaticGainControl();
-  if(!agcNdx && !agcIdx)
+  if(!radioState.agcNdxVal && !radioState.agcIndex)
   {
     spr.setFreeFont(&Orbitron_Light_24);
     spr.drawString("AGC", 40+x+(sx/2), 48+y);
@@ -438,7 +438,7 @@ static void drawAgc(int x, int y, int sx)
   else
   {
     char text[16];
-    sprintf(text, "%2.2d", agcNdx);
+    sprintf(text, "%2.2d", radioState.agcNdxVal);
     spr.drawString(text, 40+x+(sx/2), 60+y, 7);
   }
 }
@@ -449,8 +449,8 @@ static void drawSquelch(int x, int y, int sx)
   drawZoomedMenu(menu[MENU_SQUELCH]);
   spr.setTextDatum(MC_DATUM);
 
-  uint8_t squelchValue = currentSquelch[currentMode] & 0x7f;
-  bool squelchParam = currentSquelch[currentMode] & 0x80;
+  uint8_t squelchValue = radioState.squelch[radioState.mode] & 0x7f;
+  bool squelchParam = radioState.squelch[radioState.mode] & 0x80;
   if(squelchValue)
   {
     spr.drawNumber(squelchValue, 40+x+(sx/2), 60+y, 4);
@@ -471,7 +471,7 @@ static void drawSoftMuteMaxAtt(int x, int y, int sx)
 
   spr.setTextColor(TH.menu_param);
   spr.drawString("Max Attn", 40+x+(sx/2), 32+y, 2);
-  spr.drawNumber(softMuteMaxAttIdx, 40+x+(sx/2), 60+y, 4);
+  spr.drawNumber(radioState.softMuteMaxAtt, 40+x+(sx/2), 60+y, 4);
   spr.drawString("dB", 40+x+(sx/2), 90+y, 4);
 }
 
@@ -482,12 +482,12 @@ static void drawCal(int x, int y, int sx)
   spr.setTextDatum(MC_DATUM);
 
   spr.setTextColor(TH.menu_param);
-  if (currentMode == USB)
+  if (radioState.mode == USB)
   {
     spr.drawString("USB", 40+x+(sx/2), 35+y, 2);
     spr.drawNumber(getCurrentBand()->usbCal, 40+x+(sx/2), 65+y, 4);
   }
-  else if (currentMode == LSB)
+  else if (radioState.mode == LSB)
   {
     spr.drawString("LSB", 40+x+(sx/2), 35+y, 2);
     spr.drawNumber(getCurrentBand()->lsbCal, 40+x+(sx/2), 65+y, 4);
@@ -508,9 +508,9 @@ static void drawAvc(int x, int y, int sx)
   spr.drawString("Max Gain", 40+x+(sx/2), 32+y, 2);
 
   // Only show AVC for AM and SSB modes
-  if(currentMode!=FM)
+  if(radioState.mode!=FM)
   {
-    int currentAvc = isSSB()? SsbAvcIdx : AmAvcIdx;
+    int currentAvc = isSSB()? radioState.ssbAvcIdx : radioState.amAvcIdx;
     spr.drawNumber(currentAvc, 40+x+(sx/2), 60+y, 4);
     spr.drawString("dB", 40+x+(sx/2), 90+y, 4);
   }
@@ -524,19 +524,19 @@ static void drawFmRegion(int x, int y, int sx)
   for(int i=-2 ; i<3 ; i++)
   {
     if(i==0) {
-      drawZoomedMenu(fmRegions[abs((FmRegionIdx+count+i)%count)].desc);
+      drawZoomedMenu(fmRegions[abs((radioState.fmRegionIdx+count+i)%count)].desc);
       spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
     } else {
       spr.setTextColor(TH.menu_item);
     }
 
     // Prevent repeats for short menus
-    if (count < 5 && ((FmRegionIdx+i) < 0 || (FmRegionIdx+i) >= count)) {
+    if (count < 5 && ((radioState.fmRegionIdx+i) < 0 || (radioState.fmRegionIdx+i) >= count)) {
       continue;
     }
 
     spr.setTextDatum(MC_DATUM);
-    spr.drawString(fmRegions[abs((FmRegionIdx+count+i)%count)].desc, 40+x+(sx/2), 64+y+(i*16), 2);
+    spr.drawString(fmRegions[abs((radioState.fmRegionIdx+count+i)%count)].desc, 40+x+(sx/2), 64+y+(i*16), 2);
   }
 }
 
@@ -547,7 +547,7 @@ static void drawBrt(int x, int y, int sx)
   spr.setTextDatum(MC_DATUM);
 
   spr.setTextColor(TH.menu_param);
-  spr.drawNumber(currentBrt, 40+x+(sx/2), 60+y, 4);
+  spr.drawNumber(radioState.brightness, 40+x+(sx/2), 60+y, 4);
 }
 
 static void drawSleep(int x, int y, int sx)
@@ -557,7 +557,7 @@ static void drawSleep(int x, int y, int sx)
   spr.setTextDatum(MC_DATUM);
 
   spr.setTextColor(TH.menu_param);
-  spr.drawNumber(currentSleep, 40+x+(sx/2), 60+y, 4);
+  spr.drawNumber(radioState.sleep, 40+x+(sx/2), 60+y, 4);
 }
 
 static void drawZoom(int x, int y, int sx)
@@ -567,7 +567,7 @@ static void drawZoom(int x, int y, int sx)
   spr.setTextDatum(MC_DATUM);
 
   spr.setTextColor(TH.menu_param);
-  spr.drawString(zoomMenu ? "On" : "Off", 40+x+(sx/2), 60+y, 4);
+  spr.drawString(radioState.zoomLevel ? "On" : "Off", 40+x+(sx/2), 60+y, 4);
 }
 
 static void drawScrollDir(int x, int y, int sx)
@@ -576,7 +576,7 @@ static void drawScrollDir(int x, int y, int sx)
   drawZoomedMenu(settings[MENU_SCROLL]);
 
   spr.fillRect(37+x+(sx/2), 45+y, 5, 40, TH.menu_param);
-  if(scrollDirection>0)
+  if(radioState.scrollDir>0)
     spr.fillTriangle(39+x+(sx/2)-5, 45+y, 39+x+(sx/2)+5, 45+y, 39+x+(sx/2), 45+y-5, TH.menu_param);
   else
     spr.fillTriangle(39+x+(sx/2)-5, 85+y, 39+x+(sx/2)+5, 85+y, 39+x+(sx/2), 85+y+5, TH.menu_param);
@@ -598,14 +598,14 @@ static void drawInfo(int x, int y, int sx)
   spr.drawString("BW:", 6+x, 64+y+(-2*16), 2);
   spr.drawString(getCurrentBandwidth()->desc, 48+x, 64+y+(-2*16), 2);
 
-  if(!agcNdx && !agcIdx)
+  if(!radioState.agcNdxVal && !radioState.agcIndex)
   {
     spr.drawString("AGC:", 6+x, 64+y+(-1*16), 2);
     spr.drawString("On", 48+x, 64+y+(-1*16), 2);
   }
   else
   {
-    sprintf(text, "%2.2d", agcNdx);
+    sprintf(text, "%2.2d", radioState.agcNdxVal);
     spr.drawString("Att:", 6+x, 64+y+(-1*16), 2);
     spr.drawString(text, 48+x, 64+y+(-1*16), 2);
   }
@@ -614,19 +614,19 @@ static void drawInfo(int x, int y, int sx)
   if(muteOn(MUTE_MAIN) || muteOn(MUTE_SQUELCH))
   {
     spr.setTextColor(TH.box_off_text, TH.box_off_bg);
-    sprintf(text, muteOn(MUTE_MAIN) ? "Muted" : "%d/sq", volume);
+    sprintf(text, muteOn(MUTE_MAIN) ? "Muted" : "%d/sq", radioState.vol);
     spr.drawString(text, 48+x, 64+y+(0*16), 2);
     spr.setTextColor(TH.box_text);
   }
   else
   {
     spr.setTextColor(TH.box_text);
-    spr.drawNumber(volume, 48+x, 64+y+(0*16), 2);
+    spr.drawNumber(radioState.vol, 48+x, 64+y+(0*16), 2);
   }
 
   // Draw RDS PI code, if present
   uint16_t piCode = getRdsPiCode();
-  if(piCode && currentMode == FM)
+  if(piCode && radioState.mode == FM)
   {
     sprintf(text, "%04X", piCode);
     spr.drawString("PI:", 6+x, 64+y + (1*16), 2);
@@ -636,12 +636,12 @@ static void drawInfo(int x, int y, int sx)
   {
     spr.drawString("AVC:", 6+x, 64+y + (1*16), 2);
 
-    if(currentMode==FM)
+    if(radioState.mode==FM)
       sprintf(text, "n/a");
     else if(isSSB())
-      sprintf(text, "%2.2ddB", SsbAvcIdx);
+      sprintf(text, "%2.2ddB", radioState.ssbAvcIdx);
     else
-      sprintf(text, "%2.2ddB", AmAvcIdx);
+      sprintf(text, "%2.2ddB", radioState.amAvcIdx);
 
     spr.drawString(text, 48+x, 64+y + (1*16), 2);
   }

@@ -165,7 +165,7 @@ const RDSMode rdsMode[] =
   { RDS_PS | RDS_PI | RDS_RT | RDS_PT | RDS_CT | RDS_RBDS, "ALL (US)" },
 };
 
-uint8_t getRDSMode() { return(rdsMode[rdsModeIdx].mode); }
+uint8_t getRDSMode() { return(rdsMode[radioState.rdsMode].mode); }
 int getTotalRDSModes() { return(ITEM_COUNT(rdsMode)); }
 
 //
@@ -224,7 +224,7 @@ const UTCOffset utcOffsets[] =
   { 14 * 4, "UTC+14" },
 };
 
-int getCurrentUTCOffset() { return(utcOffsets[utcOffsetIdx].offset); }
+int getCurrentUTCOffset() { return(utcOffsets[radioState.utcOffset].offset); }
 int getTotalUTCOffsets() { return(ITEM_COUNT(utcOffsets)); }
 int getTotalSleepModes() { return(ITEM_COUNT(sleepModeDesc)); }
 
@@ -323,8 +323,8 @@ int getLastStep(int mode)
 
 const Step *getCurrentStep()
 {
-  uint8_t idx = bands[bandIdx].currentStepIdx > getLastStep(currentMode) ? defaultStepIdx[currentMode] : bands[bandIdx].currentStepIdx;
-  return(&steps[currentMode][idx]);
+  uint8_t idx = bands[bandIdx].currentStepIdx > getLastStep(radioState.mode) ? defaultStepIdx[radioState.mode] : bands[bandIdx].currentStepIdx;
+  return(&steps[radioState.mode][idx]);
 }
 
 static uint8_t freqInputPos = 0;
@@ -336,7 +336,7 @@ static uint8_t getDefaultFreqInputPos(int mode, int step)
 
 void resetFreqInputPos()
 {
-  freqInputPos = getDefaultFreqInputPos(currentMode, getCurrentStep()->step);
+  freqInputPos = getDefaultFreqInputPos(radioState.mode, getCurrentStep()->step);
 }
 
 uint8_t getFreqInputPos()
@@ -347,18 +347,18 @@ uint8_t getFreqInputPos()
 int getFreqInputStep()
 {
   return freqInputPos % 2 ?
-    5 * pow(10, (freqInputPos - (currentMode == AM ? 6 : 0) - 1) / 2) :
-            pow(10, (freqInputPos - (currentMode == AM ? 6 : 0)) / 2);
+    5 * pow(10, (freqInputPos - (radioState.mode == AM ? 6 : 0) - 1) / 2) :
+            pow(10, (freqInputPos - (radioState.mode == AM ? 6 : 0)) / 2);
 }
 
 static uint8_t getMinFreqInputPos()
 {
-  return getDefaultFreqInputPos(currentMode, steps[currentMode][0].step);
+  return getDefaultFreqInputPos(radioState.mode, steps[radioState.mode][0].step);
 }
 
 static uint8_t getMaxFreqInputPos()
 {
-  return (uint8_t)log10(getCurrentBand()->maximumFreq) * 2 + (currentMode != FM ? 6 : -2);
+  return (uint8_t)log10(getCurrentBand()->maximumFreq) * 2 + (radioState.mode != FM ? 6 : -2);
 }
 
 //
@@ -417,14 +417,14 @@ int getLastBandwidth(int mode)
 
 const Bandwidth *getCurrentBandwidth()
 {
-  return(&bandwidths[currentMode][bands[bandIdx].bandwidthIdx > getLastBandwidth(currentMode) ? defaultBwIdx[currentMode] : bands[bandIdx].bandwidthIdx]);
+  return(&bandwidths[radioState.mode][bands[bandIdx].bandwidthIdx > getLastBandwidth(radioState.mode) ? defaultBwIdx[radioState.mode] : bands[bandIdx].bandwidthIdx]);
 }
 
 static void setBandwidth()
 {
   uint8_t idx = getCurrentBandwidth()->idx;
 
-  switch(currentMode)
+  switch(radioState.mode)
   {
     case FM:
       rx.setFmBandwidth(idx);
@@ -451,7 +451,7 @@ uint8_t seekMode(bool toggle)
   mode = toggle ? (mode == SEEK_DEFAULT ? SEEK_SCHEDULE : SEEK_DEFAULT) : mode;
 
   // Use normal seek on FM or if there is no schedule loaded
-  if(currentMode == FM || !eibiAvailable() || !clockAvailable())
+  if(radioState.mode == FM || !eibiAvailable() || !clockAvailable())
     return(SEEK_DEFAULT);
 
   return(mode);
@@ -488,33 +488,33 @@ void doSelectDigit(int16_t enc)
 
 void doVolume(int16_t enc)
 {
-  volume = clamp_range(volume, enc, 0, 63);
-  if(!muteOn(MUTE_MAIN)) rx.setVolume(volume);
+  radioState.vol = clamp_range(radioState.vol, enc, 0, 63);
+  if(!muteOn(MUTE_MAIN)) rx.setVolume(radioState.vol);
 }
 
 static void clickVolume(bool shortPress)
 {
-  if(shortPress) muteOn(MUTE_MAIN, !muteOn(MUTE_MAIN)); else currentCmd = CMD_NONE;
+  if(shortPress) muteOn(MUTE_MAIN, !muteOn(MUTE_MAIN)); else radioState.cmd = CMD_NONE;
 }
 
 static void clickSquelch(bool shortPress)
 {
   if(shortPress)
   {
-    if(currentSquelch[currentMode] & 0x7f)
-      currentSquelch[currentMode] &= 0x80;
+    if(radioState.squelch[radioState.mode] & 0x7f)
+      radioState.squelch[radioState.mode] &= 0x80;
     else
-      currentSquelch[currentMode] ^= 0x80;
+      radioState.squelch[radioState.mode] ^= 0x80;
   }
   else
   {
-    currentCmd = CMD_NONE;
+    radioState.cmd = CMD_NONE;
   }
 }
 
 static void clickSeek(bool shortPress)
 {
-  if(shortPress) seekMode(true); else currentCmd = CMD_NONE;
+  if(shortPress) seekMode(true); else radioState.cmd = CMD_NONE;
 }
 
 static void clickScan(bool shortPress)
@@ -526,9 +526,9 @@ static void clickScan(bool shortPress)
     rssi = snr = 0;
     drawScreen();
     drawMessage("Scanning...");
-    scanRun(currentFrequency, 10);
+    scanRun(radioState.frequency, 10);
   }
-  else currentCmd = CMD_NONE;
+  else radioState.cmd = CMD_NONE;
 }
 
 static void doTheme(int16_t enc)
@@ -538,23 +538,23 @@ static void doTheme(int16_t enc)
 
 static void doUILayout(int16_t enc)
 {
-  uiLayoutIdx = uiLayoutIdx > LAST_ITEM(uiLayoutDesc) ? UI_DEFAULT : wrap_range(uiLayoutIdx, enc, 0, LAST_ITEM(uiLayoutDesc));
+  radioState.uiLayout = radioState.uiLayout > LAST_ITEM(uiLayoutDesc) ? UI_DEFAULT : wrap_range(radioState.uiLayout, enc, 0, LAST_ITEM(uiLayoutDesc));
 }
 
 void doAvc(int16_t enc)
 {
   // Only allow for AM and SSB modes
-  if(currentMode==FM) return;
+  if(radioState.mode==FM) return;
 
   // wrap_range expects to wrap a range of incremental numbers. avc instead is a range of all even numbers
-  int8_t newAvcIdx = wrap_range((isSSB() ? SsbAvcIdx : AmAvcIdx) / 2, enc, 12 / 2, 90 / 2) * 2;
+  int8_t newAvcIdx = wrap_range((isSSB() ? radioState.ssbAvcIdx : radioState.amAvcIdx) / 2, enc, 12 / 2, 90 / 2) * 2;
   if(isSSB())
   {
-    SsbAvcIdx = newAvcIdx;
+    radioState.ssbAvcIdx = newAvcIdx;
   }
   else
   {
-    AmAvcIdx = newAvcIdx;
+    radioState.amAvcIdx = newAvcIdx;
   }
   rx.setAvcAmMaxGain(newAvcIdx);
 }
@@ -562,88 +562,88 @@ void doAvc(int16_t enc)
 void doFmRegion(int16_t enc)
 {
   // Only allow for FM mode
-  if(currentMode!=FM) return;
+  if(radioState.mode!=FM) return;
 
-  FmRegionIdx = wrap_range(FmRegionIdx, enc, 0, LAST_ITEM(fmRegions));
-  rx.setFMDeEmphasis(fmRegions[FmRegionIdx].value);
+  radioState.fmRegionIdx = wrap_range(radioState.fmRegionIdx, enc, 0, LAST_ITEM(fmRegions));
+  rx.setFMDeEmphasis(fmRegions[radioState.fmRegionIdx].value);
 }
 
 void doCal(int16_t enc)
 {
-  if (currentMode == USB)
+  if (radioState.mode == USB)
     bands[bandIdx].usbCal = clamp_range(bands[bandIdx].usbCal, 10*enc, -MAX_CAL, MAX_CAL);
-  else if (currentMode == LSB)
+  else if (radioState.mode == LSB)
     bands[bandIdx].lsbCal = clamp_range(bands[bandIdx].lsbCal, 10*enc, -MAX_CAL, MAX_CAL);
   // else: no calibration change for other modes
 
   // If in SSB mode set the SI4732/5 BFO value
   // This adjusts the BFO while in the calibration menu
-  if(isSSB()) updateBFO(currentBFO, true);
+  if(isSSB()) updateBFO(radioState.bfo, true);
 }
 
 void doBrt(int16_t enc)
 {
-  currentBrt = clamp_range(currentBrt, 5*enc, 10, 255);
-  if(!sleepOn()) ledcWrite(PIN_LCD_BL, currentBrt);
+  radioState.brightness = clamp_range(radioState.brightness, 5*enc, 10, 255);
+  if(!sleepOn()) ledcWrite(PIN_LCD_BL, radioState.brightness);
 }
 
 static void doSleep(int16_t enc)
 {
-  currentSleep = clamp_range(currentSleep, 5*enc, 0, 255);
+  radioState.sleep = clamp_range(radioState.sleep, 5*enc, 0, 255);
 }
 
 static void doSleepMode(int16_t enc)
 {
-  sleepModeIdx = wrap_range(sleepModeIdx, enc, 0, LAST_ITEM(sleepModeDesc));
+  radioState.sleepMode = wrap_range(radioState.sleepMode, enc, 0, LAST_ITEM(sleepModeDesc));
 }
 
 static void doUSBMode(int16_t enc)
 {
-  usbModeIdx = wrap_range(usbModeIdx, enc, 0, LAST_ITEM(usbModeDesc));
+  radioState.usbMode = wrap_range(radioState.usbMode, enc, 0, LAST_ITEM(usbModeDesc));
 }
 
 static void doBleMode(int16_t enc)
 {
-  bleModeIdx = wrap_range(bleModeIdx, enc, 0, LAST_ITEM(bleModeDesc));
+  radioState.bleMode = wrap_range(radioState.bleMode, enc, 0, LAST_ITEM(bleModeDesc));
 }
 
 static void doWiFiMode(int16_t enc)
 {
-  wifiModeIdx = wrap_range(wifiModeIdx, enc, 0, LAST_ITEM(wifiModeDesc));
+  radioState.wifiMode = wrap_range(radioState.wifiMode, enc, 0, LAST_ITEM(wifiModeDesc));
 }
 
 static void clickBleMode(uint8_t mode, bool shortPress)
 {
-  currentCmd = CMD_NONE;
+  radioState.cmd = CMD_NONE;
   bleInit(mode);
 }
 
 static void clickWiFiMode(uint8_t mode, bool shortPress)
 {
-  currentCmd = CMD_NONE;
+  radioState.cmd = CMD_NONE;
   netInit(mode);
 }
 
 static void doRDSMode(int16_t enc)
 {
-  rdsModeIdx = wrap_range(rdsModeIdx, enc, 0, LAST_ITEM(rdsMode));
+  radioState.rdsMode = wrap_range(radioState.rdsMode, enc, 0, LAST_ITEM(rdsMode));
   if(!(getRDSMode() & RDS_CT)) clockReset();
 }
 
 static void doUTCOffset(int16_t enc)
 {
-  utcOffsetIdx = wrap_range(utcOffsetIdx, enc, 0, LAST_ITEM(utcOffsets));
+  radioState.utcOffset = wrap_range(radioState.utcOffset, enc, 0, LAST_ITEM(utcOffsets));
   clockRefreshTime();
 }
 
 static void doZoom(int16_t enc)
 {
-  zoomMenu = !zoomMenu;
+  radioState.zoomLevel = !radioState.zoomLevel;
 }
 
 static void doScrollDir(int16_t enc)
 {
-  scrollDirection = (scrollDirection == 1) ? -1 : 1;
+  radioState.scrollDir = (radioState.scrollDir == 1) ? -1 : 1;
 }
 
 uint8_t doAbout(int16_t enc)
@@ -674,7 +674,7 @@ bool tuneToMemory(const Memory *memory)
     return(true);
 
   // Save current band settings
-  bands[bandIdx].currentFreq = currentFrequency + currentBFO / 1000;
+  bands[bandIdx].currentFreq = radioState.frequency + radioState.bfo / 1000;
 
   // Use default step when changing modes
   if(bands[memory->band].bandMode != memory->mode)
@@ -712,65 +712,65 @@ static void clickMemory(uint8_t idx, bool shortPress)
     else memories[idx].freq = 0;
   }
   // On a click, do nothing, slot already activated in doMemory()
-  else currentCmd = CMD_NONE;
+  else radioState.cmd = CMD_NONE;
 }
 
 void doStep(int16_t enc)
 {
   uint8_t idx = bands[bandIdx].currentStepIdx;
 
-  idx = wrap_range(idx, enc, 0, getLastStep(currentMode));
+  idx = wrap_range(idx, enc, 0, getLastStep(radioState.mode));
   bands[bandIdx].currentStepIdx = idx;
 
-  rx.setFrequencyStep(steps[currentMode][idx].step);
+  rx.setFrequencyStep(steps[radioState.mode][idx].step);
 
   // Set seek spacing
-  if(currentMode==FM)
-    rx.setSeekFmSpacing(steps[currentMode][idx].spacing);
+  if(radioState.mode==FM)
+    rx.setSeekFmSpacing(steps[radioState.mode][idx].spacing);
   else
-    rx.setSeekAmSpacing(steps[currentMode][idx].spacing);
+    rx.setSeekAmSpacing(steps[radioState.mode][idx].spacing);
 }
 
 void doAgc(int16_t enc)
 {
-  if(currentMode==FM)
-    agcIdx = FmAgcIdx = wrap_range(FmAgcIdx, enc, 0, 27);
+  if(radioState.mode==FM)
+    radioState.agcIndex = radioState.fmAgcIdx = wrap_range(radioState.fmAgcIdx, enc, 0, 27);
   else if(isSSB())
-    agcIdx = SsbAgcIdx = wrap_range(SsbAgcIdx, enc, 0, 1);
+    radioState.agcIndex = radioState.ssbAgcIdx = wrap_range(radioState.ssbAgcIdx, enc, 0, 1);
   else
-    agcIdx = AmAgcIdx = wrap_range(AmAgcIdx, enc, 0, 37);
+    radioState.agcIndex = radioState.amAgcIdx = wrap_range(radioState.amAgcIdx, enc, 0, 37);
 
-  // Process agcIdx to generate disableAgc and agcIdx
-  // agcIdx     0 1 2 3 4 5 6  ..... n    (n:    FM = 27, AM = 37, SSB = 1)
-  // agcNdx     0 0 1 2 3 4 5  ..... n -1 (n -1: FM = 26, AM = 36, SSB = 0)
-  // disableAgc 0 1 1 1 1 1 1  ..... 1
+  // Process radioState.agcIndex to generate radioState.agcDisable and radioState.agcIndex
+  // radioState.agcIndex     0 1 2 3 4 5 6  ..... n    (n:    FM = 27, AM = 37, SSB = 1)
+  // radioState.agcNdxVal     0 0 1 2 3 4 5  ..... n -1 (n -1: FM = 26, AM = 36, SSB = 0)
+  // radioState.agcDisable 0 1 1 1 1 1 1  ..... 1
 
   // if true, disable AGC; else, AGC is enabled
-  disableAgc = agcIdx>0? 1 : 0;
-  agcNdx     = agcIdx>1? agcIdx - 1 : 0;
+  radioState.agcDisable = radioState.agcIndex>0? 1 : 0;
+  radioState.agcNdxVal     = radioState.agcIndex>1? radioState.agcIndex - 1 : 0;
 
-  // Configure SI4732/5 (if agcNdx = 0, no attenuation)
-  rx.setAutomaticGainControl(disableAgc, agcNdx);
+  // Configure SI4732/5 (if radioState.agcNdxVal = 0, no attenuation)
+  rx.setAutomaticGainControl(radioState.agcDisable, radioState.agcNdxVal);
 }
 
 void doMode(int16_t enc)
 {
   // This is our current mode for the current band
-  currentMode = bands[bandIdx].bandMode;
+  radioState.mode = bands[bandIdx].bandMode;
 
   // Cannot change away from FM mode
-  if(currentMode==FM) return;
+  if(radioState.mode==FM) return;
 
   // Change AM/LSB/USB modes, do not allow FM mode
   do
-    currentMode = wrap_range(currentMode, enc, 0, LAST_ITEM(bandModeDesc));
-  while(currentMode==FM);
+    radioState.mode = wrap_range(radioState.mode, enc, 0, LAST_ITEM(bandModeDesc));
+  while(radioState.mode==FM);
 
   // Save current band settings
-  bands[bandIdx].currentFreq = currentFrequency + currentBFO / 1000;
-  bands[bandIdx].currentStepIdx = defaultStepIdx[currentMode];
-  bands[bandIdx].bandwidthIdx = defaultBwIdx[currentMode];
-  bands[bandIdx].bandMode = currentMode;
+  bands[bandIdx].currentFreq = radioState.frequency + radioState.bfo / 1000;
+  bands[bandIdx].currentStepIdx = defaultStepIdx[radioState.mode];
+  bands[bandIdx].bandwidthIdx = defaultBwIdx[radioState.mode];
+  bands[bandIdx].bandMode = radioState.mode;
 
   // Enable the new band
   selectBand(bandIdx);
@@ -778,29 +778,29 @@ void doMode(int16_t enc)
 
 void doSquelch(int16_t enc)
 {
-  uint8_t squelchParam = currentSquelch[currentMode] & 0x80;
-  uint8_t squelchValue = currentSquelch[currentMode] & 0x7f;
-  currentSquelch[currentMode] = squelchParam | clamp_range(squelchValue, enc, 0, 0x7f);
+  uint8_t squelchParam = radioState.squelch[radioState.mode] & 0x80;
+  uint8_t squelchValue = radioState.squelch[radioState.mode] & 0x7f;
+  radioState.squelch[radioState.mode] = squelchParam | clamp_range(squelchValue, enc, 0, 0x7f);
 }
 
 void doSoftMute(int16_t enc)
 {
   // Nothing to do if FM mode
-  if(currentMode==FM) return;
+  if(radioState.mode==FM) return;
 
   if(isSSB())
-    softMuteMaxAttIdx = SsbSoftMuteIdx = wrap_range(SsbSoftMuteIdx, enc, 0, 32);
+    radioState.softMuteMaxAtt = radioState.ssbSoftMuteIdx = wrap_range(radioState.ssbSoftMuteIdx, enc, 0, 32);
   else
-    softMuteMaxAttIdx = AmSoftMuteIdx = wrap_range(AmSoftMuteIdx, enc, 0, 32);
+    radioState.softMuteMaxAtt = radioState.amSoftMuteIdx = wrap_range(radioState.amSoftMuteIdx, enc, 0, 32);
 
-  rx.setAmSoftMuteMaxAttenuation(softMuteMaxAttIdx);
+  rx.setAmSoftMuteMaxAttenuation(radioState.softMuteMaxAtt);
 }
 
 void doBand(int16_t enc)
 {
   // Save current band settings
-  bands[bandIdx].currentFreq = currentFrequency + currentBFO / 1000;
-  bands[bandIdx].bandMode = currentMode;
+  bands[bandIdx].currentFreq = radioState.frequency + radioState.bfo / 1000;
+  bands[bandIdx].bandMode = radioState.mode;
 
   // Change band
   bandIdx = wrap_range(bandIdx, enc, 0, LAST_ITEM(bands));
@@ -813,7 +813,7 @@ void doBandwidth(int16_t enc)
 {
   uint8_t idx = bands[bandIdx].bandwidthIdx;
 
-  idx = wrap_range(idx, enc, 0, getLastBandwidth(currentMode));
+  idx = wrap_range(idx, enc, 0, getLastBandwidth(radioState.mode));
   bands[bandIdx].bandwidthIdx = idx;
   setBandwidth();
 }
@@ -830,42 +830,42 @@ static void doMenu(int16_t enc)
 static void clickMenu(int cmd, bool shortPress)
 {
   // No command yet
-  currentCmd = CMD_NONE;
+  radioState.cmd = CMD_NONE;
 
   switch(cmd)
   {
-    case MENU_STEP:     currentCmd = CMD_STEP;      break;
-    case MENU_SEEK:     currentCmd = CMD_SEEK;      break;
-    case MENU_MODE:     currentCmd = CMD_MODE;      break;
-    case MENU_BW:       currentCmd = CMD_BANDWIDTH; break;
-    case MENU_AGC_ATT:  currentCmd = CMD_AGC;       break;
-    case MENU_BAND:     currentCmd = CMD_BAND;      break;
-    case MENU_SETTINGS: currentCmd = CMD_SETTINGS;  break;
-    case MENU_SQUELCH:  currentCmd = CMD_SQUELCH;   break;
-    case MENU_VOLUME:   currentCmd = CMD_VOLUME;    break;
+    case MENU_STEP:     radioState.cmd = CMD_STEP;      break;
+    case MENU_SEEK:     radioState.cmd = CMD_SEEK;      break;
+    case MENU_MODE:     radioState.cmd = CMD_MODE;      break;
+    case MENU_BW:       radioState.cmd = CMD_BANDWIDTH; break;
+    case MENU_AGC_ATT:  radioState.cmd = CMD_AGC;       break;
+    case MENU_BAND:     radioState.cmd = CMD_BAND;      break;
+    case MENU_SETTINGS: radioState.cmd = CMD_SETTINGS;  break;
+    case MENU_SQUELCH:  radioState.cmd = CMD_SQUELCH;   break;
+    case MENU_VOLUME:   radioState.cmd = CMD_VOLUME;    break;
 
     case MENU_MEMORY:
-      currentCmd = CMD_MEMORY;
-      newMemory.freq  = freqToHz(currentFrequency, currentMode) + currentBFO;
-      newMemory.mode  = currentMode;
+      radioState.cmd = CMD_MEMORY;
+      newMemory.freq  = freqToHz(radioState.frequency, radioState.mode) + radioState.bfo;
+      newMemory.mode  = radioState.mode;
       newMemory.band  = bandIdx;
       doMemory(0);
       break;
 
     case MENU_SOFTMUTE:
       // No soft mute in FM mode
-      if(currentMode!=FM) currentCmd = CMD_SOFTMUTE;
+      if(radioState.mode!=FM) radioState.cmd = CMD_SOFTMUTE;
       break;
 
     case MENU_AVC:
       // No AVC in FM mode
-      if(currentMode!=FM) currentCmd = CMD_AVC;
+      if(radioState.mode!=FM) radioState.cmd = CMD_AVC;
       break;
 
     case MENU_SCAN:
       // Run a band scan around current frequency with the same
       // step as scale resolution (10kHz for AM, 100kHz for FM)
-      currentCmd = CMD_SCAN;
+      radioState.cmd = CMD_SCAN;
       clickScan(true);
       break;
   }
@@ -879,30 +879,30 @@ static void doSettings(int16_t enc)
 static void clickSettings(int cmd, bool shortPress)
 {
   // No command yet
-  currentCmd = CMD_NONE;
+  radioState.cmd = CMD_NONE;
 
   switch(cmd)
   {
-    case MENU_BRIGHTNESS: currentCmd = CMD_BRT; break;
+    case MENU_BRIGHTNESS: radioState.cmd = CMD_BRT; break;
     case MENU_CALIBRATION:
-      if(isSSB()) currentCmd = CMD_CAL;
+      if(isSSB()) radioState.cmd = CMD_CAL;
       break;
-    case MENU_THEME:      currentCmd = CMD_THEME;      break;
-    case MENU_UI:         currentCmd = CMD_UI;         break;
-    case MENU_RDS:        currentCmd = CMD_RDS;        break;
-    case MENU_ZOOM:       currentCmd = CMD_ZOOM;       break;
-    case MENU_SCROLL:     currentCmd = CMD_SCROLL;     break;
-    case MENU_SLEEP:      currentCmd = CMD_SLEEP;      break;
-    case MENU_SLEEPMODE:  currentCmd = CMD_SLEEPMODE;  break;
-    case MENU_UTCOFFSET:  currentCmd = CMD_UTCOFFSET;  break;
-    case MENU_USBMODE:    currentCmd = CMD_USBMODE;    break;
-    case MENU_BLEMODE:    currentCmd = CMD_BLEMODE;    break;
-    case MENU_WIFIMODE:   currentCmd = CMD_WIFIMODE;   break;
+    case MENU_THEME:      radioState.cmd = CMD_THEME;      break;
+    case MENU_UI:         radioState.cmd = CMD_UI;         break;
+    case MENU_RDS:        radioState.cmd = CMD_RDS;        break;
+    case MENU_ZOOM:       radioState.cmd = CMD_ZOOM;       break;
+    case MENU_SCROLL:     radioState.cmd = CMD_SCROLL;     break;
+    case MENU_SLEEP:      radioState.cmd = CMD_SLEEP;      break;
+    case MENU_SLEEPMODE:  radioState.cmd = CMD_SLEEPMODE;  break;
+    case MENU_UTCOFFSET:  radioState.cmd = CMD_UTCOFFSET;  break;
+    case MENU_USBMODE:    radioState.cmd = CMD_USBMODE;    break;
+    case MENU_BLEMODE:    radioState.cmd = CMD_BLEMODE;    break;
+    case MENU_WIFIMODE:   radioState.cmd = CMD_WIFIMODE;   break;
     case MENU_FM_REGION:
       // Only in FM mode
-      if(currentMode==FM) currentCmd = CMD_FM_REGION;
+      if(radioState.mode==FM) radioState.cmd = CMD_FM_REGION;
       break;
-    case MENU_ABOUT:      currentCmd = CMD_ABOUT;     break;
+    case MENU_ABOUT:      radioState.cmd = CMD_ABOUT;     break;
 
     case MENU_LOADEIBI:
       eibiLoadSchedule();
@@ -917,32 +917,32 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
 
   switch(cmd)
   {
-    // Menus and list-based options must take scrollDirection into account
-    case CMD_MENU:       doMenu(scrollDirection * enc);break;
-    case CMD_MODE:       doMode(scrollDirection * enc);break;
-    case CMD_STEP:       doStep(scrollDirection * enc);break;
+    // Menus and list-based options must take radioState.scrollDir into account
+    case CMD_MENU:       doMenu(radioState.scrollDir * enc);break;
+    case CMD_MODE:       doMode(radioState.scrollDir * enc);break;
+    case CMD_STEP:       doStep(radioState.scrollDir * enc);break;
     case CMD_AGC:        doAgc(enc);break;
-    case CMD_BANDWIDTH:  doBandwidth(scrollDirection * enc);break;
+    case CMD_BANDWIDTH:  doBandwidth(radioState.scrollDir * enc);break;
     case CMD_VOLUME:     doVolume(enca);break;
     case CMD_SOFTMUTE:   doSoftMute(enc);break;
-    case CMD_BAND:       doBand(scrollDirection * enc);break;
+    case CMD_BAND:       doBand(radioState.scrollDir * enc);break;
     case CMD_AVC:        doAvc(enc);break;
-    case CMD_FM_REGION:  doFmRegion(scrollDirection * enc);break;
-    case CMD_SETTINGS:   doSettings(scrollDirection * enc);break;
+    case CMD_FM_REGION:  doFmRegion(radioState.scrollDir * enc);break;
+    case CMD_SETTINGS:   doSettings(radioState.scrollDir * enc);break;
     case CMD_BRT:        doBrt(enca);break;
     case CMD_CAL:        doCal(enca);break;
-    case CMD_THEME:      doTheme(scrollDirection * enc);break;
-    case CMD_UI:         doUILayout(scrollDirection * enc);break;
-    case CMD_RDS:        doRDSMode(scrollDirection * enc);break;
-    case CMD_MEMORY:     doMemory(scrollDirection * enca);break;
+    case CMD_THEME:      doTheme(radioState.scrollDir * enc);break;
+    case CMD_UI:         doUILayout(radioState.scrollDir * enc);break;
+    case CMD_RDS:        doRDSMode(radioState.scrollDir * enc);break;
+    case CMD_MEMORY:     doMemory(radioState.scrollDir * enca);break;
     case CMD_SLEEP:      doSleep(enca);break;
-    case CMD_SLEEPMODE:  doSleepMode(scrollDirection * enc);break;
-    case CMD_USBMODE:    doUSBMode(scrollDirection * enc);break;
-    case CMD_BLEMODE:    doBleMode(scrollDirection * enc);break;
-    case CMD_WIFIMODE:   doWiFiMode(scrollDirection * enc);break;
+    case CMD_SLEEPMODE:  doSleepMode(radioState.scrollDir * enc);break;
+    case CMD_USBMODE:    doUSBMode(radioState.scrollDir * enc);break;
+    case CMD_BLEMODE:    doBleMode(radioState.scrollDir * enc);break;
+    case CMD_WIFIMODE:   doWiFiMode(radioState.scrollDir * enc);break;
     case CMD_ZOOM:       doZoom(enc);break;
     case CMD_SCROLL:     doScrollDir(enc);break;
-    case CMD_UTCOFFSET:  doUTCOffset(scrollDirection * enc);break;
+    case CMD_UTCOFFSET:  doUTCOffset(radioState.scrollDir * enc);break;
     case CMD_SQUELCH:    doSquelch(enca);break;
     case CMD_ABOUT:      doAbout(enc);break;
     default:             return(false);
@@ -959,8 +959,8 @@ bool clickHandler(uint16_t cmd, bool shortPress)
     case CMD_MENU:     clickMenu(menuIdx, shortPress);break;
     case CMD_SETTINGS: clickSettings(settingsIdx, shortPress);break;
     case CMD_MEMORY:   clickMemory(memoryIdx, shortPress);break;
-    case CMD_BLEMODE:  clickBleMode(bleModeIdx, shortPress);break;
-    case CMD_WIFIMODE: clickWiFiMode(wifiModeIdx, shortPress);break;
+    case CMD_BLEMODE:  clickBleMode(radioState.bleMode, shortPress);break;
+    case CMD_WIFIMODE: clickWiFiMode(radioState.wifiMode, shortPress);break;
     case CMD_VOLUME:   clickVolume(shortPress);break;
     case CMD_SQUELCH:  clickSquelch(shortPress);break;
     case CMD_SEEK:     clickSeek(shortPress);break;
@@ -985,7 +985,7 @@ void selectBand(uint8_t idx, bool drawLoadingSSB)
 
   // Set band and mode
   bandIdx = min(idx, LAST_ITEM(bands));
-  currentMode = bands[bandIdx].bandMode;
+  radioState.mode = bands[bandIdx].bandMode;
 
   // Load SSB patch as needed
   if(isSSB())
@@ -1003,7 +1003,7 @@ void selectBand(uint8_t idx, bool drawLoadingSSB)
   clearStationInfo();
 
   // Check for named frequencies
-  identifyFrequency(currentFrequency + currentBFO / 1000);
+  identifyFrequency(radioState.frequency + radioState.bfo / 1000);
 
   // Set default digit position based on the current step
   resetFreqInputPos();
