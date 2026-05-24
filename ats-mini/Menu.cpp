@@ -153,7 +153,6 @@ int getTotalMemories() { return(ITEM_COUNT(memories)); }
 // RDS Menu
 //
 
-uint8_t rdsModeIdx = 0;
 const RDSMode rdsMode[] =
 {
   { RDS_PS, "PS"},
@@ -173,7 +172,6 @@ int getTotalRDSModes() { return(ITEM_COUNT(rdsMode)); }
 // Sleep Mode Menu
 //
 
-uint8_t sleepModeIdx = SLEEP_LOCKED;
 const char *sleepModeDesc[] =
 { "Locked", "Unlocked", "CPU Sleep" };
 
@@ -182,7 +180,6 @@ const char *sleepModeDesc[] =
 // https://en.wikipedia.org/wiki/List_of_UTC_offsets
 // https://www.timeanddate.com/time/time-zones-interesting.html
 //
-uint8_t utcOffsetIdx = 8;
 const UTCOffset utcOffsets[] =
 {
   { -12 * 4, "UTC-12" },
@@ -234,7 +231,6 @@ int getTotalSleepModes() { return(ITEM_COUNT(sleepModeDesc)); }
 //
 // UI Layout Menu
 //
-uint8_t uiLayoutIdx = 0;
 const char *uiLayoutDesc[] =
 { "Default", "S-Meter" };
 
@@ -244,7 +240,6 @@ int getTotalUILayouts() { return(ITEM_COUNT(uiLayoutDesc)); }
 // USB Port Mode Menu
 //
 
-uint8_t usbModeIdx = USB_OFF;
 const char *usbModeDesc[] =
 { "Off", "Ad hoc" };
 
@@ -254,7 +249,6 @@ int getTotalUSBModes() { return(ITEM_COUNT(usbModeDesc)); }
 // Bluetooth Mode Menu
 //
 
-uint8_t bleModeIdx = BLE_OFF;
 const char *bleModeDesc[] =
 { "Off", "Ad hoc", "HID" };
 
@@ -264,7 +258,6 @@ int getTotalBleModes() { return(ITEM_COUNT(bleModeDesc)); }
 // WiFi Mode Menu
 //
 
-uint8_t wifiModeIdx = NET_OFF;
 const char *wifiModeDesc[] =
 { "Off", "AP Only", "AP+Connect", "Connect", "Sync Only" };
 

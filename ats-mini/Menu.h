@@ -124,13 +124,6 @@ extern int bandIdx;
 extern int8_t menuIdx;
 extern int8_t settingsIdx;
 extern uint8_t memoryIdx;
-extern uint8_t rdsModeIdx;
-extern uint8_t sleepModeIdx;
-extern uint8_t utcOffsetIdx;
-extern uint8_t uiLayoutIdx;
-extern uint8_t usbModeIdx;
-extern uint8_t bleModeIdx;
-extern uint8_t wifiModeIdx;
 
 extern const char *menu[];
 extern const char *settings[];

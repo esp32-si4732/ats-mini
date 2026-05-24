@@ -83,6 +83,85 @@
 #define ITEM_COUNT(array) (sizeof(array) / sizeof((array)[0]))
 #define LAST_ITEM(array)  (ITEM_COUNT(array) - 1)
 
+//
+// Consolidated Radio State
+//
+typedef struct {
+  // Tuning state
+  uint16_t frequency;       // replaces currentFrequency
+  uint8_t  mode;            // replaces currentMode
+  int16_t  bfo;             // replaces currentBFO
+  uint16_t cmd;             // replaces currentCmd
+  bool     pushAndRotate;   // replaces pushAndRotate
+
+  // Audio
+  uint8_t volume;           // replaces volume
+  uint8_t squelch[4];       // replaces currentSquelch[]
+
+  // AGC/AVC/SoftMute per mode
+  int8_t fmAgcIdx;          // replaces FmAgcIdx
+  int8_t amAgcIdx;          // replaces AmAgcIdx
+  int8_t ssbAgcIdx;         // replaces SsbAgcIdx
+  int8_t amAvcIdx;          // replaces AmAvcIdx
+  int8_t ssbAvcIdx;         // replaces SsbAvcIdx
+  int8_t amSoftMuteIdx;     // replaces AmSoftMuteIdx
+  int8_t ssbSoftMuteIdx;    // replaces SsbSoftMuteIdx
+  int8_t agcIdx;            // replaces agcIdx
+  int8_t agcNdx;            // replaces agcNdx
+  int8_t softMuteMaxAttIdx; // replaces softMuteMaxAttIdx
+  uint8_t disableAgc;       // replaces disableAgc
+
+  // Display
+  uint16_t brightness;      // replaces currentBrt
+  uint16_t sleep;           // replaces currentSleep
+  uint8_t  sleepModeIdx;    // replaces sleepModeIdx
+
+  // Misc settings
+  uint8_t  rdsModeIdx;      // replaces rdsModeIdx
+  uint8_t  usbModeIdx;      // replaces usbModeIdx
+  uint8_t  bleModeIdx;      // replaces bleModeIdx
+  uint8_t  wifiModeIdx;     // replaces wifiModeIdx
+  uint8_t  fmRegionIdx;     // replaces FmRegionIdx
+  uint8_t  zoomLevel;       // replaces zoomMenu (was bool)
+  int8_t   scrollDir;       // replaces scrollDirection (was uint8_t)
+  int8_t   utcOffsetIdx;    // replaces utcOffsetIdx (was uint8_t)
+  uint8_t  uiLayoutIdx;     // replaces uiLayoutIdx
+} RadioState;
+
+extern RadioState radioState;
+
+// Compatibility shims -- will be removed after full migration
+#define currentFrequency radioState.frequency
+#define currentMode      radioState.mode
+#define currentBFO       radioState.bfo
+#define currentCmd       radioState.cmd
+#define pushAndRotate    radioState.pushAndRotate
+#define volume           radioState.volume
+#define currentSquelch   radioState.squelch
+#define FmAgcIdx         radioState.fmAgcIdx
+#define AmAgcIdx         radioState.amAgcIdx
+#define SsbAgcIdx        radioState.ssbAgcIdx
+#define AmAvcIdx         radioState.amAvcIdx
+#define SsbAvcIdx        radioState.ssbAvcIdx
+#define AmSoftMuteIdx    radioState.amSoftMuteIdx
+#define SsbSoftMuteIdx   radioState.ssbSoftMuteIdx
+#define agcIdx           radioState.agcIdx
+#define agcNdx           radioState.agcNdx
+#define softMuteMaxAttIdx radioState.softMuteMaxAttIdx
+#define disableAgc       radioState.disableAgc
+#define currentBrt       radioState.brightness
+#define currentSleep     radioState.sleep
+#define sleepModeIdx     radioState.sleepModeIdx
+#define rdsModeIdx       radioState.rdsModeIdx
+#define usbModeIdx       radioState.usbModeIdx
+#define bleModeIdx       radioState.bleModeIdx
+#define wifiModeIdx      radioState.wifiModeIdx
+#define FmRegionIdx      radioState.fmRegionIdx
+#define zoomMenu         radioState.zoomLevel
+#define scrollDirection  radioState.scrollDir
+#define utcOffsetIdx     radioState.utcOffsetIdx
+#define uiLayoutIdx      radioState.uiLayoutIdx
+
 // BFO and Calibration limits (MAX_BFO + MAX_CAL <= 16000)
 #define MAX_BFO       14000  // Maximum range for currentBFO = +/- MAX_BFO
 #define MAX_CAL       2000   // Maximum range for currentCAL = +/- MAX_CAL
@@ -157,42 +236,10 @@ extern SI4735_fixed rx;
 extern TFT_eSprite spr;
 extern TFT_eSPI tft;
 
-extern bool pushAndRotate;
-extern volatile bool seekStop;
 extern uint8_t rssi;
 extern uint8_t snr;
 
-extern uint8_t volume;
-extern uint8_t currentSquelch[];
-extern uint16_t currentFrequency;
-extern int16_t currentBFO;
-extern uint8_t currentMode;
-extern uint16_t currentCmd;
-extern uint16_t currentBrt;
-extern uint16_t currentSleep;
-extern uint8_t sleepModeIdx;
-extern bool zoomMenu;
-extern int8_t scrollDirection;
-extern uint8_t utcOffsetIdx;
-extern uint8_t uiLayoutIdx;
-
-extern int8_t FmAgcIdx;
-extern int8_t AmAgcIdx;
-extern int8_t SsbAgcIdx;
-extern int8_t AmAvcIdx;
-extern int8_t SsbAvcIdx;
-extern int8_t AmSoftMuteIdx;
-extern int8_t SsbSoftMuteIdx;
-extern uint8_t rdsModeIdx;
-extern uint8_t usbModeIdx;
-extern uint8_t bleModeIdx;
-extern uint8_t wifiModeIdx;
-extern uint8_t FmRegionIdx;
-
-extern int8_t agcIdx;
-extern int8_t agcNdx;
-extern int8_t softMuteMaxAttIdx;
-extern uint8_t disableAgc;
+extern volatile bool seekStop;
 
 extern const int CALMax;
 
