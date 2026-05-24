@@ -486,11 +486,11 @@ bool updateFrequency(int newFreq, bool wrap)
 // This function is called by blocking operations that need a lightweight abort check.
 bool consumeAbortPending()
 {
-  if(seekStop)
-  {
-    seekStop = false;
-    return true;
-  }
+  noInterrupts();
+  bool pending = seekStop;
+  seekStop = false;
+  interrupts();
+  if(pending) return true;
   if(bleConsumeAbortPending(radioState.bleMode)) return true;
   if(serialConsumeAbortPending(radioState.usbMode)) return true;
 
