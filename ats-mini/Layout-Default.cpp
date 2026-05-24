@@ -2,6 +2,7 @@
 #include "Themes.h"
 #include "Utils.h"
 #include "Menu.h"
+#include "MenuDraw.h"
 #include "Draw.h"
 
 void drawLayoutDefault(const char *statusLine1, const char *statusLine2)

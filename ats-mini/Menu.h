@@ -54,6 +54,39 @@
 #define SEEK_DEFAULT  0
 #define SEEK_SCHEDULE 1
 
+// Main menu item indices
+#define MENU_MODE         0
+#define MENU_BAND         1
+#define MENU_VOLUME       2
+#define MENU_STEP         3
+#define MENU_SEEK         4
+#define MENU_SCAN         5
+#define MENU_MEMORY       6
+#define MENU_SQUELCH      7
+#define MENU_BW           8
+#define MENU_AGC_ATT      9
+#define MENU_AVC         10
+#define MENU_SOFTMUTE    11
+#define MENU_SETTINGS    12
+
+// Settings menu item indices
+#define MENU_BRIGHTNESS   0
+#define MENU_CALIBRATION  1
+#define MENU_RDS          2
+#define MENU_UTCOFFSET    3
+#define MENU_FM_REGION    4
+#define MENU_THEME        5
+#define MENU_UI           6
+#define MENU_ZOOM         7
+#define MENU_SCROLL       8
+#define MENU_SLEEP        9
+#define MENU_SLEEPMODE    10
+#define MENU_LOADEIBI     11
+#define MENU_USBMODE      12
+#define MENU_BLEMODE      13
+#define MENU_WIFIMODE     14
+#define MENU_ABOUT        15
+
 //
 // Data Types
 //
@@ -88,6 +121,28 @@ extern const char *bandModeDesc[];
 extern const FMRegion fmRegions[];
 extern int bandIdx;
 
+extern int8_t menuIdx;
+extern int8_t settingsIdx;
+extern uint8_t memoryIdx;
+extern uint8_t rdsModeIdx;
+extern uint8_t sleepModeIdx;
+extern uint8_t utcOffsetIdx;
+extern uint8_t uiLayoutIdx;
+extern uint8_t usbModeIdx;
+extern uint8_t bleModeIdx;
+extern uint8_t wifiModeIdx;
+
+extern const char *menu[];
+extern const char *settings[];
+extern const RDSMode rdsMode[];
+extern const char *sleepModeDesc[];
+extern const char *uiLayoutDesc[];
+extern const char *usbModeDesc[];
+extern const char *bleModeDesc[];
+extern const char *wifiModeDesc[];
+extern const Step *steps[];
+extern const Bandwidth *bandwidths[];
+
 // These are menu commands
 static inline bool isMenuMode(uint16_t cmd)
 {
@@ -101,7 +156,6 @@ static inline bool isSettingsMode(uint16_t cmd)
 }
 
 uint8_t seekMode(bool toggle = false);
-void drawSideBar(uint16_t cmd, int x, int y, int sx);
 bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca);
 void doSelectDigit(int16_t enc);
 bool clickHandler(uint16_t cmd, bool shortPress);
@@ -109,6 +163,14 @@ void selectBand(uint8_t idx, bool drawLoadingSSB = true);
 int getTotalBands();
 int getTotalModes();
 int getTotalMemories();
+int getTotalMenuItems();
+int getTotalSettingsItems();
+int getTotalRDSModes();
+int getTotalSleepModes();
+int getTotalUILayouts();
+int getTotalWiFiModes();
+int getLastStep(int mode);
+int getLastBandwidth(int mode);
 Band *getCurrentBand();
 uint8_t getFreqInputPos();
 int getFreqInputStep();
@@ -119,6 +181,7 @@ uint8_t getRDSMode();
 int getCurrentUTCOffset();
 int getTotalUTCOffsets();
 int getTotalFmRegions();
+int getTotalUSBModes();
 int getTotalBleModes();
 
 void doSoftMute(int16_t enc);

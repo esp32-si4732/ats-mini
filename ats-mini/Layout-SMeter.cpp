@@ -1,6 +1,7 @@
 #include "Common.h"
 #include "Themes.h"
 #include "Menu.h"
+#include "MenuDraw.h"
 #include "Draw.h"
 
 static int getInterpolatedStrength(int rssi)
