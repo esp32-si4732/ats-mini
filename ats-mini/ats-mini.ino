@@ -207,7 +207,7 @@ void setup()
     prefsSave(SAVE_SETTINGS);
     // Show initial screen with the QR code
     spr.fillSprite(TH.bg);
-    ledcWrite(PIN_LCD_BL, currentBrt);
+    ledcWrite(PIN_LCD_BL, radioState.brightness);
     drawAboutHelp(0);
     // Wait for an encoder click
     while(digitalRead(ENCODER_PUSH_BUTTON)!=LOW) delay(100);
@@ -227,12 +227,12 @@ void setup()
   // SI4732 STARTUP!
   selectBand(bandIdx, false);
   delay(50);
-  rx.setVolume(volume);
+  rx.setVolume(radioState.vol);
   rx.setMaxSeekTime(SEEK_TIMEOUT);
 
   // Draw display for the first time
   drawScreen();
-  ledcWrite(PIN_LCD_BL, currentBrt);
+  ledcWrite(PIN_LCD_BL, radioState.brightness);
 
   // Interrupt actions for Rotary encoder
   // Note: Moved to end of setup to avoid inital interrupt actions
@@ -241,10 +241,10 @@ void setup()
   attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_B), rotaryEncoder, CHANGE);
 
   // Connect WiFi, if necessary
-  netInit(wifiModeIdx);
+  netInit(radioState.wifiMode);
 
   // Start Bluetooth LE, if necessary
-  bleInit(bleModeIdx);
+  bleInit(radioState.bleMode);
 }
 
 
@@ -326,9 +326,9 @@ uint32_t consumeEncoderCounts()
 void useBand(const Band *band)
 {
   // Set current frequency and mode, reset BFO
-  currentFrequency = band->currentFreq;
-  currentMode = band->bandMode;
-  currentBFO = 0;
+  radioState.frequency = band->currentFreq;
+  radioState.mode = band->bandMode;
+  radioState.bfo = 0;
 
   if(band->bandMode==FM)
   {
@@ -342,7 +342,7 @@ void useBand(const Band *band)
     rx.setSeekFmRssiThreshold(5); // default is 20
     rx.setSeekFmSNRThreshold(2); // default is 3
 
-    rx.setFMDeEmphasis(fmRegions[FmRegionIdx].value);
+    rx.setFMDeEmphasis(fmRegions[radioState.fmRegionIdx].value);
     rx.RdsInit();
     rx.setRdsConfig(1, 2, 2, 2, 2);
     rx.setGpioCtl(1, 0, 0);   // G8PTN: Enable GPIO1 as output
@@ -362,18 +362,18 @@ void useBand(const Band *band)
     else
     {
       // Configure SI4732 for SSB (SI4732 step not used, set to 0)
-      rx.setSSB(band->minimumFreq, band->maximumFreq, band->currentFreq, 0, currentMode);
+      rx.setSSB(band->minimumFreq, band->maximumFreq, band->currentFreq, 0, radioState.mode);
       // G8PTN: Always enabled
       rx.setSSBAutomaticVolumeControl(1);
       // G8PTN: Commented out
-      //rx.setSsbSoftMuteMaxAttenuation(softMuteMaxAttIdx);
+      //rx.setSsbSoftMuteMaxAttenuation(radioState.softMuteMaxAtt);
       // To move frequency forward, need to move the BFO backwards
-      if (currentMode == USB)
-        rx.setSSBBfo(-(currentBFO + band->usbCal));
-      else if (currentMode == LSB)
-        rx.setSSBBfo(-(currentBFO + band->lsbCal));
+      if (radioState.mode == USB)
+        rx.setSSBBfo(-(radioState.bfo + band->usbCal));
+      else if (radioState.mode == LSB)
+        rx.setSSBBfo(-(radioState.bfo + band->lsbCal));
       else
-        rx.setSSBBfo(-currentBFO);  // No calibration if not USB/LSB
+        rx.setSSBBfo(-radioState.bfo);  // No calibration if not USB/LSB
     }
 
     // Set the tuning capacitor for SW or MW/LW
@@ -389,7 +389,7 @@ void useBand(const Band *band)
 
   // Set step and spacing based on mode (FM, AM, SSB)
   doStep(0);
-  // Set softMuteMaxAttIdx based on mode (AM, SSB)
+  // Set softMuteMaxAtt based on mode (AM, SSB)
   doSoftMute(0);
   // Set disableAgc and agcNdx values based on mode (FM, AM , SSB)
   doAgc(0);
@@ -408,7 +408,7 @@ void useBand(const Band *band)
 bool updateBFO(int newBFO, bool wrap)
 {
   Band *band = getCurrentBand();
-  int newFreq = currentFrequency;
+  int newFreq = radioState.frequency;
 
   // No BFO outside SSB modes
   if(!isSSB()) newBFO = 0;
@@ -439,7 +439,7 @@ bool updateBFO(int newBFO, bool wrap)
   }
 
   // If need to change frequency...
-  if(newFreq != currentFrequency)
+  if(newFreq != radioState.frequency)
   {
     // Apply new frequency
     rx.setFrequency(newFreq);
@@ -447,22 +447,22 @@ bool updateBFO(int newBFO, bool wrap)
     // Re-apply to remove noise
     doAgc(0);
     // Update current frequency
-    currentFrequency = rx.getFrequency();
+    radioState.frequency = rx.getFrequency();
   }
 
   // Update current BFO
-  currentBFO = newBFO;
+  radioState.bfo = newBFO;
 
   // To move frequency forward, need to move the BFO backwards
-  if (currentMode == USB)
-    rx.setSSBBfo(-(currentBFO + band->usbCal));
-  else if (currentMode == LSB)
-    rx.setSSBBfo(-(currentBFO + band->lsbCal));
+  if (radioState.mode == USB)
+    rx.setSSBBfo(-(radioState.bfo + band->usbCal));
+  else if (radioState.mode == LSB)
+    rx.setSSBBfo(-(radioState.bfo + band->lsbCal));
   else
-    rx.setSSBBfo(-currentBFO);  // No calibration if not USB/LSB
+    rx.setSSBBfo(-radioState.bfo);  // No calibration if not USB/LSB
 
   // Save current band frequency, w.r.t. new BFO value
-  band->currentFreq = currentFrequency + currentBFO / 1000;
+  band->currentFreq = radioState.frequency + radioState.bfo / 1000;
   return true;
 }
 
@@ -487,13 +487,13 @@ bool updateFrequency(int newFreq, bool wrap)
   rx.setFrequency(newFreq);
 
   // Clear BFO, if present
-  if(currentBFO) updateBFO(0, true);
+  if(radioState.bfo) updateBFO(0, true);
 
   // Update current frequency
-  currentFrequency = rx.getFrequency();
+  radioState.frequency = rx.getFrequency();
 
   // Save current band frequency
-  band->currentFreq = currentFrequency + currentBFO / 1000;
+  band->currentFreq = radioState.frequency + radioState.bfo / 1000;
   return true;
 }
 
@@ -505,8 +505,8 @@ bool consumeAbortPending()
     seekStop = false;
     return true;
   }
-  if(bleConsumeAbortPending(bleModeIdx)) return true;
-  if(serialConsumeAbortPending(usbModeIdx)) return true;
+  if(bleConsumeAbortPending(radioState.bleMode)) return true;
+  if(serialConsumeAbortPending(radioState.usbMode)) return true;
 
   // Checking isPressed without debouncing because this helper is used from
   // blocking operations that do not run the normal event loop often enough.
@@ -524,7 +524,7 @@ bool consumeAbortPending()
 // This function is called by the seek function process.
 void showFrequencySeek(uint16_t freq)
 {
-  currentFrequency = freq;
+  radioState.frequency = freq;
   drawScreen();
 }
 
@@ -539,7 +539,7 @@ bool doSeek(int16_t enc, int16_t enca)
   {
     if(isSSB())
     {
-      updateBFO(currentBFO + enca * getCurrentStep()->step, true);
+      updateBFO(radioState.bfo + enca * getCurrentStep()->step, true);
     }
     else
     {
@@ -561,8 +561,8 @@ bool doSeek(int16_t enc, int16_t enca)
 
     size_t offset = -1;
     const StationSchedule *schedule = enc > 0 ?
-      eibiNext(currentFrequency + currentBFO / 1000, hour, minute, &offset) :
-      eibiPrev(currentFrequency + currentBFO / 1000, hour, minute, &offset);
+      eibiNext(radioState.frequency + radioState.bfo / 1000, hour, minute, &offset) :
+      eibiPrev(radioState.frequency + radioState.bfo / 1000, hour, minute, &offset);
 
     if(schedule) updateFrequency(schedule->freq, false);
   }
@@ -570,7 +570,7 @@ bool doSeek(int16_t enc, int16_t enca)
   // Clear current station name and information
   clearStationInfo();
   // Check for named frequencies
-  identifyFrequency(currentFrequency + currentBFO / 1000);
+  identifyFrequency(radioState.frequency + radioState.bfo / 1000);
   // Will need a redraw
   // enable amp
   muteOn(MUTE_TEMP, false);
@@ -588,10 +588,10 @@ bool doTune(int16_t enc)
   if(isSSB())
   {
     uint32_t step = getCurrentStep()->step;
-    uint32_t stepAdjust = (currentFrequency * 1000 + currentBFO) % step;
+    uint32_t stepAdjust = (radioState.frequency * 1000 + radioState.bfo) % step;
     step = !stepAdjust? step : enc>0? step - stepAdjust : stepAdjust;
 
-    updateBFO(currentBFO + enc * step, true);
+    updateBFO(radioState.bfo + enc * step, true);
   }
 
   //
@@ -600,18 +600,18 @@ bool doTune(int16_t enc)
   else
   {
     uint16_t step = getCurrentStep()->step;
-    uint16_t stepAdjust = currentFrequency % step;
-    stepAdjust = (currentMode==FM) && (step==20)? (stepAdjust+10) % step : stepAdjust;
+    uint16_t stepAdjust = radioState.frequency % step;
+    stepAdjust = (radioState.mode==FM) && (step==20)? (stepAdjust+10) % step : stepAdjust;
     step = !stepAdjust? step : enc>0? step - stepAdjust : stepAdjust;
 
     // Tune to a new frequency
-    updateFrequency(currentFrequency + step * enc, true);
+    updateFrequency(radioState.frequency + step * enc, true);
   }
 
   // Clear current station name and information
   clearStationInfo();
   // Check for named frequencies
-  identifyFrequency(currentFrequency + currentBFO / 1000);
+  identifyFrequency(radioState.frequency + radioState.bfo / 1000);
   // Will need a redraw
   return(true);
 }
@@ -626,7 +626,7 @@ bool doDigit(int16_t enc)
   // SSB tuning
   if(isSSB())
   {
-    updated = updateBFO(currentBFO + enc * getFreqInputStep(), false);
+    updated = updateBFO(radioState.bfo + enc * getFreqInputStep(), false);
   }
 
   //
@@ -635,14 +635,14 @@ bool doDigit(int16_t enc)
   else
   {
     // Tune to a new frequency
-    updated = updateFrequency(currentFrequency + enc * getFreqInputStep(), false);
+    updated = updateFrequency(radioState.frequency + enc * getFreqInputStep(), false);
   }
 
   if (updated) {
     // Clear current station name and information
     clearStationInfo();
     // Check for named frequencies
-    identifyFrequency(currentFrequency + currentBFO / 1000);
+    identifyFrequency(radioState.frequency + radioState.bfo / 1000);
   }
 
   // Will need a redraw
@@ -657,17 +657,17 @@ bool clickFreq(bool shortPress)
 
      // SSB tuning
      if(isSSB()) {
-       updated = updateBFO(currentBFO - (currentFrequency * 1000 + currentBFO) % getFreqInputStep(), false);
+       updated = updateBFO(radioState.bfo - (radioState.frequency * 1000 + radioState.bfo) % getFreqInputStep(), false);
      } else {
        // Normal tuning
-       updated = updateFrequency(currentFrequency - currentFrequency % getFreqInputStep(), false);
+       updated = updateFrequency(radioState.frequency - radioState.frequency % getFreqInputStep(), false);
      }
 
      if (updated) {
        // Clear current station name and information
        clearStationInfo();
        // Check for named frequencies
-       identifyFrequency(currentFrequency + currentBFO / 1000);
+       identifyFrequency(radioState.frequency + radioState.bfo / 1000);
      }
      return true;
   }
@@ -684,8 +684,8 @@ bool processRssiSnr()
   int newSNR = rx.getCurrentSNR();
 
   // Apply squelch if the volume is not muted
-  uint8_t squelchValue = currentSquelch[currentMode] & 0x7f;
-  uint8_t squelchParam = (currentSquelch[currentMode] & 0x80)? newSNR:newRSSI;
+  uint8_t squelchValue = radioState.squelch[radioState.mode] & 0x7f;
+  uint8_t squelchParam = (radioState.squelch[radioState.mode] & 0x80)? newSNR:newRSSI;
   if(squelchValue)
   {
     if(squelchParam >= squelchValue && muteOn(MUTE_SQUELCH))
@@ -738,7 +738,7 @@ void loop()
   // if(encCount && getCpuFrequencyMhz()!=240) setCpuFrequencyMhz(240);
 
   // Receive and execute serial command
-  int ser_event = serialLoop(usbModeIdx);
+  int ser_event = serialLoop(radioState.usbMode);
   needRedraw |= !!(ser_event & REMOTE_CHANGED);
   pb1st.isPressed |= !!(ser_event & REMOTE_PRESSED);
   pb1st.wasClicked |= !!(ser_event & REMOTE_CLICK);
@@ -749,7 +749,7 @@ void loop()
   if(ser_event & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
 
   // Receive and execute BLE command
-  int ble_event = bleLoop(bleModeIdx);
+  int ble_event = bleLoop(radioState.bleMode);
   needRedraw |= !!(ble_event & REMOTE_CHANGED);
   pb1st.isPressed |= !!(ble_event & REMOTE_PRESSED);
   pb1st.wasClicked |= !!(ble_event & REMOTE_CLICK);
@@ -760,30 +760,30 @@ void loop()
   if(ble_event & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
 
   // Block encoder rotation when in the locked sleep mode
-  if(encCount && sleepOn() && sleepModeIdx==SLEEP_LOCKED) encCount = encCountAccel = 0;
+  if(encCount && sleepOn() && radioState.sleepMode==SLEEP_LOCKED) encCount = encCountAccel = 0;
 
   // Activate push and rotate mode (can span multiple loop iterations until the button is released)
-  if (encCount && pb1st.isPressed) pushAndRotate = true;
+  if (encCount && pb1st.isPressed) radioState.pnr = true;
 
   // Deactivate push and rotate mode as soon as the button is released so
   // click handling in this loop iteration follows the normal path.
-  if(!pb1st.isPressed && pushAndRotate)
+  if(!pb1st.isPressed && radioState.pnr)
   {
-    pushAndRotate = false;
+    radioState.pnr = false;
     needRedraw = true;
   }
 
   // If push and rotate mode is active...
-  if(pushAndRotate)
+  if(radioState.pnr)
   {
     // If encoder has been rotated
     if(encCount)
     {
-      switch(currentCmd)
+      switch(radioState.cmd)
       {
         case CMD_NONE:
           // Activate frequency input mode
-          currentCmd = CMD_FREQ;
+          radioState.cmd = CMD_FREQ;
           needRedraw = true;
           break;
         case CMD_FREQ:
@@ -807,7 +807,7 @@ void loop()
     // If encoder has been rotated
     if(encCount)
     {
-      switch(currentCmd)
+      switch(radioState.cmd)
       {
         case CMD_NONE:
         case CMD_SCAN:
@@ -832,7 +832,7 @@ void loop()
           break;
         default:
           // Side bar menus / settings
-          needRedraw |= doSideBar(currentCmd, encCount, encCountAccel);
+          needRedraw |= doSideBar(radioState.cmd, encCount, encCountAccel);
           // Current settings, etc. may have changed
           prefsRequestSave(SAVE_ALL);
           break;
@@ -860,23 +860,23 @@ void loop()
       {
         // If sleep timeout is enabled, exit it via button press of any duration
         // (users don't need to figure out that a long press is required to wake up the device)
-        if(currentSleep)
+        if(radioState.sleep)
         {
           sleepOn(false);
           needRedraw = true;
         }
-        else if(sleepModeIdx == SLEEP_UNLOCKED)
+        else if(radioState.sleepMode == SLEEP_UNLOCKED)
         {
           // Allow to adjust the volume in sleep mode
-          if(pb1st.wasShortPressed && currentCmd==CMD_NONE)
-            currentCmd = CMD_VOLUME;
-          else if(currentCmd==CMD_VOLUME)
-            clickHandler(currentCmd, pb1st.wasShortPressed);
+          if(pb1st.wasShortPressed && radioState.cmd==CMD_NONE)
+            radioState.cmd = CMD_VOLUME;
+          else if(radioState.cmd==CMD_VOLUME)
+            clickHandler(radioState.cmd, pb1st.wasShortPressed);
 
           needRedraw = true;
         }
       }
-      else if(clickHandler(currentCmd, pb1st.wasShortPressed))
+      else if(clickHandler(radioState.cmd, pb1st.wasShortPressed))
       {
         // Command handled, redraw screen
         needRedraw = true;
@@ -884,22 +884,22 @@ void loop()
         // EiBi can take long time, renew the timestamps
         elapsedSleep = elapsedCommand = currentTime = millis();
       }
-      else if(currentCmd != CMD_NONE)
+      else if(radioState.cmd != CMD_NONE)
       {
         // Deactivate modal mode
-        currentCmd = CMD_NONE;
+        radioState.cmd = CMD_NONE;
         needRedraw = true;
       }
       else if(pb1st.wasShortPressed)
       {
         // Volume shortcut (only active in VFO mode)
-        currentCmd = CMD_VOLUME;
+        radioState.cmd = CMD_VOLUME;
         needRedraw = true;
       }
       else
       {
         // Activate menu
-        currentCmd = CMD_MENU;
+        radioState.cmd = CMD_MENU;
         needRedraw = true;
       }
     }
@@ -909,9 +909,9 @@ void loop()
   if((currentTime - elapsedCommand) > ELAPSED_COMMAND)
   {
     // if(getCpuFrequencyMhz()!=80) setCpuFrequencyMhz(80);
-    if(currentCmd != CMD_NONE && currentCmd != CMD_SEEK && currentCmd != CMD_SCAN && currentCmd != CMD_MEMORY)
+    if(radioState.cmd != CMD_NONE && radioState.cmd != CMD_SEEK && radioState.cmd != CMD_SCAN && radioState.cmd != CMD_MEMORY)
     {
-      currentCmd = CMD_NONE;
+      radioState.cmd = CMD_NONE;
       needRedraw = true;
     }
 
@@ -919,7 +919,7 @@ void loop()
   }
 
   // Display sleep timeout
-  if(currentSleep && !sleepOn() && ((currentTime - elapsedSleep) > currentSleep * 1000))
+  if(radioState.sleep && !sleepOn() && ((currentTime - elapsedSleep) > radioState.sleep * 1000))
   {
     sleepOn(true);
     // CPU sleep can take long time, renew the timestamps
@@ -935,14 +935,14 @@ void loop()
   // Periodically check received RDS information
   if((currentTime - lastRDSCheck) > RDS_CHECK_TIME)
   {
-    needRedraw |= (currentMode == FM) && (snr >= 12) && checkRds();
+    needRedraw |= (radioState.mode == FM) && (snr >= 12) && checkRds();
     lastRDSCheck = currentTime;
   }
 
   // Periodically check schedule
   if((currentTime - lastScheduleCheck) > SCHEDULE_CHECK_TIME)
   {
-    needRedraw |= identifyFrequency(currentFrequency + currentBFO / 1000, true);
+    needRedraw |= identifyFrequency(radioState.frequency + radioState.bfo / 1000, true);
     lastScheduleCheck = currentTime;
   }
 
@@ -968,7 +968,7 @@ void loop()
   if(needRedraw) background_timer = currentTime;
   if((currentTime - background_timer) > BACKGROUND_REFRESH_TIME)
   {
-    if(currentCmd == CMD_NONE) needRedraw = true;
+    if(radioState.cmd == CMD_NONE) needRedraw = true;
     background_timer = currentTime;
   }
 
