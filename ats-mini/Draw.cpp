@@ -194,7 +194,7 @@ void drawFrequency(uint32_t freq, int x, int y, int ux, int uy, uint8_t hl)
   spr.setTextDatum(MR_DATUM);
   spr.setTextColor(TH.freq_text);
 
-  if(currentMode==FM)
+  if(radioState.mode==FM)
   {
     // Determine where underscore is located
     li = hl<ITEM_COUNT(hlDigitsFM)? &hlDigitsFM[hl] : 0;
@@ -214,7 +214,7 @@ void drawFrequency(uint32_t freq, int x, int y, int ux, int uy, uint8_t hl)
     {
       // SSB frequency
       char text[32];
-      freq = freq * 1000 + currentBFO;
+      freq = freq * 1000 + radioState.bfo;
       sprintf(text, "%3.3lu", freq / 1000);
       spr.drawString(text, x, y, 7);
       spr.setTextDatum(ML_DATUM);
@@ -289,7 +289,7 @@ void drawScale(uint32_t freq)
       {
         spr.drawLine(x, 169, x, 150, lineColor);
         spr.drawLine(x + 1, 169, x + 1, 150, lineColor);
-        if(currentMode == FM)
+        if(radioState.mode == FM)
           spr.drawFloat(freq / 10.0, 1, x, 140, 2);
         else if(freq >= 100)
           spr.drawFloat(freq / 100.0, 3, x, 140, 2);
@@ -435,13 +435,13 @@ void drawScreen(const char *statusLine1, const char *statusLine2)
   spr.fillSprite(TH.bg);
 
   // About screen is a special case
-  if(currentCmd==CMD_ABOUT)
+  if(radioState.cmd==CMD_ABOUT)
   {
     drawAbout();
     return;
   }
 
-  switch(uiLayoutIdx)
+  switch(radioState.uiLayout)
   {
     case UI_SMETER:
       drawLayoutSmeter(statusLine1, statusLine2);
