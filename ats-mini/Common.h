@@ -92,10 +92,10 @@ typedef struct {
   uint8_t  mode;            // replaces currentMode
   int16_t  bfo;             // replaces currentBFO
   uint16_t cmd;             // replaces currentCmd
-  bool     pushAndRotate;   // replaces pushAndRotate
+  bool     pnr;             // replaces pushAndRotate
 
   // Audio
-  uint8_t volume;           // replaces volume
+  uint8_t vol;              // replaces volume
   uint8_t squelch[4];       // replaces currentSquelch[]
 
   // AGC/AVC/SoftMute per mode
@@ -106,61 +106,61 @@ typedef struct {
   int8_t ssbAvcIdx;         // replaces SsbAvcIdx
   int8_t amSoftMuteIdx;     // replaces AmSoftMuteIdx
   int8_t ssbSoftMuteIdx;    // replaces SsbSoftMuteIdx
-  int8_t agcIdx;            // replaces agcIdx
-  int8_t agcNdx;            // replaces agcNdx
-  int8_t softMuteMaxAttIdx; // replaces softMuteMaxAttIdx
-  uint8_t disableAgc;       // replaces disableAgc
+  int8_t agcIndex;          // replaces agcIdx
+  int8_t agcNdxVal;         // replaces agcNdx
+  int8_t softMuteMaxAtt;    // replaces softMuteMaxAttIdx
+  uint8_t agcDisable;       // replaces disableAgc
 
   // Display
   uint16_t brightness;      // replaces currentBrt
   uint16_t sleep;           // replaces currentSleep
-  uint8_t  sleepModeIdx;    // replaces sleepModeIdx
+  uint8_t  sleepMode;       // replaces sleepModeIdx
 
   // Misc settings
-  uint8_t  rdsModeIdx;      // replaces rdsModeIdx
-  uint8_t  usbModeIdx;      // replaces usbModeIdx
-  uint8_t  bleModeIdx;      // replaces bleModeIdx
-  uint8_t  wifiModeIdx;     // replaces wifiModeIdx
+  uint8_t  rdsMode;         // replaces rdsModeIdx
+  uint8_t  usbMode;         // replaces usbModeIdx
+  uint8_t  bleMode;         // replaces bleModeIdx
+  uint8_t  wifiMode;        // replaces wifiModeIdx
   uint8_t  fmRegionIdx;     // replaces FmRegionIdx
   uint8_t  zoomLevel;       // replaces zoomMenu (was bool)
   int8_t   scrollDir;       // replaces scrollDirection (was uint8_t)
-  int8_t   utcOffsetIdx;    // replaces utcOffsetIdx (was uint8_t)
-  uint8_t  uiLayoutIdx;     // replaces uiLayoutIdx
+  int8_t   utcOffset;       // replaces utcOffsetIdx (was uint8_t)
+  uint8_t  uiLayout;        // replaces uiLayoutIdx
 } RadioState;
 
 extern RadioState radioState;
 
 // Compatibility shims -- will be removed after full migration
-#define currentFrequency radioState.frequency
-#define currentMode      radioState.mode
-#define currentBFO       radioState.bfo
-#define currentCmd       radioState.cmd
-#define pushAndRotate    radioState.pushAndRotate
-#define volume           radioState.volume
-#define currentSquelch   radioState.squelch
-#define FmAgcIdx         radioState.fmAgcIdx
-#define AmAgcIdx         radioState.amAgcIdx
-#define SsbAgcIdx        radioState.ssbAgcIdx
-#define AmAvcIdx         radioState.amAvcIdx
-#define SsbAvcIdx        radioState.ssbAvcIdx
-#define AmSoftMuteIdx    radioState.amSoftMuteIdx
-#define SsbSoftMuteIdx   radioState.ssbSoftMuteIdx
-#define agcIdx           radioState.agcIdx
-#define agcNdx           radioState.agcNdx
-#define softMuteMaxAttIdx radioState.softMuteMaxAttIdx
-#define disableAgc       radioState.disableAgc
-#define currentBrt       radioState.brightness
-#define currentSleep     radioState.sleep
-#define sleepModeIdx     radioState.sleepModeIdx
-#define rdsModeIdx       radioState.rdsModeIdx
-#define usbModeIdx       radioState.usbModeIdx
-#define bleModeIdx       radioState.bleModeIdx
-#define wifiModeIdx      radioState.wifiModeIdx
-#define FmRegionIdx      radioState.fmRegionIdx
-#define zoomMenu         radioState.zoomLevel
-#define scrollDirection  radioState.scrollDir
-#define utcOffsetIdx     radioState.utcOffsetIdx
-#define uiLayoutIdx      radioState.uiLayoutIdx
+#define currentFrequency    radioState.frequency
+#define currentMode         radioState.mode
+#define currentBFO          radioState.bfo
+#define currentCmd          radioState.cmd
+#define pushAndRotate       radioState.pnr
+#define volume              radioState.vol
+#define currentSquelch      radioState.squelch
+#define FmAgcIdx            radioState.fmAgcIdx
+#define AmAgcIdx            radioState.amAgcIdx
+#define SsbAgcIdx           radioState.ssbAgcIdx
+#define AmAvcIdx            radioState.amAvcIdx
+#define SsbAvcIdx           radioState.ssbAvcIdx
+#define AmSoftMuteIdx       radioState.amSoftMuteIdx
+#define SsbSoftMuteIdx      radioState.ssbSoftMuteIdx
+#define agcIdx              radioState.agcIndex
+#define agcNdx              radioState.agcNdxVal
+#define softMuteMaxAttIdx   radioState.softMuteMaxAtt
+#define disableAgc          radioState.agcDisable
+#define currentBrt          radioState.brightness
+#define currentSleep        radioState.sleep
+#define sleepModeIdx        radioState.sleepMode
+#define rdsModeIdx          radioState.rdsMode
+#define usbModeIdx          radioState.usbMode
+#define bleModeIdx          radioState.bleMode
+#define wifiModeIdx         radioState.wifiMode
+#define FmRegionIdx         radioState.fmRegionIdx
+#define zoomMenu            radioState.zoomLevel
+#define scrollDirection     radioState.scrollDir
+#define utcOffsetIdx        radioState.utcOffset
+#define uiLayoutIdx         radioState.uiLayout
 
 // BFO and Calibration limits (MAX_BFO + MAX_CAL <= 16000)
 #define MAX_BFO       14000  // Maximum range for currentBFO = +/- MAX_BFO

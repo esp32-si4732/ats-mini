@@ -190,6 +190,16 @@ void setup()
   // Attached pin to allows SI4732 library to mute audio as required to minimise loud clicks
   rx.setAudioMuteMcuPin(AUDIO_MUTE);
 
+  // Set defaults for prefsLoad() fallbacks
+  radioState.vol              = DEFAULT_VOLUME;
+  radioState.brightness      = 130;
+  radioState.amAvcIdx        = 48;
+  radioState.ssbAvcIdx       = 48;
+  radioState.amSoftMuteIdx   = 4;
+  radioState.ssbSoftMuteIdx  = 4;
+  radioState.softMuteMaxAtt  = 4;
+  radioState.scrollDir       = 1;
+
   // If loading preferences fails...
   if(!prefsLoad(SAVE_SETTINGS|SAVE_VERIFY))
   {
