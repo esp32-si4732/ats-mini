@@ -2,6 +2,7 @@
 #include "Themes.h"
 #include "MenuData.h"
 #include "Utils.h"
+#include "AudioManager.h"
 #include "Draw.h"
 #include "Menu.h"
 #include "MenuDraw.h"
@@ -411,7 +412,7 @@ static void drawVolume(int x, int y, int sx)
   spr.setTextColor(TH.menu_param);
   spr.drawNumber(radioState.vol, 40+x+(sx/2), 66+y, 7);
 
-  if(muteOn(MUTE_MAIN))
+  if(audioIsMainMuted())
   {
     for(int i=-3; i<4; i++)
     {
@@ -612,10 +613,10 @@ static void drawInfo(int x, int y, int sx)
   }
 
   spr.drawString("Vol:", 6+x, 64+y+(0*16), 2);
-  if(muteOn(MUTE_MAIN) || muteOn(MUTE_SQUELCH))
+  if(audioIsMainMuted() || audioIsSquelched())
   {
     spr.setTextColor(TH.box_off_text, TH.box_off_bg);
-    sprintf(text, muteOn(MUTE_MAIN) ? "Muted" : "%d/sq", radioState.vol);
+    sprintf(text, audioIsMainMuted() ? "Muted" : "%d/sq", radioState.vol);
     spr.drawString(text, 48+x, 64+y+(0*16), 2);
     spr.setTextColor(TH.box_text);
   }

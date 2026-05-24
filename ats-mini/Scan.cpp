@@ -1,5 +1,6 @@
 #include "Common.h"
 #include "Utils.h"
+#include "AudioManager.h"
 #include "Menu.h"
 
 // Tuning delays after rx.setFrequency()
@@ -141,7 +142,7 @@ void scanRun(uint16_t centerFreq, uint16_t step)
   // Set tuning delay
   rx.setMaxDelaySetFrequency(radioState.mode == FM ? TUNE_DELAY_FM : TUNE_DELAY_AM_SSB);
   // Mute the audio
-  muteOn(MUTE_TEMP, true);
+  audioTempMute(true);
   // Flag is set by rotary encoder and cleared on seek/scan entry
   seekStop = false;
   // Save current frequency
@@ -151,7 +152,7 @@ void scanRun(uint16_t centerFreq, uint16_t step)
   // Restore current frequency
   rx.setFrequency(curFreq);
   // Unmute the audio
-  muteOn(MUTE_TEMP, false);
+  audioTempMute(false);
   // Restore tuning delay
   rx.setMaxDelaySetFrequency(TUNE_DELAY_DEFAULT);
 }

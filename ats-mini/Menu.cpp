@@ -2,6 +2,7 @@
 #include "Common.h"
 #include "Themes.h"
 #include "Utils.h"
+#include "AudioManager.h"
 #include "Draw.h"
 #include "EIBI.h"
 #include "BleMode.h"
@@ -489,12 +490,12 @@ void doSelectDigit(int16_t enc)
 void doVolume(int16_t enc)
 {
   radioState.vol = clamp_range(radioState.vol, enc, 0, 63);
-  if(!muteOn(MUTE_MAIN)) rx.setVolume(radioState.vol);
+  if(!audioIsMainMuted()) rx.setVolume(radioState.vol);
 }
 
 static void clickVolume(bool shortPress)
 {
-  if(shortPress) muteOn(MUTE_MAIN, !muteOn(MUTE_MAIN)); else radioState.cmd = CMD_NONE;
+  if(shortPress) audioMuteMain(!audioIsMainMuted()); else radioState.cmd = CMD_NONE;
 }
 
 static void clickSquelch(bool shortPress)
@@ -981,7 +982,7 @@ void selectBand(uint8_t idx, bool drawLoadingSSB)
 {
   // Silence click on some hardware versions
   // https://github.com/esp32-si4732/ats-mini/discussions/103
-  muteOn(MUTE_TEMP, true);
+  audioTempMute(true);
 
   // Set band and mode
   bandIdx = min(idx, LAST_ITEM(bands));
@@ -1009,5 +1010,5 @@ void selectBand(uint8_t idx, bool drawLoadingSSB)
   resetFreqInputPos();
 
   // Unmute the sound
-  muteOn(MUTE_TEMP, false);
+  audioTempMute(false);
 }

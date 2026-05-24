@@ -3,11 +3,6 @@
 
 #include "Common.h"
 
-#define MUTE_FORCE   1
-#define MUTE_MAIN    2
-#define MUTE_SQUELCH 3
-#define MUTE_TEMP    4
-
 // SSB patch functions
 void loadSSB(uint8_t bandwidth, bool draw = true);
 void unloadSSB();
@@ -23,7 +18,6 @@ int getStrength(int rssi);
 
 // Set, reset, toggle, or query switches
 bool sleepOn(int x = 2);
-bool muteOn(uint8_t mode, int x = 2);
 
 // Wall clock functions
 const char *clockGet();

@@ -29,7 +29,7 @@ HEADERS = \
 	Common.h MenuData.h RadioDriver.h WebServer.h Scheduler.h Themes.h Menu.h Storage.h \
 	tft_setup.h Rotary.h Utils.h Button.h EIBI.h Remote.h BleMode.h \
 	BlePeripheral.h BleUartPeripheral.h BleCentral.h BleHidCentral.h \
-	SI4735-fixed.h patch_init.h
+	SI4735-fixed.h patch_init.h AudioManager.h
 
 SRC = \
 	$(INO) EventHandler.cpp Scheduler.cpp Utils.cpp Rotary.cpp Button.cpp Draw.cpp MenuDraw.cpp Menu.cpp \
@@ -37,7 +37,7 @@ SRC = \
 	Network.cpp WebServer.cpp RadioDriver.cpp WiFiManager.cpp EIBI.cpp Scan.cpp About.cpp BleMode.cpp \
 	BlePeripheral.cpp BleUartPeripheral.cpp \
 	BleCentral.cpp BleHidCentral.cpp \
-	Layout-Default.cpp Layout-SMeter.cpp
+	Layout-Default.cpp Layout-SMeter.cpp AudioManager.cpp
 
 all: build
 

@@ -11,6 +11,7 @@
 #include "Storage.h"
 #include "Themes.h"
 #include "Utils.h"
+#include "AudioManager.h"
 #include "EIBI.h"
 #include "Remote.h"
 #include "BleMode.h"
@@ -519,7 +520,7 @@ void showFrequencySeek(uint16_t freq)
 bool doSeek(int16_t enc, int16_t enca)
 {
   // disable amp to avoid sound artifacts
-  muteOn(MUTE_TEMP, true);
+  audioTempMute(true);
   if(seekMode() == SEEK_DEFAULT)
   {
     if(isSSB())
@@ -558,7 +559,7 @@ bool doSeek(int16_t enc, int16_t enca)
   identifyFrequency(radioState.frequency + radioState.bfo / 1000);
   // Will need a redraw
   // enable amp
-  muteOn(MUTE_TEMP, false);
+  audioTempMute(false);
   return(true);
 }
 
@@ -673,18 +674,18 @@ bool processRssiSnr()
   uint8_t squelchParam = (radioState.squelch[radioState.mode] & 0x80)? newSNR:newRSSI;
   if(squelchValue)
   {
-    if(squelchParam >= squelchValue && muteOn(MUTE_SQUELCH))
+    if(squelchParam >= squelchValue && audioIsSquelched())
     {
-      muteOn(MUTE_SQUELCH, false);
+      audioSquelchClose(false);
     }
-    else if(squelchParam < squelchValue && !muteOn(MUTE_SQUELCH))
+    else if(squelchParam < squelchValue && !audioIsSquelched())
     {
-      muteOn(MUTE_SQUELCH, true);
+      audioSquelchClose(true);
     }
   }
-  else if(muteOn(MUTE_SQUELCH))
+  else if(audioIsSquelched())
   {
-    muteOn(MUTE_SQUELCH, false);
+    audioSquelchClose(false);
   }
 
   // G8PTN: Based on 1.2s interval, update RSSI & SNR
