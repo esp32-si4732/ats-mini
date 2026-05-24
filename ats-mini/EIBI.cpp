@@ -488,7 +488,7 @@ bool eibiLoadSchedule()
   LittleFS.rename(TEMP_PATH, EIBI_PATH);
 
   // Success
-  identifyFrequency(currentFrequency + currentBFO / 1000);
+  identifyFrequency(radioState.frequency + radioState.bfo / 1000);
   drawScreen(eibiMessage, "DONE!");
   return(true);
 }

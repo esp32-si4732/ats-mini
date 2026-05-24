@@ -73,7 +73,7 @@ void netTickTime()
   // Connect to WiFi if requested
   if(itIsTimeToWiFi && ((millis() - connectTime) > CONNECT_TIME))
   {
-    netInit(wifiModeIdx);
+    netInit(radioState.wifiMode);
     connectTime = millis();
     itIsTimeToWiFi = false;
   }
@@ -390,7 +390,7 @@ void webSetConfig(AsyncWebServerRequest *request)
   if(request->hasParam("utcoffset", true))
   {
     String utcOffset = request->getParam("utcoffset", true)->value();
-    utcOffsetIdx = utcOffset.toInt();
+    radioState.utcOffset = utcOffset.toInt();
     clockRefreshTime();
     prefsSave |= SAVE_SETTINGS;
   }
@@ -404,8 +404,8 @@ void webSetConfig(AsyncWebServerRequest *request)
   }
 
   // Save scroll direction and menu zoom
-  scrollDirection = request->hasParam("scroll", true)? -1 : 1;
-  zoomMenu        = request->hasParam("zoom", true);
+  radioState.scrollDir = request->hasParam("scroll", true)? -1 : 1;
+  radioState.zoomLevel        = request->hasParam("zoom", true);
   prefsSave |= SAVE_SETTINGS;
 
   // Done with the preferences
@@ -419,7 +419,7 @@ void webSetConfig(AsyncWebServerRequest *request)
 
   // If we are currently in AP mode, and infrastructure mode requested,
   // and there is at least one SSID / PASS pair, request network connection
-  if(haveSSID && (wifiModeIdx>NET_AP_ONLY) && (WiFi.status()!=WL_CONNECTED))
+  if(haveSSID && (radioState.wifiMode>NET_AP_ONLY) && (WiFi.status()!=WL_CONNECTED))
     netRequestConnect();
 }
 
@@ -513,7 +513,7 @@ static const String webUtcOffsetSelector()
 
     sprintf(text,
       "<OPTION VALUE='%d'%s>%s</OPTION>",
-      i, utcOffsetIdx==i? " SELECTED":"",
+      i, radioState.utcOffset==i? " SELECTED":"",
       utcOffsets[i].desc
     );
 
@@ -546,9 +546,9 @@ static const String webRadioPage()
 {
   String ip = "";
   String ssid = "";
-  String freq = currentMode == FM?
-    String(currentFrequency / 100.0) + "MHz "
-  : String(currentFrequency + currentBFO / 1000.0) + "kHz ";
+  String freq = radioState.mode == FM?
+    String(radioState.frequency / 100.0) + "MHz "
+  : String(radioState.frequency + radioState.bfo / 1000.0) + "kHz ";
 
   if(WiFi.status()==WL_CONNECTED)
   {
@@ -585,7 +585,7 @@ static const String webRadioPage()
 "</TR>"
 "<TR>"
   "<TD CLASS='LABEL'>Frequency</TD>"
-  "<TD>" + freq + String(bandModeDesc[currentMode]) + "</TD>"
+  "<TD>" + freq + String(bandModeDesc[radioState.mode]) + "</TD>"
 "</TR>"
 "<TR>"
   "<TD CLASS='LABEL'>Signal Strength</TD>"
@@ -710,12 +710,12 @@ const String webConfigPage()
   "<TR>"
     "<TD CLASS='LABEL'>Reverse Scrolling</TD>"
     "<TD><INPUT TYPE='CHECKBOX' NAME='scroll' VALUE='on'" +
-    (scrollDirection<0? " CHECKED ":"") + "></TD>"
+    (radioState.scrollDir<0? " CHECKED ":"") + "></TD>"
   "</TR>"
    "<TR>"
     "<TD CLASS='LABEL'>Zoomed Menu</TD>"
     "<TD><INPUT TYPE='CHECKBOX' NAME='zoom' VALUE='on'" +
-    (zoomMenu? " CHECKED ":"") + "></TD>"
+    (radioState.zoomLevel? " CHECKED ":"") + "></TD>"
   "</TR>"
   "<TR><TH COLSPAN=2 CLASS='HEADING'>"
     "<INPUT TYPE='SUBMIT' VALUE='Save'>"

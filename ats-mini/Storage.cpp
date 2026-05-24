@@ -169,34 +169,34 @@ void prefsSave(uint32_t items)
     // Save main global settings
     prefs.putUChar("Version",  VER_SETTINGS);      // Settings version
     prefs.putUShort("App",     VER_APP);           // Application version
-    prefs.putUChar("Volume",   volume);            // Current volume
+    prefs.putUChar("Volume",   radioState.vol);            // Current radioState.vol
     prefs.putUChar("Band",     bandIdx);           // Current band
-    prefs.putUChar("WiFiMode", wifiModeIdx);       // WiFi connection mode
+    prefs.putUChar("WiFiMode", radioState.wifiMode);       // WiFi connection mode
 
     // Save additional global settings
-    prefs.putUShort("Brightness", currentBrt);     // Brightness
-    prefs.putUChar("FmAGC",       FmAgcIdx);       // FM AGC/ATTN
-    prefs.putUChar("AmAGC",       AmAgcIdx);       // AM AGC/ATTN
-    prefs.putUChar("SsbAGC",      SsbAgcIdx);      // SSB AGC/ATTN
-    prefs.putUChar("AmAVC",       AmAvcIdx);       // AM AVC
-    prefs.putUChar("SsbAVC",      SsbAvcIdx);      // SSB AVC
-    prefs.putUChar("AmSoftMute",  AmSoftMuteIdx);  // AM soft mute
-    prefs.putUChar("SsbSoftMute", SsbSoftMuteIdx); // SSB soft mute
-    prefs.putUShort("Sleep",      currentSleep);   // Sleep delay
+    prefs.putUShort("Brightness", radioState.brightness);     // Brightness
+    prefs.putUChar("FmAGC",       radioState.fmAgcIdx);       // FM AGC/ATTN
+    prefs.putUChar("AmAGC",       radioState.amAgcIdx);       // AM AGC/ATTN
+    prefs.putUChar("SsbAGC",      radioState.ssbAgcIdx);      // SSB AGC/ATTN
+    prefs.putUChar("AmAVC",       radioState.amAvcIdx);       // AM AVC
+    prefs.putUChar("SsbAVC",      radioState.ssbAvcIdx);      // SSB AVC
+    prefs.putUChar("AmSoftMute",  radioState.amSoftMuteIdx);  // AM soft mute
+    prefs.putUChar("SsbSoftMute", radioState.ssbSoftMuteIdx); // SSB soft mute
+    prefs.putUShort("Sleep",      radioState.sleep);   // Sleep delay
     prefs.putUChar("Theme",       themeIdx);       // Color theme
-    prefs.putUChar("RDSMode",     rdsModeIdx);     // RDS mode
-    prefs.putUChar("SleepMode",   sleepModeIdx);   // Sleep mode
-    prefs.putUChar("ZoomMenu",    zoomMenu);       // TRUE: Zoom menu
-    prefs.putBool("ScrollDir", scrollDirection<0); // TRUE: Reverse scroll
-    prefs.putUChar("UTCOffset",   utcOffsetIdx);   // UTC Offset
-    prefs.putUInt("Squelch",      ((uint32_t)currentSquelch[FM]) |
-                                  ((uint32_t)currentSquelch[LSB] << 8) |
-                                  ((uint32_t)currentSquelch[USB] << 16) |
-                                  ((uint32_t)currentSquelch[AM] << 24)); // Squelch
-    prefs.putUChar("FmRegion",    FmRegionIdx);    // FM region
-    prefs.putUChar("UILayout",    uiLayoutIdx);    // UI Layout
-    prefs.putUChar("BLEMode",     bleModeIdx);     // Bluetooth mode
-    prefs.putUChar("USBMode",     usbModeIdx);     // USB mode
+    prefs.putUChar("RDSMode",     radioState.rdsMode);     // RDS mode
+    prefs.putUChar("SleepMode",   radioState.sleepMode);   // Sleep mode
+    prefs.putUChar("ZoomMenu",    radioState.zoomLevel);       // TRUE: Zoom menu
+    prefs.putBool("ScrollDir", radioState.scrollDir<0); // TRUE: Reverse scroll
+    prefs.putUChar("UTCOffset",   radioState.utcOffset);   // UTC Offset
+    prefs.putUInt("Squelch",      ((uint32_t)radioState.squelch[FM]) |
+                                  ((uint32_t)radioState.squelch[LSB] << 8) |
+                                  ((uint32_t)radioState.squelch[USB] << 16) |
+                                  ((uint32_t)radioState.squelch[AM] << 24)); // Squelch
+    prefs.putUChar("FmRegion",    radioState.fmRegionIdx);    // FM region
+    prefs.putUChar("UILayout",    radioState.uiLayout);    // UI Layout
+    prefs.putUChar("BLEMode",     radioState.bleMode);     // Bluetooth mode
+    prefs.putUChar("USBMode",     radioState.usbMode);     // USB mode
 
     // Done with global settings
     prefs.end();
@@ -248,36 +248,36 @@ bool prefsLoad(uint32_t items)
     }
 
     // Load main global settings
-    volume         = prefs.getUChar("Volume", volume);          // Current volume
+    radioState.vol         = prefs.getUChar("Volume", radioState.vol);          // Current radioState.vol
     bandIdx        = prefs.getUChar("Band", bandIdx);           // Current band
-    wifiModeIdx    = prefs.getUChar("WiFiMode", wifiModeIdx);   // WiFi connection mode
-    currentBrt     = prefs.getUShort("Brightness", currentBrt); // Brightness
-    FmAgcIdx       = prefs.getUChar("FmAGC", FmAgcIdx);         // FM AGC/ATTN
-    AmAgcIdx       = prefs.getUChar("AmAGC", AmAgcIdx);         // AM AGC/ATTN
-    SsbAgcIdx      = prefs.getUChar("SsbAGC", SsbAgcIdx);       // SSB AGC/ATTN
-    AmAvcIdx       = prefs.getUChar("AmAVC", AmAvcIdx);         // AM AVC
-    SsbAvcIdx      = prefs.getUChar("SsbAVC", SsbAvcIdx);       // SSB AVC
-    AmSoftMuteIdx  = prefs.getUChar("AmSoftMute", AmSoftMuteIdx);   // AM soft mute
-    SsbSoftMuteIdx = prefs.getUChar("SsbSoftMute", SsbSoftMuteIdx); // SSB soft mute
-    currentSleep   = prefs.getUShort("Sleep", currentSleep);    // Sleep delay
+    radioState.wifiMode    = prefs.getUChar("WiFiMode", radioState.wifiMode);   // WiFi connection mode
+    radioState.brightness     = prefs.getUShort("Brightness", radioState.brightness); // Brightness
+    radioState.fmAgcIdx       = prefs.getUChar("FmAGC", radioState.fmAgcIdx);         // FM AGC/ATTN
+    radioState.amAgcIdx       = prefs.getUChar("AmAGC", radioState.amAgcIdx);         // AM AGC/ATTN
+    radioState.ssbAgcIdx      = prefs.getUChar("SsbAGC", radioState.ssbAgcIdx);       // SSB AGC/ATTN
+    radioState.amAvcIdx       = prefs.getUChar("AmAVC", radioState.amAvcIdx);         // AM AVC
+    radioState.ssbAvcIdx      = prefs.getUChar("SsbAVC", radioState.ssbAvcIdx);       // SSB AVC
+    radioState.amSoftMuteIdx  = prefs.getUChar("AmSoftMute", radioState.amSoftMuteIdx);   // AM soft mute
+    radioState.ssbSoftMuteIdx = prefs.getUChar("SsbSoftMute", radioState.ssbSoftMuteIdx); // SSB soft mute
+    radioState.sleep   = prefs.getUShort("Sleep", radioState.sleep);    // Sleep delay
     themeIdx       = prefs.getUChar("Theme", themeIdx);         // Color theme
-    rdsModeIdx     = prefs.getUChar("RDSMode", rdsModeIdx);     // RDS mode
-    sleepModeIdx   = prefs.getUChar("SleepMode", sleepModeIdx); // Sleep mode
-    zoomMenu       = prefs.getUChar("ZoomMenu", zoomMenu);      // TRUE: Zoom menu
-    scrollDirection = prefs.getBool("ScrollDir", scrollDirection<0)? -1:1; // TRUE: Reverse scroll
-    utcOffsetIdx   = prefs.getUChar("UTCOffset", utcOffsetIdx); // UTC Offset
-    uint32_t squelch = prefs.getUInt("Squelch", ((uint32_t)currentSquelch[FM]) |
-                                                ((uint32_t)currentSquelch[LSB] << 8) |
-                                                ((uint32_t)currentSquelch[USB] << 16) |
-                                                ((uint32_t)currentSquelch[AM] << 24)); // Squelch
-    currentSquelch[FM]  = squelch & 0xff;
-    currentSquelch[LSB] = (squelch >> 8) & 0xff;
-    currentSquelch[USB] = (squelch >> 16) & 0xff;
-    currentSquelch[AM]  = (squelch >> 24) & 0xff;
-    FmRegionIdx    = prefs.getUChar("FmRegion", FmRegionIdx);   // FM region
-    uiLayoutIdx    = prefs.getUChar("UILayout", uiLayoutIdx);   // UI Layout
-    bleModeIdx     = prefs.getUChar("BLEMode", bleModeIdx);     // Bluetooth mode
-    usbModeIdx     = prefs.getUChar("USBMode", usbModeIdx);     // USB mode
+    radioState.rdsMode     = prefs.getUChar("RDSMode", radioState.rdsMode);     // RDS mode
+    radioState.sleepMode   = prefs.getUChar("SleepMode", radioState.sleepMode); // Sleep mode
+    radioState.zoomLevel       = prefs.getUChar("ZoomMenu", radioState.zoomLevel);      // TRUE: Zoom menu
+    radioState.scrollDir = prefs.getBool("ScrollDir", radioState.scrollDir<0)? -1:1; // TRUE: Reverse scroll
+    radioState.utcOffset   = prefs.getUChar("UTCOffset", radioState.utcOffset); // UTC Offset
+    uint32_t squelch = prefs.getUInt("Squelch", ((uint32_t)radioState.squelch[FM]) |
+                                                ((uint32_t)radioState.squelch[LSB] << 8) |
+                                                ((uint32_t)radioState.squelch[USB] << 16) |
+                                                ((uint32_t)radioState.squelch[AM] << 24)); // Squelch
+    radioState.squelch[FM]  = squelch & 0xff;
+    radioState.squelch[LSB] = (squelch >> 8) & 0xff;
+    radioState.squelch[USB] = (squelch >> 16) & 0xff;
+    radioState.squelch[AM]  = (squelch >> 24) & 0xff;
+    radioState.fmRegionIdx    = prefs.getUChar("FmRegion", radioState.fmRegionIdx);   // FM region
+    radioState.uiLayout    = prefs.getUChar("UILayout", radioState.uiLayout);   // UI Layout
+    radioState.bleMode     = prefs.getUChar("BLEMode", radioState.bleMode);     // Bluetooth mode
+    radioState.usbMode     = prefs.getUChar("USBMode", radioState.usbMode);     // USB mode
 
     // Done with global settings
     prefs.end();

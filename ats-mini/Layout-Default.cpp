@@ -25,7 +25,7 @@ void drawLayoutDefault(const char *statusLine1, const char *statusLine2)
   // Draw band and mode
   drawBandAndMode(
     getCurrentBand()->bandName,
-    bandModeDesc[currentMode],
+    bandModeDesc[radioState.mode],
     BAND_OFFSET_X, BAND_OFFSET_Y
   );
 
@@ -38,10 +38,10 @@ void drawLayoutDefault(const char *statusLine1, const char *statusLine2)
 
   // Draw frequency, units, and optionally highlight a digit
   drawFrequency(
-    currentFrequency,
+    radioState.frequency,
     FREQ_OFFSET_X, FREQ_OFFSET_Y,
     FUNIT_OFFSET_X, FUNIT_OFFSET_Y,
-    currentCmd == CMD_FREQ ? getFreqInputPos() + (pushAndRotate ? 0x80 : 0) : 100
+    radioState.cmd == CMD_FREQ ? getFreqInputPos() + (radioState.pnr ? 0x80 : 0) : 100
   );
 
   // Show station or channel name, if present
@@ -52,17 +52,17 @@ void drawLayoutDefault(const char *statusLine1, const char *statusLine2)
 
   // Draw left-side menu/info bar
   // @@@ FIXME: Frequency display (above) intersects the side bar!
-  drawSideBar(currentCmd, MENU_OFFSET_X, MENU_OFFSET_Y, MENU_DELTA_X);
+  drawSideBar(radioState.cmd, MENU_OFFSET_X, MENU_OFFSET_Y, MENU_DELTA_X);
 
   // Draw S-meter
   drawSMeter(getStrength(rssi), METER_OFFSET_X, METER_OFFSET_Y);
 
   // Indicate FM pilot detection (stereo indicator)
-  drawStereoIndicator(METER_OFFSET_X, METER_OFFSET_Y, (currentMode==FM) && rx.getCurrentPilot());
+  drawStereoIndicator(METER_OFFSET_X, METER_OFFSET_Y, (radioState.mode==FM) && rx.getCurrentPilot());
 
-  if(currentCmd == CMD_SCAN)
+  if(radioState.cmd == CMD_SCAN)
   {
-    drawScanGraphs(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency);
+    drawScanGraphs(isSSB()? (radioState.frequency + radioState.bfo/1000) : radioState.frequency);
   }
   else if(!drawWiFiStatus(statusLine1, statusLine2, STATUS_OFFSET_X, STATUS_OFFSET_Y))
   {
@@ -70,6 +70,6 @@ void drawLayoutDefault(const char *statusLine1, const char *statusLine2)
     if(*getRadioText() || *getProgramInfo())
       drawRadioText(STATUS_OFFSET_Y, STATUS_OFFSET_Y + 25);
     else
-      drawScale(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency);
+      drawScale(isSSB()? (radioState.frequency + radioState.bfo/1000) : radioState.frequency);
   }
 }

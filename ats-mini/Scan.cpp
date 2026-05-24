@@ -139,7 +139,7 @@ static bool scanTickTime()
 void scanRun(uint16_t centerFreq, uint16_t step)
 {
   // Set tuning delay
-  rx.setMaxDelaySetFrequency(currentMode == FM ? TUNE_DELAY_FM : TUNE_DELAY_AM_SSB);
+  rx.setMaxDelaySetFrequency(radioState.mode == FM ? TUNE_DELAY_FM : TUNE_DELAY_AM_SSB);
   // Mute the audio
   muteOn(MUTE_TEMP, true);
   // Flag is set by rotary encoder and cleared on seek/scan entry

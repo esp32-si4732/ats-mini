@@ -137,7 +137,7 @@ static bool remoteSetFrequency(Stream *stream)
   stream->println();
 
   Band *band = getCurrentBand();
-  uint16_t targetFreq = freqFromHz(freqHz, currentMode);
+  uint16_t targetFreq = freqFromHz(freqHz, radioState.mode);
   int targetBfo = isSSB() ? bfoFromHz(freqHz) : 0;
   if(!isFreqInBand(band, targetFreq) || (isSSB() && targetFreq == band->maximumFreq && targetBfo))
     return remoteShowError(stream, "Frequency is out of range for the current band");
@@ -146,11 +146,11 @@ static bool remoteSetFrequency(Stream *stream)
 
   if(isSSB())
     updateBFO(targetBfo, false);
-  else if(currentBFO)
+  else if(radioState.bfo)
     updateBFO(0, true);
 
   clearStationInfo();
-  identifyFrequency(currentFrequency + currentBFO / 1000);
+  identifyFrequency(radioState.frequency + radioState.bfo / 1000);
 
   return true;
 }
@@ -305,16 +305,16 @@ void remotePrintStatus(Stream* stream, RemoteState* state)
   // Remote serial
   stream->printf("%u,%u,%d,%d,%s,%s,%s,%s,%hu,%hu,%hu,%hu,%hu,%.2f,%hu\r\n",
                 VER_APP,
-                currentFrequency,
-                currentBFO,
-                ((currentMode == USB) ? getCurrentBand()->usbCal :
-                 (currentMode == LSB) ? getCurrentBand()->lsbCal : 0),
+                radioState.frequency,
+                radioState.bfo,
+                ((radioState.mode == USB) ? getCurrentBand()->usbCal :
+                 (radioState.mode == LSB) ? getCurrentBand()->lsbCal : 0),
                 getCurrentBand()->bandName,
-                bandModeDesc[currentMode],
+                bandModeDesc[radioState.mode],
                 getCurrentStep()->desc,
                 getCurrentBandwidth()->desc,
-                agcIdx,
-                volume,
+                radioState.agcIndex,
+                radioState.vol,
                 remoteRssi,
                 remoteSnr,
                 tuningCapacitor,

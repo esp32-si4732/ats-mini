@@ -203,7 +203,7 @@ bool sleepOn(int x)
     while(pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW).isPressed)
       delay(100);
 
-    if(sleepModeIdx == SLEEP_LIGHT)
+    if(radioState.sleepMode == SLEEP_LIGHT)
     {
       // Disable WiFi
       netStop();
@@ -219,7 +219,7 @@ bool sleepOn(int x)
         esp_light_sleep_start();
 
         // Waking up here
-        if(currentSleep) break; // Short click is enough to exit from sleep if timeout is enabled
+        if(radioState.sleep) break; // Short click is enough to exit from sleep if timeout is enabled
 
         // Wait for a long press, otherwise enter the sleep again
         pb1.reset(); // Reset the button state (its timers could be stale due to CPU sleep)
@@ -243,7 +243,7 @@ bool sleepOn(int x)
       if(muteOn(MUTE_SQUELCH) && !muteOn(MUTE_MAIN)) muteOn(MUTE_FORCE, true);
       sleepOn(false);
       // Enable WiFi
-      netInit(wifiModeIdx, false);
+      netInit(radioState.wifiMode, false);
     }
   }
   else if((x==0) && sleep_on)
@@ -253,7 +253,7 @@ bool sleepOn(int x)
     delay(120);
     tft.writecommand(ST7789_DISPON);
     drawScreen();
-    ledcWrite(PIN_LCD_BL, currentBrt);
+    ledcWrite(PIN_LCD_BL, radioState.brightness);
     // Wait till the button is released to prevent the main loop clicks
     pb1.reset(); // Reset the button state (its timers could be stale due to CPU sleep)
     while(pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW, 0).isPressed)
@@ -322,7 +322,7 @@ bool clockSet(uint8_t hours, uint8_t minutes, uint8_t seconds)
     clockMinutes = minutes;
     clockSeconds = seconds;
     clockRefreshTime();
-    identifyFrequency(currentFrequency + currentBFO / 1000);
+    identifyFrequency(radioState.frequency + radioState.bfo / 1000);
     return(true);
   }
 
@@ -418,7 +418,7 @@ int getStrength(int rssi)
 {
   if(switchThemeEditor()) return(17);
 
-  if(currentMode!=FM)
+  if(radioState.mode!=FM)
   {
     // dBuV to S point conversion HF
     if (rssi <=  1) return  1; // S0
