@@ -456,7 +456,7 @@ static void drawSquelch(int x, int y, int sx)
   if(squelchValue)
   {
     spr.drawNumber(squelchValue, 40+x+(sx/2), 60+y, 4);
-    spr.drawString(squelchParam? "dB":"dBuV", 40+x+(sx/2), 90+y, 4);
+    spr.drawString(squelchParam? STR_DB:STR_DBUV, 40+x+(sx/2), 90+y, 4);
   }
   else
   {
@@ -474,7 +474,7 @@ static void drawSoftMuteMaxAtt(int x, int y, int sx)
   spr.setTextColor(TH.menu_param);
   spr.drawString("Max Attn", 40+x+(sx/2), 32+y, 2);
   spr.drawNumber(radioState.softMuteMaxAtt, 40+x+(sx/2), 60+y, 4);
-  spr.drawString("dB", 40+x+(sx/2), 90+y, 4);
+  spr.drawString(STR_DB, 40+x+(sx/2), 90+y, 4);
 }
 
 static void drawCal(int x, int y, int sx)
@@ -497,7 +497,7 @@ static void drawCal(int x, int y, int sx)
   else
     spr.drawNumber(0, 40+x+(sx/2), 65+y, 4);  // Display zero or nothing for other modes
 
-  spr.drawString("Hz", 40+x+(sx/2), 95+y, 4);
+  spr.drawString(STR_HZ, 40+x+(sx/2), 95+y, 4);
 }
 
 static void drawAvc(int x, int y, int sx)
@@ -514,7 +514,7 @@ static void drawAvc(int x, int y, int sx)
   {
     int currentAvc = isSSB()? radioState.ssbAvcIdx : radioState.amAvcIdx;
     spr.drawNumber(currentAvc, 40+x+(sx/2), 60+y, 4);
-    spr.drawString("dB", 40+x+(sx/2), 90+y, 4);
+    spr.drawString(STR_DB, 40+x+(sx/2), 90+y, 4);
   }
 }
 

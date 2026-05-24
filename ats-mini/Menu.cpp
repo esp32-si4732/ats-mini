@@ -847,6 +847,7 @@ static void clickMenu(int cmd, bool shortPress)
     case MENU_VOLUME:   radioState.cmd = CMD_VOLUME;    break;
 
     case MENU_MEMORY:
+    {
       radioState.cmd = CMD_MEMORY;
       int32_t newFreqHz = (int32_t)freqToHz(radioState.frequency, radioState.mode) + radioState.bfo;
       newMemory.freq  = newFreqHz < 0 ? 0 : (uint32_t)newFreqHz;
@@ -854,6 +855,7 @@ static void clickMenu(int cmd, bool shortPress)
       newMemory.band  = bandIdx;
       doMemory(0);
       break;
+    }
 
     case MENU_SOFTMUTE:
       // No soft mute in FM mode

@@ -5,6 +5,13 @@
 #include <TFT_eSPI.h>
 #include <SI4735-fixed.h>
 
+// Common string constants (deduplicated for flash savings)
+#define STR_KHZ  "kHz"
+#define STR_MHZ  "MHz"
+#define STR_DB   "dB"
+#define STR_DBUV "dBuV"
+#define STR_HZ   "Hz"
+
 #define RECEIVER_DESC  "ESP32-SI4732 Receiver"
 #define RECEIVER_NAME  "ATS-Mini"
 #define FIRMWARE_URL   "https://github.com/esp32-si4732/ats-mini"
