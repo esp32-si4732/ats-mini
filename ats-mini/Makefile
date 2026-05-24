@@ -32,7 +32,7 @@ HEADERS = \
 	SI4735-fixed.h patch_init.h
 
 SRC = \
-	$(INO) Utils.cpp Rotary.cpp Button.cpp Draw.cpp MenuDraw.cpp Menu.cpp \
+	$(INO) EventHandler.cpp Utils.cpp Rotary.cpp Button.cpp Draw.cpp MenuDraw.cpp Menu.cpp \
 	Station.cpp Battery.cpp Storage.cpp Themes.cpp Remote.cpp \
 	Network.cpp EIBI.cpp Scan.cpp About.cpp BleMode.cpp \
 	BlePeripheral.cpp BleUartPeripheral.cpp \
