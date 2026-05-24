@@ -788,6 +788,17 @@ void loop()
   // Block encoder rotation when in the locked sleep mode
   if(encCount && sleepOn() && sleepModeIdx==SLEEP_LOCKED) encCount = encCountAccel = 0;
 
+  // In sleep mode, if the encoder is rotated (and not locked), adjust the volume instead of tuning
+  if(encCount && sleepOn())
+  {
+    doVolume(encCount);
+    prefsRequestSave(SAVE_SETTINGS);
+    elapsedSleep = elapsedCommand = currentTime; // Reset inactivity timers to keep active
+    encCount = encCountAccel = 0;
+    needRedraw = true;
+  }
+
+
   // Activate push and rotate mode (can span multiple loop iterations until the button is released)
   if (encCount && pb1st.isPressed) pushAndRotate = true;
 
