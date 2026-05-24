@@ -130,6 +130,15 @@ typedef struct {
 
 extern RadioState radioState;
 
+// Get the effective frequency in kHz, accounting for BFO offset in SSB mode.
+// Uses signed arithmetic and clamps to 0 to prevent unsigned integer underflow
+// when frequency is very low and BFO is very negative (BFO range is +/-14000,
+// so BFO/1000 is +/-14, requiring frequency >= 14 to stay positive).
+static inline uint16_t getEffectiveFreq() {
+    int32_t freq = (int32_t)radioState.frequency + radioState.bfo / 1000;
+    return (uint16_t)(freq < 0 ? 0 : freq);
+}
+
 // Periodic task timing (ms)
 #define MIN_ELAPSED_RSSI_TIME  200  // RSSI check interval
 #define RDS_CHECK_TIME         250  // RDS check interval (increased from 90)

@@ -62,7 +62,7 @@ void drawLayoutDefault(const char *statusLine1, const char *statusLine2)
 
   if(radioState.cmd == CMD_SCAN)
   {
-    drawScanGraphs(isSSB()? (radioState.frequency + radioState.bfo/1000) : radioState.frequency);
+    drawScanGraphs(isSSB() ? getEffectiveFreq() : radioState.frequency);
   }
   else if(!drawWiFiStatus(statusLine1, statusLine2, STATUS_OFFSET_X, STATUS_OFFSET_Y))
   {
@@ -70,6 +70,6 @@ void drawLayoutDefault(const char *statusLine1, const char *statusLine2)
     if(*getRadioText() || *getProgramInfo())
       drawRadioText(STATUS_OFFSET_Y, STATUS_OFFSET_Y + 25);
     else
-      drawScale(isSSB()? (radioState.frequency + radioState.bfo/1000) : radioState.frequency);
+      drawScale(isSSB() ? getEffectiveFreq() : radioState.frequency);
   }
 }

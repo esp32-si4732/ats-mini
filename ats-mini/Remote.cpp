@@ -150,7 +150,7 @@ static bool remoteSetFrequency(Stream *stream)
     updateBFO(0, true);
 
   clearStationInfo();
-  identifyFrequency(radioState.frequency + radioState.bfo / 1000);
+  identifyFrequency(getEffectiveFreq());
 
   return true;
 }

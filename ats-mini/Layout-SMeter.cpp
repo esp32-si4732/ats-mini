@@ -197,7 +197,7 @@ void drawLayoutSmeter(const char *statusLine1, const char *statusLine2)
     drawStationName(getStationName(), RDS_OFFSET_X, RDS_OFFSET_Y);
 
   // Draw band scale
-  drawSmallScale(isSSB()? (radioState.frequency + radioState.bfo/1000) : radioState.frequency, 120);
+  drawSmallScale(isSSB() ? getEffectiveFreq() : radioState.frequency, 120);
 
   // Draw left-side menu/info bar
   // @@@ FIXME: Frequency display (above) intersects the side bar!
@@ -208,7 +208,7 @@ void drawLayoutSmeter(const char *statusLine1, const char *statusLine2)
 
   if(radioState.cmd == CMD_SCAN)
   {
-    drawScanGraphs(isSSB()? (radioState.frequency + radioState.bfo/1000) : radioState.frequency);
+    drawScanGraphs(isSSB() ? getEffectiveFreq() : radioState.frequency);
   }
   else if(!drawWiFiStatus(statusLine1, statusLine2, STATUS_OFFSET_X, STATUS_OFFSET_Y))
   {

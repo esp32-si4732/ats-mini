@@ -28,7 +28,7 @@ bool runScheduler(uint32_t currentTime)
 
   if((currentTime - lastScheduleCheck) > SCHEDULE_CHECK_TIME)
   {
-    needRedraw |= identifyFrequency(radioState.frequency + radioState.bfo / 1000, true);
+    needRedraw |= identifyFrequency(getEffectiveFreq(), true);
     lastScheduleCheck = currentTime;
   }
 

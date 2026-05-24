@@ -676,7 +676,7 @@ bool tuneToMemory(const Memory *memory)
     return(true);
 
   // Save current band settings
-  bands[bandIdx].currentFreq = radioState.frequency + radioState.bfo / 1000;
+  bands[bandIdx].currentFreq = getEffectiveFreq();
 
   // Use default step when changing modes
   if(bands[memory->band].bandMode != memory->mode)
@@ -769,7 +769,7 @@ void doMode(int16_t enc)
   while(radioState.mode==FM);
 
   // Save current band settings
-  bands[bandIdx].currentFreq = radioState.frequency + radioState.bfo / 1000;
+  bands[bandIdx].currentFreq = getEffectiveFreq();
   bands[bandIdx].currentStepIdx = defaultStepIdx[radioState.mode];
   bands[bandIdx].bandwidthIdx = defaultBwIdx[radioState.mode];
   bands[bandIdx].bandMode = radioState.mode;
@@ -801,7 +801,7 @@ void doSoftMute(int16_t enc)
 void doBand(int16_t enc)
 {
   // Save current band settings
-  bands[bandIdx].currentFreq = radioState.frequency + radioState.bfo / 1000;
+  bands[bandIdx].currentFreq = getEffectiveFreq();
   bands[bandIdx].bandMode = radioState.mode;
 
   // Change band
@@ -848,7 +848,8 @@ static void clickMenu(int cmd, bool shortPress)
 
     case MENU_MEMORY:
       radioState.cmd = CMD_MEMORY;
-      newMemory.freq  = freqToHz(radioState.frequency, radioState.mode) + radioState.bfo;
+      int32_t newFreqHz = (int32_t)freqToHz(radioState.frequency, radioState.mode) + radioState.bfo;
+      newMemory.freq  = newFreqHz < 0 ? 0 : (uint32_t)newFreqHz;
       newMemory.mode  = radioState.mode;
       newMemory.band  = bandIdx;
       doMemory(0);
@@ -1005,7 +1006,7 @@ void selectBand(uint8_t idx, bool drawLoadingSSB)
   clearStationInfo();
 
   // Check for named frequencies
-  identifyFrequency(radioState.frequency + radioState.bfo / 1000);
+  identifyFrequency(getEffectiveFreq());
 
   // Set default digit position based on the current step
   resetFreqInputPos();

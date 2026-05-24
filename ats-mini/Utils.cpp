@@ -219,7 +219,7 @@ bool clockSet(uint8_t hours, uint8_t minutes, uint8_t seconds)
     clockMinutes = minutes;
     clockSeconds = seconds;
     clockRefreshTime();
-    identifyFrequency(radioState.frequency + radioState.bfo / 1000);
+    identifyFrequency(getEffectiveFreq());
     return(true);
   }
 
