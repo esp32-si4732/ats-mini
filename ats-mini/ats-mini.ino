@@ -748,6 +748,7 @@ void loop()
   // Redraw screen if necessary
   if(needRedraw) drawScreen();
 
-  // Add a small default delay in the main loop
-  delay(5);
+  // Add a default delay in the main loop to reduce idle CPU wakeups
+  // All periodic tasks use millis()-based timing so a longer delay is safe.
+  delay(20);
 }
