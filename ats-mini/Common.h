@@ -174,6 +174,9 @@ extern uint16_t currentSleepTimer;
 extern uint32_t sleepTimerStart;
 extern bool sleepTimerMuted;
 extern uint8_t sleepModeIdx;
+extern bool sleepSmart;
+extern uint8_t sleepDayStart;
+extern uint8_t sleepNightStart;
 extern bool zoomMenu;
 extern int8_t scrollDirection;
 extern uint8_t utcOffsetIdx;
@@ -238,6 +241,7 @@ bool ntpSyncTime();
 
 void netRequestConnect();
 void netTickTime();
+bool isSleepSmartActive(int &timeoutSeconds);
 
 // Remote.c
 #define REMOTE_CHANGED   1

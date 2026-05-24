@@ -6,6 +6,8 @@
 #include "EIBI.h"
 #include "BleMode.h"
 #include "Menu.h"
+#include "Storage.h"
+
 
 //
 // Bands Menu
@@ -120,13 +122,14 @@ static const char *menu[] =
 #define MENU_ZOOM         7
 #define MENU_SCROLL       8
 #define MENU_SLEEP        9
-#define MENU_SLEEPMODE    10
-#define MENU_SLEEPTIMER   11
-#define MENU_LOADEIBI     12
-#define MENU_USBMODE      13
-#define MENU_BLEMODE      14
-#define MENU_WIFIMODE     15
-#define MENU_ABOUT        16
+#define MENU_SMARTSLEEP   10
+#define MENU_SLEEPMODE    11
+#define MENU_SLEEPTIMER   12
+#define MENU_LOADEIBI     13
+#define MENU_USBMODE      14
+#define MENU_BLEMODE      15
+#define MENU_WIFIMODE     16
+#define MENU_ABOUT        17
 
 
 int8_t settingsIdx = MENU_BRIGHTNESS;
@@ -143,6 +146,7 @@ static const char *settings[] =
   "Zoom Menu",
   "Scroll Dir.",
   "Sleep",
+  "Smart Sleep",
   "Sleep Mode",
   "Sleep Timer",
   "Load EiBi",
@@ -624,6 +628,62 @@ static void doSleep(int16_t enc)
   currentSleep = clamp_range(currentSleep, 5*enc, 0, 255);
 }
 
+#define SMARTSLEEP_STATE 0
+#define SMARTSLEEP_DAY   1
+#define SMARTSLEEP_NIGHT 2
+#define SMARTSLEEP_BACK  3
+
+static const char *smartSleepMenu[] =
+{
+  "Smart Sleep",
+  "Day Start",
+  "Night Start",
+  "Back"
+};
+int8_t smartSleepIdx = 0;
+
+static void doSmartSleepMenu(int16_t enc)
+{
+  smartSleepIdx = wrap_range(smartSleepIdx, enc, 0, LAST_ITEM(smartSleepMenu));
+}
+
+static void clickSmartSleepMenu(bool shortPress)
+{
+  if (shortPress)
+  {
+    switch(smartSleepIdx)
+    {
+      case SMARTSLEEP_STATE:
+        sleepSmart = !sleepSmart;
+        prefsRequestSave(SAVE_SETTINGS);
+        break;
+      case SMARTSLEEP_DAY:
+        currentCmd = CMD_DAYSTART;
+        break;
+      case SMARTSLEEP_NIGHT:
+        currentCmd = CMD_NIGHTSTART;
+        break;
+      case SMARTSLEEP_BACK:
+        currentCmd = CMD_SETTINGS;
+        break;
+    }
+  }
+  else
+  {
+    currentCmd = CMD_SETTINGS;
+  }
+}
+
+static void doDayStart(int16_t enc)
+{
+  sleepDayStart = wrap_range(sleepDayStart, enc, 0, 23);
+}
+
+static void doNightStart(int16_t enc)
+{
+  sleepNightStart = wrap_range(sleepNightStart, enc, 0, 23);
+}
+
 static void doSleepMode(int16_t enc)
 {
   sleepModeIdx = wrap_range(sleepModeIdx, enc, 0, LAST_ITEM(sleepModeDesc));
@@ -947,6 +1007,7 @@ static void clickSettings(int cmd, bool shortPress)
     case MENU_ZOOM:       currentCmd = CMD_ZOOM;       break;
     case MENU_SCROLL:     currentCmd = CMD_SCROLL;     break;
     case MENU_SLEEP:      currentCmd = CMD_SLEEP;      break;
+    case MENU_SMARTSLEEP: currentCmd = CMD_SMARTSLEEP; break;
     case MENU_SLEEPMODE:  currentCmd = CMD_SLEEPMODE;  break;
     case MENU_SLEEPTIMER: currentCmd = CMD_SLEEPTIMER; break;
     case MENU_UTCOFFSET:  currentCmd = CMD_UTCOFFSET;  break;
@@ -991,6 +1052,9 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_RDS:        doRDSMode(scrollDirection * enc);break;
     case CMD_MEMORY:     doMemory(scrollDirection * enca);break;
     case CMD_SLEEP:      doSleep(enca);break;
+    case CMD_SMARTSLEEP: doSmartSleepMenu(scrollDirection * enc);break;
+    case CMD_DAYSTART:   doDayStart(scrollDirection * enc);break;
+    case CMD_NIGHTSTART: doNightStart(scrollDirection * enc);break;
     case CMD_SLEEPMODE:  doSleepMode(scrollDirection * enc);break;
     case CMD_SLEEPTIMER: doSleepTimer(enc);break;
     case CMD_USBMODE:    doUSBMode(scrollDirection * enc);break;
@@ -1014,6 +1078,12 @@ bool clickHandler(uint16_t cmd, bool shortPress)
   {
     case CMD_MENU:     clickMenu(menuIdx, shortPress);break;
     case CMD_SETTINGS: clickSettings(settingsIdx, shortPress);break;
+    case CMD_SMARTSLEEP: clickSmartSleepMenu(shortPress);break;
+    case CMD_DAYSTART:
+    case CMD_NIGHTSTART:
+      prefsRequestSave(SAVE_SETTINGS);
+      currentCmd = CMD_SMARTSLEEP;
+      break;
     case CMD_MEMORY:   clickMemory(memoryIdx, shortPress);break;
     case CMD_BLEMODE:  clickBleMode(bleModeIdx, shortPress);break;
     case CMD_WIFIMODE: clickWiFiMode(wifiModeIdx, shortPress);break;
@@ -1641,6 +1711,72 @@ static void drawSleep(int x, int y, int sx)
   spr.drawNumber(currentSleep, 40+x+(sx/2), 60+y, 4);
 }
 
+static void drawSmartSleepMenu(int x, int y, int sx)
+{
+  spr.setTextDatum(MC_DATUM);
+
+  spr.fillSmoothRoundRect(1+x, 1+y, 76+sx, 110, 4, TH.menu_border);
+  spr.fillSmoothRoundRect(2+x, 2+y, 74+sx, 108, 4, TH.menu_bg);
+  spr.setTextColor(TH.menu_hdr);
+  spr.drawString("Smart Sleep", 40+x+(sx/2), 12+y, 2);
+  spr.drawLine(1+x, 23+y, 76+sx, 23+y, TH.menu_border);
+
+  spr.setTextFont(0);
+  spr.setTextColor(TH.menu_item);
+  spr.fillRoundRect(6+x, 24+y+(2*16), 66+sx, 16, 2, TH.menu_hl_bg);
+
+  int count = ITEM_COUNT(smartSleepMenu);
+  for(int i=-2 ; i<3 ; i++)
+  {
+    int idx = abs((smartSleepIdx+count+i)%count);
+    if(i==0) {
+      drawZoomedMenu(smartSleepMenu[idx]);
+      spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
+    } else {
+      spr.setTextColor(TH.menu_item);
+    }
+
+    spr.setTextDatum(MC_DATUM);
+    
+    char text[32];
+    if (idx == SMARTSLEEP_STATE) {
+      sprintf(text, "State: %s", sleepSmart ? "On" : "Off");
+    } else if (idx == SMARTSLEEP_DAY) {
+      sprintf(text, "Day: %02d:00", sleepDayStart);
+    } else if (idx == SMARTSLEEP_NIGHT) {
+      sprintf(text, "Night: %02d:00", sleepNightStart);
+    } else {
+      strcpy(text, smartSleepMenu[idx]);
+    }
+    
+    spr.drawString(text, 40+x+(sx/2), 64+y+(i*16), 2);
+  }
+}
+
+static void drawDayStart(int x, int y, int sx)
+{
+  drawCommon(smartSleepMenu[SMARTSLEEP_DAY], x, y, sx);
+  drawZoomedMenu(smartSleepMenu[SMARTSLEEP_DAY]);
+  spr.setTextDatum(MC_DATUM);
+
+  spr.setTextColor(TH.menu_param);
+  char text[10];
+  sprintf(text, "%02d:00", sleepDayStart);
+  spr.drawString(text, 40+x+(sx/2), 60+y, 4);
+}
+
+static void drawNightStart(int x, int y, int sx)
+{
+  drawCommon(smartSleepMenu[SMARTSLEEP_NIGHT], x, y, sx);
+  drawZoomedMenu(smartSleepMenu[SMARTSLEEP_NIGHT]);
+  spr.setTextDatum(MC_DATUM);
+
+  spr.setTextColor(TH.menu_param);
+  char text[10];
+  sprintf(text, "%02d:00", sleepNightStart);
+  spr.drawString(text, 40+x+(sx/2), 60+y, 4);
+}
+
 static void drawZoom(int x, int y, int sx)
 {
   drawCommon(settings[MENU_ZOOM], x, y, sx);
@@ -1764,6 +1900,9 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_RDS:        drawRDSMode(x, y, sx);    break;
     case CMD_MEMORY:     drawMemory(x, y, sx);     break;
     case CMD_SLEEP:      drawSleep(x, y, sx);      break;
+    case CMD_SMARTSLEEP: drawSmartSleepMenu(x, y, sx); break;
+    case CMD_DAYSTART:   drawDayStart(x, y, sx);       break;
+    case CMD_NIGHTSTART: drawNightStart(x, y, sx);     break;
     case CMD_SLEEPMODE:  drawSleepMode(x, y, sx);  break;
     case CMD_SLEEPTIMER: drawSleepTimer(x, y, sx); break;
     case CMD_USBMODE:    drawUSBMode(x, y, sx);    break;

@@ -72,6 +72,9 @@ uint8_t FmRegionIdx = 0;                // FM Region
 
 uint16_t currentBrt = 130;              // Display brightness, range = 10 to 255 in steps of 5
 uint16_t currentSleep = DEFAULT_SLEEP;  // Display sleep timeout, range = 0 to 255 in steps of 5
+bool sleepSmart = true;
+uint8_t sleepDayStart = 6;
+uint8_t sleepNightStart = 22;
 uint16_t currentSleepTimer = 0;         // Audio sleep timer, minutes
 uint32_t sleepTimerStart = millis();    // Audio sleep timer start time
 bool sleepTimerMuted = false;           // Flag to restore volume on soft power-on
@@ -900,7 +903,7 @@ void loop()
       {
         // If sleep timeout is enabled, exit it via button press of any duration
         // (users don't need to figure out that a long press is required to wake up the device)
-        if(currentSleep)
+        if(currentSleep || sleepSmart)
         {
           sleepOn(false);
           needRedraw = true;
@@ -908,15 +911,15 @@ void loop()
         else if(sleepModeIdx == SLEEP_UNLOCKED)
         {
           // Allow to adjust the volume in sleep mode
-          if(pb1st.wasShortPressed && currentCmd==CMD_NONE)
+          if((pb1st.wasClicked || pb1st.wasShortPressed) && currentCmd==CMD_NONE)
             currentCmd = CMD_VOLUME;
           else if(currentCmd==CMD_VOLUME)
-            clickHandler(currentCmd, pb1st.wasShortPressed);
+            clickHandler(currentCmd, pb1st.wasClicked || pb1st.wasShortPressed);
 
           needRedraw = true;
         }
       }
-      else if(clickHandler(currentCmd, pb1st.wasShortPressed))
+      else if(clickHandler(currentCmd, pb1st.wasClicked || pb1st.wasShortPressed))
       {
         // Command handled, redraw screen
         needRedraw = true;
@@ -959,7 +962,8 @@ void loop()
   }
 
   // Display sleep timeout
-  if(currentSleep && !sleepOn() && ((currentTime - elapsedSleep) > currentSleep * 1000))
+  int sleepTimeout = 0;
+  if(isSleepSmartActive(sleepTimeout) && !sleepOn() && ((currentTime - elapsedSleep) > (uint32_t)sleepTimeout * 1000))
   {
     sleepOn(true);
     // CPU sleep can take long time, renew the timestamps
@@ -1029,3 +1033,45 @@ void loop()
   // Add a small default delay in the main loop
   delay(5);
 }
+
+bool isSleepSmartActive(int &timeoutSeconds)
+{
+  if (!sleepSmart || !clockAvailable())
+  {
+    timeoutSeconds = currentSleep;
+    return (currentSleep > 0);
+  }
+
+  uint8_t utcHours, utcMinutes;
+  if (clockGetHM(&utcHours, &utcMinutes))
+  {
+    int localMinutes = (int)utcHours * 60 + utcMinutes + getCurrentUTCOffset() * 15;
+    localMinutes = (localMinutes < 0) ? localMinutes + 24*60 : (localMinutes % (24*60));
+    int localHour = localMinutes / 60;
+
+    bool isDaytime;
+    if (sleepDayStart < sleepNightStart)
+    {
+      isDaytime = (localHour >= sleepDayStart && localHour < sleepNightStart);
+    }
+    else
+    {
+      isDaytime = (localHour >= sleepDayStart || localHour < sleepNightStart);
+    }
+
+    if (isDaytime)
+    {
+      timeoutSeconds = 0;
+      return false;
+    }
+    else
+    {
+      timeoutSeconds = (currentSleep > 0) ? currentSleep : 30;
+      return true;
+    }
+  }
+
+  timeoutSeconds = currentSleep;
+  return (currentSleep > 0);
+}
+

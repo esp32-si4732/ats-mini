@@ -219,7 +219,7 @@ bool sleepOn(int x)
         esp_light_sleep_start();
 
         // Waking up here
-        if(currentSleep) break; // Short click is enough to exit from sleep if timeout is enabled
+        if(currentSleep || sleepSmart) break; // Short click is enough to exit from sleep if timeout is enabled
 
         // Wait for a long press, otherwise enter the sleep again
         pb1.reset(); // Reset the button state (its timers could be stale due to CPU sleep)
