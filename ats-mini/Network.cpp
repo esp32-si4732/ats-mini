@@ -1,4 +1,5 @@
 #include "Common.h"
+#include "WiFiManager.h"
 #include "Storage.h"
 #include "Themes.h"
 #include "Utils.h"
@@ -6,31 +7,13 @@
 #include "Draw.h"
 
 #include <WiFi.h>
-#include <WiFiMulti.h>
 #include <WiFiUdp.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <NTPClient.h>
 #include <ESPmDNS.h>
 
-#define CONNECT_TIME  3000  // Time of inactivity to start connecting WiFi
-#define WIFI_MULTI_TOTAL_TIMEOUT  30000
-
-WiFiMulti wifiMulti;
-
-//
-// Access Point (AP) mode settings
-//
-static const char *apSSID    = RECEIVER_NAME;
-static const char *apPWD     = 0;       // No password
-static const int   apChannel = 10;      // WiFi channel number (1..13)
-static const bool  apHideMe  = false;   // TRUE: disable SSID broadcast
-static const int   apClients = 3;       // Maximum simultaneous connected clients
-
 static uint16_t ajaxInterval = 2500;
-
-static bool itIsTimeToWiFi = false; // TRUE: Need to connect to WiFi
-static uint32_t connectTime = millis();
 
 // Settings
 String loginUsername = "";
@@ -44,8 +27,6 @@ AsyncWebServer server(80);
 WiFiUDP ntpUDP;
 NTPClient ntpClient(ntpUDP, "pool.ntp.org");
 
-static bool wifiInitAP();
-static bool wifiConnect();
 static void webInit();
 
 static void webSetConfig(AsyncWebServerRequest *request);
@@ -57,115 +38,19 @@ static const String webUtcOffsetSelector();
 static const String webThemeSelector();
 static const String webRadioPage();
 static const String webMemoryPage();
-static const String webConfigPage();
+const String webConfigPage();
 
 //
-// Delayed WiFi connection
-//
-void netRequestConnect()
-{
-  connectTime = millis();
-  itIsTimeToWiFi = true;
-}
-
-void netTickTime()
-{
-  // Connect to WiFi if requested
-  if(itIsTimeToWiFi && ((millis() - connectTime) > CONNECT_TIME))
-  {
-    netInit(radioState.wifiMode);
-    connectTime = millis();
-    itIsTimeToWiFi = false;
-  }
-}
-
-//
-// Get current connection status
-// (-1 - not connected, 0 - disabled, 1 - connected, 2 - connected to network)
-//
-int8_t getWiFiStatus()
-{
-  wifi_mode_t mode = WiFi.getMode();
-
-  switch(mode)
-  {
-    case WIFI_MODE_NULL:
-      return(0);
-    case WIFI_AP:
-      return(WiFi.softAPgetStationNum()? 1 : -1);
-    case WIFI_STA:
-      return(WiFi.status()==WL_CONNECTED? 2 : -1);
-    case WIFI_AP_STA:
-      return((WiFi.status()==WL_CONNECTED)? 2 : WiFi.softAPgetStationNum()? 1 : -1);
-    default:
-      return(-1);
-  }
-}
-
-char *getWiFiIPAddress()
-{
-  static char ip[16];
-  return strcpy(ip, WiFi.status()==WL_CONNECTED ? WiFi.localIP().toString().c_str() : "");
-}
-
-//
-// Stop WiFi hardware
-//
-void netStop()
-{
-  wifi_mode_t mode = WiFi.getMode();
-
-  MDNS.end();
-
-  // If network connection up, shut it down
-  if((mode==WIFI_STA) || (mode==WIFI_AP_STA))
-    WiFi.disconnect(true);
-
-  // If access point up, shut it down
-  if((mode==WIFI_AP) || (mode==WIFI_AP_STA))
-    WiFi.softAPdisconnect(true);
-
-  WiFi.mode(WIFI_MODE_NULL);
-}
-
-//
-// Initialize WiFi network and services
+// Initialize WiFi network and NTP and web services
 //
 void netInit(uint8_t netMode, bool showStatus)
 {
-  // Always disable WiFi first
-  netStop();
+  // Initialize WiFi connection (AP, station, or both)
+  bool connected = wifiInitConnection(netMode, showStatus);
 
-  switch(netMode)
+  // NTP time updates will happen every 5 minutes
+  if(connected)
   {
-    case NET_OFF:
-      // Do not initialize WiFi if disabled
-      return;
-    case NET_AP_ONLY:
-      // Start WiFi access point if requested
-      WiFi.mode(WIFI_AP);
-      // Let user see connection status if successful
-      if(wifiInitAP() && showStatus) delay(2000);
-      break;
-    case NET_AP_CONNECT:
-      // Start WiFi access point if requested
-      WiFi.mode(WIFI_AP_STA);
-      // Let user see connection status if successful
-      if(wifiInitAP() && showStatus) delay(2000);
-      break;
-    default:
-      // No access point
-      WiFi.mode(WIFI_STA);
-      break;
-  }
-
-  // Initialize WiFi and try connecting to a network
-  if(netMode>NET_AP_ONLY && wifiConnect())
-  {
-    // Let user see connection status if successful
-    if(netMode!=NET_SYNC && showStatus) delay(2000);
-
-    // NTP time updates will happen every 5 minutes
     ntpClient.setUpdateInterval(5*60*1000);
 
     // Get NTP time from the network
@@ -174,15 +59,21 @@ void netInit(uint8_t netMode, bool showStatus)
       if(ntpSyncTime()) break; else delay(500);
   }
 
-  // If only connected to sync...
+  // If only connected to sync time, drop the connection
   if(netMode==NET_SYNC)
   {
-    // Drop network connection
     WiFi.disconnect(true);
     WiFi.mode(WIFI_MODE_NULL);
   }
   else
   {
+    // Read web UI credentials from preferences
+    prefs.begin("network", true, STORAGE_PARTITION);
+    loginUsername = prefs.getString("loginusername", "");
+    loginPassword = prefs.getString("loginpassword", "");
+    wifiScanHidden = prefs.getBool("wifiscanhidden", false);
+    prefs.end();
+
     // Initialize web server for remote configuration
     webInit();
 
@@ -205,7 +96,7 @@ bool ntpIsAvailable()
 //
 bool ntpSyncTime()
 {
-  if(WiFi.status()==WL_CONNECTED)
+  if(getWiFiStatus() == 2)
   {
     ntpClient.update();
 
@@ -217,102 +108,6 @@ bool ntpSyncTime()
       ));
   }
   return(false);
-}
-
-//
-// Initialize WiFi access point (AP)
-//
-static bool wifiInitAP()
-{
-  // These are our own access point (AP) addresses
-  IPAddress ip(10, 1, 1, 1);
-  IPAddress gateway(10, 1, 1, 1);
-  IPAddress subnet(255, 255, 255, 0);
-
-  // Start as access point (AP)
-  WiFi.softAP(apSSID, apPWD, apChannel, apHideMe, apClients);
-  WiFi.softAPConfig(ip, gateway, subnet);
-
-  drawScreen(
-    ("Use Access Point " + String(apSSID)).c_str(),
-    ("IP : " + WiFi.softAPIP().toString() + " or atsmini.local").c_str()
-  );
-
-  ajaxInterval = 2500;
-  return(true);
-}
-
-//
-// Connect to a WiFi network
-//
-static bool wifiConnect()
-{
-  String status = "Connecting to WiFi network...";
-
-  // Clean credentials
-  wifiMulti.APlistClean();
-
-  // Get the preferences
-  prefs.begin("network", true, STORAGE_PARTITION);
-  loginUsername = prefs.getString("loginusername", "");
-  loginPassword = prefs.getString("loginpassword", "");
-  wifiScanHidden = prefs.getBool("wifiscanhidden", false);
-
-  // Try connecting to known WiFi networks
-  for(int j=0 ; (j<3) ; j++)
-  {
-    char nameSSID[16], namePASS[16];
-    sprintf(nameSSID, "wifissid%d", j+1);
-    sprintf(namePASS, "wifipass%d", j+1);
-
-    String ssid = prefs.getString(nameSSID, "");
-    String password = prefs.getString(namePASS, "");
-
-    if(ssid != "")
-      wifiMulti.addAP(ssid.c_str(), password.c_str());
-  }
-
-  // Done with preferences
-  prefs.end();
-
-  drawScreen(status.c_str());
-
-  consumeAbortPending();
-  wl_status_t wifiStatus = WL_NO_SSID_AVAIL;
-  uint32_t start = millis();
-  while(((millis() - start)<WIFI_MULTI_TOTAL_TIMEOUT) && (wifiStatus!=WL_CONNECTED))
-  {
-    wifiStatus = (wl_status_t)wifiMulti.run(5000, wifiScanHidden);
-
-    if(consumeAbortPending())
-    {
-      WiFi.disconnect();
-      break;
-    }
-
-    if((wifiStatus!=WL_CONNECTED) && ((millis() - start)<WIFI_MULTI_TOTAL_TIMEOUT))
-      delay(1000);
-  }
-
-  // If failed connecting to WiFi network...
-  if (wifiStatus != WL_CONNECTED)
-  {
-    // WiFi connection failed
-    drawScreen(status.c_str(), "No WiFi connection");
-    // Done
-    return(false);
-  }
-  else
-  {
-    // WiFi connection succeeded
-    drawScreen(
-      ("Connected to WiFi network (" + WiFi.SSID() + ")").c_str(),
-      ("IP : " + WiFi.localIP().toString() + " or atsmini.local").c_str()
-    );
-    // Done
-    ajaxInterval = 1000;
-    return(true);
-  }
 }
 
 //
@@ -419,7 +214,7 @@ void webSetConfig(AsyncWebServerRequest *request)
 
   // If we are currently in AP mode, and infrastructure mode requested,
   // and there is at least one SSID / PASS pair, request network connection
-  if(haveSSID && (radioState.wifiMode>NET_AP_ONLY) && (WiFi.status()!=WL_CONNECTED))
+  if(haveSSID && (radioState.wifiMode>NET_AP_ONLY) && (getWiFiStatus() != 2))
     netRequestConnect();
 }
 
@@ -550,7 +345,7 @@ static const String webRadioPage()
     String(radioState.frequency / 100.0) + "MHz "
   : String(radioState.frequency + radioState.bfo / 1000.0) + "kHz ";
 
-  if(WiFi.status()==WL_CONNECTED)
+  if(getWiFiStatus() == 2)
   {
     ip = WiFi.localIP().toString();
     ssid = WiFi.SSID();
@@ -558,7 +353,7 @@ static const String webRadioPage()
   else
   {
     ip = WiFi.softAPIP().toString();
-    ssid = String(apSSID);
+    ssid = RECEIVER_NAME;
   }
 
   return webPage(
