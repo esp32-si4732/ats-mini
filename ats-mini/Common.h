@@ -130,38 +130,6 @@ typedef struct {
 
 extern RadioState radioState;
 
-// Compatibility shims -- will be removed after full migration
-#define currentFrequency    radioState.frequency
-#define currentMode         radioState.mode
-#define currentBFO          radioState.bfo
-#define currentCmd          radioState.cmd
-#define pushAndRotate       radioState.pnr
-#define volume              radioState.vol
-#define currentSquelch      radioState.squelch
-#define FmAgcIdx            radioState.fmAgcIdx
-#define AmAgcIdx            radioState.amAgcIdx
-#define SsbAgcIdx           radioState.ssbAgcIdx
-#define AmAvcIdx            radioState.amAvcIdx
-#define SsbAvcIdx           radioState.ssbAvcIdx
-#define AmSoftMuteIdx       radioState.amSoftMuteIdx
-#define SsbSoftMuteIdx      radioState.ssbSoftMuteIdx
-#define agcIdx              radioState.agcIndex
-#define agcNdx              radioState.agcNdxVal
-#define softMuteMaxAttIdx   radioState.softMuteMaxAtt
-#define disableAgc          radioState.agcDisable
-#define currentBrt          radioState.brightness
-#define currentSleep        radioState.sleep
-#define sleepModeIdx        radioState.sleepMode
-#define rdsModeIdx          radioState.rdsMode
-#define usbModeIdx          radioState.usbMode
-#define bleModeIdx          radioState.bleMode
-#define wifiModeIdx         radioState.wifiMode
-#define FmRegionIdx         radioState.fmRegionIdx
-#define zoomMenu            radioState.zoomLevel
-#define scrollDirection     radioState.scrollDir
-#define utcOffsetIdx        radioState.utcOffset
-#define uiLayoutIdx         radioState.uiLayout
-
 // BFO and Calibration limits (MAX_BFO + MAX_CAL <= 16000)
 #define MAX_BFO       14000  // Maximum range for currentBFO = +/- MAX_BFO
 #define MAX_CAL       2000   // Maximum range for currentCAL = +/- MAX_CAL
@@ -243,7 +211,7 @@ extern volatile bool seekStop;
 
 extern const int CALMax;
 
-static inline bool isSSB() { return(currentMode>FM && currentMode<AM); }
+static inline bool isSSB() { return(radioState.mode>FM && radioState.mode<AM); }
 
 void useBand(const Band *band);
 bool updateFrequency(int newFreq, bool wrap = true);

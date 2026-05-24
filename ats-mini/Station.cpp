@@ -203,8 +203,8 @@ static bool showRdsTime(const char *rdsTime)
   // If NTP time available, do not use RDS time
   if(!rdsTime || ntpIsAvailable()) return(false);
 
-  // The standard RDS time format is “HH:MM”.
-  // or sometimes more complex like “DD.MM.YY,HH:MM”.
+  // The standard RDS time format is ï¿½HH:MMï¿½.
+  // or sometimes more complex like ï¿½DD.MM.YY,HH:MMï¿½.
   const char *timeField = strstr(rdsTime, ":");
 
   // If we find a valid time format...
@@ -291,7 +291,7 @@ static const char *findScheduleByFreq(uint16_t freq, bool periodic)
 {
   uint8_t hour, minute;
 
-  if(currentMode==FM) return(0);
+  if(radioState.mode==FM) return(0);
 
   // Must have valid time
   if(!clockGetHM(&hour, &minute)) return(0);
@@ -336,7 +336,7 @@ bool identifyFrequency(uint16_t freq, bool periodic)
   static bool name_found = false;
 
   // RDS has priority on FM
-  if(currentMode==FM) return(false);
+  if(radioState.mode==FM) return(false);
 
   // Do not try to look up static names more than once for the same freq
   if(periodic && last_freq==freq && name_found) return(false);
