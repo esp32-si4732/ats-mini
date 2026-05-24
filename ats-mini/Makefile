@@ -26,13 +26,13 @@ OPTIONS = \
 	--warnings all
 
 HEADERS = \
-	Common.h Themes.h Menu.h Storage.h tft_setup.h Rotary.h \
+	Common.h Scheduler.h Themes.h Menu.h Storage.h tft_setup.h Rotary.h \
 	Utils.h Button.h EIBI.h Remote.h BleMode.h BlePeripheral.h \
 	BleUartPeripheral.h BleCentral.h BleHidCentral.h \
 	SI4735-fixed.h patch_init.h
 
 SRC = \
-	$(INO) EventHandler.cpp Utils.cpp Rotary.cpp Button.cpp Draw.cpp MenuDraw.cpp Menu.cpp \
+	$(INO) EventHandler.cpp Scheduler.cpp Utils.cpp Rotary.cpp Button.cpp Draw.cpp MenuDraw.cpp Menu.cpp \
 	Station.cpp Battery.cpp Storage.cpp Themes.cpp Remote.cpp \
 	Network.cpp EIBI.cpp Scan.cpp About.cpp BleMode.cpp \
 	BlePeripheral.cpp BleUartPeripheral.cpp \

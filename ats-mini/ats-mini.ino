@@ -15,20 +15,16 @@
 #include "Remote.h"
 #include "BleMode.h"
 #include "EventHandler.h"
+#include "Scheduler.h"
 
 RadioState radioState = {0};
 
 // SI473/5 and UI
 #define MIN_ELAPSED_TIME         5  // 300
-#define MIN_ELAPSED_RSSI_TIME  200  // RSSI check uses IN_ELAPSED_RSSI_TIME * 6 = 1.2s
 #define ELAPSED_COMMAND      10000  // time to turn off the last command controlled by encoder. Time to goes back to the VFO control // G8PTN: Increased time and corrected comment
 #define DEFAULT_VOLUME          35  // change it for your favorite sound volume
 #define DEFAULT_SLEEP            0  // Default sleep interval, range = 0 (off) to 255 in steps of 5
-#define RDS_CHECK_TIME         250  // Increased from 90
 #define SEEK_TIMEOUT        600000  // Max seek timeout (ms)
-#define NTP_CHECK_TIME       60000  // NTP time refresh period (ms)
-#define SCHEDULE_CHECK_TIME   2000  // How often to identify the same frequency (ms)
-#define BACKGROUND_REFRESH_TIME 5000    // Background screen refresh time. Covers the situation where there are no other events causing a refresh
 
 // =================================
 // CONSTANTS AND VARIABLES
@@ -745,51 +741,8 @@ void loop()
     elapsedSleep = elapsedCommand = currentTime = millis();
   }
 
-  if((currentTime - elapsedRSSI) > MIN_ELAPSED_RSSI_TIME)
-  {
-    needRedraw |= processRssiSnr();
-    elapsedRSSI = currentTime;
-  }
-
-  // Periodically check received RDS information
-  if((currentTime - lastRDSCheck) > RDS_CHECK_TIME)
-  {
-    needRedraw |= (radioState.mode == FM) && (snr >= 12) && checkRds();
-    lastRDSCheck = currentTime;
-  }
-
-  // Periodically check schedule
-  if((currentTime - lastScheduleCheck) > SCHEDULE_CHECK_TIME)
-  {
-    needRedraw |= identifyFrequency(radioState.frequency + radioState.bfo / 1000, true);
-    lastScheduleCheck = currentTime;
-  }
-
-  // Periodically synchronize time via NTP
-  if((currentTime - lastNTPCheck) > NTP_CHECK_TIME)
-  {
-    needRedraw |= ntpSyncTime();
-    lastNTPCheck = currentTime;
-  }
-
-  // Tick preferences time, saving changes when there has
-  // been no activity for a while
-  prefsTickTime();
-
-  // Tick NETWORK time, connecting to WiFi if requested
-  netTickTime();
-
-  // Run clock
-  needRedraw |= clockTickTime();
-
-  // Periodically refresh the main screen
-  // This covers the case where there is nothing else triggering a refresh
-  if(needRedraw) background_timer = currentTime;
-  if((currentTime - background_timer) > BACKGROUND_REFRESH_TIME)
-  {
-    if(radioState.cmd == CMD_NONE) needRedraw = true;
-    background_timer = currentTime;
-  }
+  // Run periodic housekeeping tasks
+  needRedraw |= runScheduler(currentTime);
 
   // Redraw screen if necessary
   if(needRedraw) drawScreen();

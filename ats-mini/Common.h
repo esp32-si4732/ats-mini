@@ -130,6 +130,13 @@ typedef struct {
 
 extern RadioState radioState;
 
+// Periodic task timing (ms)
+#define MIN_ELAPSED_RSSI_TIME  200  // RSSI check interval
+#define RDS_CHECK_TIME         250  // RDS check interval (increased from 90)
+#define NTP_CHECK_TIME       60000  // NTP time refresh period (ms)
+#define SCHEDULE_CHECK_TIME   2000  // How often to identify the same frequency (ms)
+#define BACKGROUND_REFRESH_TIME 5000  // Background screen refresh interval (ms)
+
 // BFO and Calibration limits (MAX_BFO + MAX_CAL <= 16000)
 #define MAX_BFO       14000  // Maximum range for currentBFO = +/- MAX_BFO
 #define MAX_CAL       2000   // Maximum range for currentCAL = +/- MAX_CAL
@@ -231,6 +238,7 @@ float scanGetRSSI(uint16_t freq);
 float scanGetSNR(uint16_t freq);
 
 // Station.c
+bool processRssiSnr();
 const char *getStationName();
 const char *getRadioText();
 const char *getProgramInfo();
