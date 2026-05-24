@@ -8,6 +8,7 @@
 #include "BleMode.h"
 #include "Menu.h"
 #include "MenuDraw.h"
+#include "DisplayController.h"
 
 //
 // Bands Menu
@@ -585,7 +586,7 @@ void doCal(int16_t enc)
 void doBrt(int16_t enc)
 {
   radioState.brightness = clamp_range(radioState.brightness, 5*enc, 10, 255);
-  if(!sleepOn()) ledcWrite(PIN_LCD_BL, radioState.brightness);
+  if(!sleepOn()) displaySetBrightness(radioState.brightness);
 }
 
 static void doSleep(int16_t enc)

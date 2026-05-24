@@ -6,6 +6,7 @@
 #include "AudioManager.h"
 #include "Menu.h"
 #include "Draw.h"
+#include "DisplayController.h"
 
 // SSB patch for whole SSBRX initialization string
 #include "patch_init.h"
@@ -95,11 +96,7 @@ bool sleepOn(int x)
   if((x==1) && !sleep_on)
   {
     sleep_on = true;
-    ledcWrite(PIN_LCD_BL, 0);
-    spr.fillSprite(TFT_BLACK);
-    spr.pushSprite(0, 0);
-    tft.writecommand(ST7789_DISPOFF);
-    tft.writecommand(ST7789_SLPIN);
+    displaySleep();
 
     // Wait till the button is released to prevent immediate wakeup
     while(pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW).isPressed)
@@ -151,11 +148,9 @@ bool sleepOn(int x)
   else if((x==0) && sleep_on)
   {
     sleep_on = false;
-    tft.writecommand(ST7789_SLPOUT);
-    delay(120);
-    tft.writecommand(ST7789_DISPON);
+    displayWake();
     drawScreen();
-    ledcWrite(PIN_LCD_BL, radioState.brightness);
+    displaySetBrightness(radioState.brightness);
     // Wait till the button is released to prevent the main loop clicks
     pb1.reset(); // Reset the button state (its timers could be stale due to CPU sleep)
     while(pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW, 0).isPressed)
