@@ -2,6 +2,7 @@
 #define MENU_H
 
 #include "Common.h"
+#include "MenuData.h"
 
 // Number of memory slots
 #define MEMORY_COUNT  99
@@ -91,52 +92,17 @@
 // Data Types
 //
 
-typedef struct
-{
-  uint8_t idx;      // SI473X device bandwidth index
-  const char *desc; // Bandwidth description
-} Bandwidth;
-
-typedef struct
-{
-  int step;         // Step
-  const char *desc; // Step description
-  uint8_t spacing;  // Seek spacing
-} Step;
-
-typedef struct
-{
-  uint8_t mode;     // Combination of RDS_* values
-  const char *desc; // Mode description
-} RDSMode;
-
 //
-// Global Variables
+// Mutable State
 //
-
-extern Band bands[];
-extern Memory memories[];
-extern const UTCOffset utcOffsets[];
-extern const char *bandModeDesc[];
-extern const FMRegion fmRegions[];
 extern int bandIdx;
-
 extern int8_t menuIdx;
 extern int8_t settingsIdx;
 extern uint8_t memoryIdx;
 
-extern const char *menu[];
-extern const char *settings[];
-extern const RDSMode rdsMode[];
-extern const char *sleepModeDesc[];
-extern const char *uiLayoutDesc[];
-extern const char *usbModeDesc[];
-extern const char *bleModeDesc[];
-extern const char *wifiModeDesc[];
-extern const Step *steps[];
-extern const Bandwidth *bandwidths[];
-
-// These are menu commands
+//
+// Menu Draw Handlers
+//
 static inline bool isMenuMode(uint16_t cmd)
 {
   return((cmd>=CMD_BAND) && (cmd<CMD_SETTINGS));
