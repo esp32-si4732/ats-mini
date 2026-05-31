@@ -72,6 +72,12 @@ uint8_t FmRegionIdx = 0;                // FM Region
 
 uint16_t currentBrt = 130;              // Display brightness, range = 10 to 255 in steps of 5
 uint16_t currentSleep = DEFAULT_SLEEP;  // Display sleep timeout, range = 0 to 255 in steps of 5
+bool sleepSmart = true;
+uint8_t sleepDayStart = 6;
+uint8_t sleepNightStart = 22;
+uint16_t currentSleepTimer = 0;         // Audio sleep timer, minutes
+uint32_t sleepTimerStart = millis();    // Audio sleep timer start time
+bool sleepTimerMuted = false;           // Flag to restore volume on soft power-on
 long elapsedSleep = millis();           // Display sleep timer
 bool zoomMenu = false;                  // Display zoomed menu item
 int8_t scrollDirection = 1;             // Menu scroll direction
@@ -785,6 +791,17 @@ void loop()
   // Block encoder rotation when in the locked sleep mode
   if(encCount && sleepOn() && sleepModeIdx==SLEEP_LOCKED) encCount = encCountAccel = 0;
 
+  // In sleep mode, if the encoder is rotated (and not locked), adjust the volume instead of tuning
+  if(encCount && sleepOn())
+  {
+    doVolume(encCount);
+    prefsRequestSave(SAVE_SETTINGS);
+    elapsedSleep = elapsedCommand = currentTime; // Reset inactivity timers to keep active
+    encCount = encCountAccel = 0;
+    needRedraw = true;
+  }
+
+
   // Activate push and rotate mode (can span multiple loop iterations until the button is released)
   if (encCount && pb1st.isPressed) pushAndRotate = true;
 
@@ -833,6 +850,11 @@ void loop()
       switch(currentCmd)
       {
         case CMD_NONE:
+          // Default to seek mode
+          needRedraw |= doSeek(encCount, encCountAccel);
+          // Current frequency may have changed
+          prefsRequestSave(SAVE_CUR_BAND);
+          break;
         case CMD_SCAN:
           // Tuning
           needRedraw |= doTune(encCountAccel);
@@ -846,10 +868,8 @@ void loop()
           prefsRequestSave(SAVE_CUR_BAND);
           break;
         case CMD_SEEK:
-          // Seek mode
-          needRedraw |= doSeek(encCount, encCountAccel);
-          // Seek can take long time, renew the timestamp
-          currentTime = millis();
+          // VFO tuning mode (accessible via menu)
+          needRedraw |= doTune(encCountAccel);
           // Current frequency may have changed
           prefsRequestSave(SAVE_CUR_BAND);
           break;
@@ -866,11 +886,22 @@ void loop()
     }
     else if(pb1st.isLongPressed)
     {
-      // Encoder is being LONG PRESSED: TOGGLE DISPLAY
-      sleepOn(!sleepOn());
+      // Encoder is being LONG PRESSED: TOGGLE SOFT POWER STATE
+      bool nextState = !sleepOn();
+      if (nextState)
+      {
+        // 进入深度软关机：关闭功放，设置音量恢复标志，强制 CPU Light Sleep
+        muteOn(MUTE_MAIN, true);
+        sleepTimerMuted = true;
+        sleepOn(1, true); 
+      }
+      else
+      {
+        // 唤醒设备
+        sleepOn(0);
+      }
       // CPU sleep can take long time, renew the timestamps
       elapsedSleep = elapsedCommand = currentTime = millis();
-
     }
     else if(pb1st.wasClicked || pb1st.wasShortPressed)
     {
@@ -883,7 +914,7 @@ void loop()
       {
         // If sleep timeout is enabled, exit it via button press of any duration
         // (users don't need to figure out that a long press is required to wake up the device)
-        if(currentSleep)
+        if(currentSleep || sleepSmart)
         {
           sleepOn(false);
           needRedraw = true;
@@ -891,15 +922,15 @@ void loop()
         else if(sleepModeIdx == SLEEP_UNLOCKED)
         {
           // Allow to adjust the volume in sleep mode
-          if(pb1st.wasShortPressed && currentCmd==CMD_NONE)
+          if((pb1st.wasClicked || pb1st.wasShortPressed) && currentCmd==CMD_NONE)
             currentCmd = CMD_VOLUME;
           else if(currentCmd==CMD_VOLUME)
-            clickHandler(currentCmd, pb1st.wasShortPressed);
+            clickHandler(currentCmd, pb1st.wasClicked || pb1st.wasShortPressed);
 
           needRedraw = true;
         }
       }
-      else if(clickHandler(currentCmd, pb1st.wasShortPressed))
+      else if(clickHandler(currentCmd, pb1st.wasClicked || pb1st.wasShortPressed))
       {
         // Command handled, redraw screen
         needRedraw = true;
@@ -942,10 +973,22 @@ void loop()
   }
 
   // Display sleep timeout
-  if(currentSleep && !sleepOn() && ((currentTime - elapsedSleep) > currentSleep * 1000))
+  int sleepTimeout = 0;
+  if(isSleepSmartActive(sleepTimeout) && !sleepOn() && ((currentTime - elapsedSleep) > (uint32_t)sleepTimeout * 1000))
   {
     sleepOn(true);
     // CPU sleep can take long time, renew the timestamps
+    elapsedSleep = elapsedCommand = currentTime = millis();
+  }
+
+  // Audio sleep timer
+  if(currentSleepTimer && (currentTime - sleepTimerStart) > (currentSleepTimer * 60000UL))
+  {
+    currentSleepTimer = 0;
+    prefsRequestSave(SAVE_SETTINGS);
+    muteOn(MUTE_MAIN, true);
+    sleepTimerMuted = true;
+    if(!sleepOn()) sleepOn(1, true); // 强制进入省电 CPU 休眠
     elapsedSleep = elapsedCommand = currentTime = millis();
   }
 
@@ -1001,3 +1044,45 @@ void loop()
   // Add a small default delay in the main loop
   delay(5);
 }
+
+bool isSleepSmartActive(int &timeoutSeconds)
+{
+  if (!sleepSmart || !clockAvailable())
+  {
+    timeoutSeconds = currentSleep;
+    return (currentSleep > 0);
+  }
+
+  uint8_t utcHours, utcMinutes;
+  if (clockGetHM(&utcHours, &utcMinutes))
+  {
+    int localMinutes = (int)utcHours * 60 + utcMinutes + getCurrentUTCOffset() * 15;
+    localMinutes = (localMinutes < 0) ? localMinutes + 24*60 : (localMinutes % (24*60));
+    int localHour = localMinutes / 60;
+
+    bool isDaytime;
+    if (sleepDayStart < sleepNightStart)
+    {
+      isDaytime = (localHour >= sleepDayStart && localHour < sleepNightStart);
+    }
+    else
+    {
+      isDaytime = (localHour >= sleepDayStart || localHour < sleepNightStart);
+    }
+
+    if (isDaytime)
+    {
+      timeoutSeconds = 0;
+      return false;
+    }
+    else
+    {
+      timeoutSeconds = (currentSleep > 0) ? currentSleep : 30;
+      return true;
+    }
+  }
+
+  timeoutSeconds = currentSleep;
+  return (currentSleep > 0);
+}
+

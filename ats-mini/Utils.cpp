@@ -188,7 +188,7 @@ bool muteOn(uint8_t mode, int x)
 //
 // Turn sleep on (1) or off (0), or get current status (2)
 //
-bool sleepOn(int x)
+bool sleepOn(int x, bool forceCpuSleep)
 {
   if((x==1) && !sleep_on)
   {
@@ -203,7 +203,7 @@ bool sleepOn(int x)
     while(pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW).isPressed)
       delay(100);
 
-    if(sleepModeIdx == SLEEP_LIGHT)
+    if(sleepModeIdx == SLEEP_LIGHT || forceCpuSleep)
     {
       // Disable WiFi
       netStop();
@@ -219,7 +219,7 @@ bool sleepOn(int x)
         esp_light_sleep_start();
 
         // Waking up here
-        if(currentSleep) break; // Short click is enough to exit from sleep if timeout is enabled
+        if(currentSleep || sleepSmart) break; // Short click is enough to exit from sleep if timeout is enabled
 
         // Wait for a long press, otherwise enter the sleep again
         pb1.reset(); // Reset the button state (its timers could be stale due to CPU sleep)
@@ -249,6 +249,13 @@ bool sleepOn(int x)
   else if((x==0) && sleep_on)
   {
     sleep_on = false;
+
+    // Restore volume if muted by Sleep Timer
+    if (sleepTimerMuted) {
+      muteOn(MUTE_MAIN, false);
+      sleepTimerMuted = false;
+    }
+
     tft.writecommand(ST7789_SLPOUT);
     delay(120);
     tft.writecommand(ST7789_DISPON);
