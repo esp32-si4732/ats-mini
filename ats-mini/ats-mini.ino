@@ -886,11 +886,22 @@ void loop()
     }
     else if(pb1st.isLongPressed)
     {
-      // Encoder is being LONG PRESSED: TOGGLE DISPLAY
-      sleepOn(!sleepOn());
+      // Encoder is being LONG PRESSED: TOGGLE SOFT POWER STATE
+      bool nextState = !sleepOn();
+      if (nextState)
+      {
+        // 进入深度软关机：关闭功放，设置音量恢复标志，强制 CPU Light Sleep
+        muteOn(MUTE_MAIN, true);
+        sleepTimerMuted = true;
+        sleepOn(1, true); 
+      }
+      else
+      {
+        // 唤醒设备
+        sleepOn(0);
+      }
       // CPU sleep can take long time, renew the timestamps
       elapsedSleep = elapsedCommand = currentTime = millis();
-
     }
     else if(pb1st.wasClicked || pb1st.wasShortPressed)
     {
@@ -977,7 +988,7 @@ void loop()
     prefsRequestSave(SAVE_SETTINGS);
     muteOn(MUTE_MAIN, true);
     sleepTimerMuted = true;
-    if(!sleepOn()) sleepOn(1);
+    if(!sleepOn()) sleepOn(1, true); // 强制进入省电 CPU 休眠
     elapsedSleep = elapsedCommand = currentTime = millis();
   }
 

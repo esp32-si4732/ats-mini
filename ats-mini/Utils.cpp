@@ -188,7 +188,7 @@ bool muteOn(uint8_t mode, int x)
 //
 // Turn sleep on (1) or off (0), or get current status (2)
 //
-bool sleepOn(int x)
+bool sleepOn(int x, bool forceCpuSleep)
 {
   if((x==1) && !sleep_on)
   {
@@ -203,7 +203,7 @@ bool sleepOn(int x)
     while(pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW).isPressed)
       delay(100);
 
-    if(sleepModeIdx == SLEEP_LIGHT)
+    if(sleepModeIdx == SLEEP_LIGHT || forceCpuSleep)
     {
       // Disable WiFi
       netStop();
