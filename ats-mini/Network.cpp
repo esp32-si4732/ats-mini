@@ -379,11 +379,21 @@ static void webInit()
 
   server.on("/update", HTTP_POST,
     [](AsyncWebServerRequest *request) {
-      // Upload complete — check result
       if (Update.hasError()) {
         String msg = String("Update failed: ") + Update.errorString();
         Serial.println(msg);
-        request->send(500, "text/plain", msg);
+        AsyncWebServerResponse *resp = request->beginResponse(500, "text/html",
+          "<!DOCTYPE HTML><HTML><HEAD><META CHARSET='UTF-8'>"
+          "<META NAME='viewport' CONTENT='width=device-width, initial-scale=1.0'>"
+          "<TITLE>Update Failed</TITLE>"
+          "<STYLE>BODY{font-family:sans-serif;text-align:center;padding:50px;}"
+          "H1{color:#f44336;}</STYLE>"
+          "</HEAD><BODY>"
+          "<H1>Update Failed</H1><P>" + msg + "</P>"
+          "<P><A HREF='/update'>Try again</A></P></BODY></HTML>"
+        );
+        resp->addHeader("Connection", "close");
+        request->send(resp);
       } else {
         request->send(200, "text/html",
           "<!DOCTYPE HTML><HTML><HEAD><META CHARSET='UTF-8'>"
@@ -402,47 +412,61 @@ static void webInit()
     },
     [](AsyncWebServerRequest *request, String filename, size_t index,
        uint8_t *data, size_t len, bool final) {
-      // Upload chunk handler — streams into Update.write()
+      // Note: request->send() does NOT work in the chunk handler; use Serial.
+      static size_t totalOtaWritten = 0;
+      static bool otaAborted = false;
+
       if (!index) {
-        // First chunk: validate and begin
-        int contentLength = request->contentLength();
-        if (contentLength < 100000) {
-          request->send(400, "text/plain", "Firmware too small (<100KB)");
-          return;
-        }
+        totalOtaWritten = 0;
+        otaAborted = false;
+
         if (!filename.endsWith(".bin")) {
-          request->send(400, "text/plain", "Only .bin files accepted");
+          Serial.println("OTA: Rejected (not a .bin file)");
+          otaAborted = true;
           return;
         }
 
-        Serial.printf("OTA: Starting %s (%d bytes)\n",
-                      filename.c_str(), contentLength);
+        Serial.printf("OTA: Starting %s\n", filename.c_str());
 
-        if (!Update.begin(contentLength, U_FLASH)) {
+        // contentLength includes multipart overhead, use unknown
+        if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) {
           Update.printError(Serial);
+          otaAborted = true;
           return;
         }
         otaProgress = 0;
       }
 
-      // Write chunk to flash
-      if (Update.write(data, len) != len) {
-        Update.printError(Serial);
-      }
+      if (otaAborted)
+        return;
 
-      // Update progress display
-      int total = request->contentLength();
-      if (total > 0) {
-        int pct = (index + len) * 100 / total;
+      size_t written = Update.write(data, len);
+      if (written != len)
+        Update.printError(Serial);
+      totalOtaWritten += written;
+
+      size_t maxSize = Update.size();
+      if (maxSize > 0) {
+        int pct = (totalOtaWritten * 100) / maxSize;
+        if (pct > 99) pct = 99;
         if (pct != otaProgress) {
           otaProgress = pct;
-          Serial.printf("OTA: %d%%\n", pct);
+          Serial.printf("OTA: %d %% (%zu KB)\n", pct, totalOtaWritten / 1024);
         }
+      } else {
+        otaProgress = (int)(totalOtaWritten / 1024);
       }
 
       if (final) {
+        if (totalOtaWritten < 100000) {
+          Serial.printf("OTA: Too small (%zu bytes), aborting\n", totalOtaWritten);
+          Update.abort();
+          otaProgress = -1;
+          return;
+        }
+
         if (Update.end(true)) {
-          Serial.printf("OTA: %s written successfully\n", filename.c_str());
+          Serial.printf("OTA: Success! %zu bytes written\n", totalOtaWritten);
           otaProgress = 100;
         } else {
           Update.printError(Serial);
