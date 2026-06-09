@@ -12,6 +12,7 @@
 #include <ESPAsyncWebServer.h>
 #include <NTPClient.h>
 #include <ESPmDNS.h>
+#include <Update.h>
 
 #define CONNECT_TIME  3000  // Time of inactivity to start connecting WiFi
 #define WIFI_MULTI_TOTAL_TIMEOUT  30000
@@ -41,6 +42,8 @@ String loginUsername = "";
 String loginPassword = "";
 static bool wifiScanHidden = false;
 
+volatile int otaProgress = -1; // OTA update progress: -1 = idle, 0-100 = in progress
+
 // AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
@@ -64,6 +67,7 @@ static const String webThemeSelector();
 static const String webRadioPage();
 static const String webMemoryPage();
 static const String webConfigPage();
+static const String webUpdatePage();
 
 //
 // Delayed WiFi connection
@@ -366,6 +370,88 @@ static void webInit()
   // This method saves configuration form contents
   server.on("/setconfig", HTTP_ANY, webSetConfig);
 
+  // ── OTA firmware update ─────────────────────────────────────────
+  // GET:  shows upload form
+  // POST: receives firmware binary and applies it
+  server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/html", webUpdatePage());
+  });
+
+  server.on("/update", HTTP_POST,
+    [](AsyncWebServerRequest *request) {
+      // Upload complete — check result
+      if (Update.hasError()) {
+        String msg = String("Update failed: ") + Update.errorString();
+        Serial.println(msg);
+        request->send(500, "text/plain", msg);
+      } else {
+        request->send(200, "text/html",
+          "<!DOCTYPE HTML><HTML><HEAD><META CHARSET='UTF-8'>"
+          "<META HTTP-EQUIV='refresh' CONTENT='20;URL=/'>"
+          "<META NAME='viewport' CONTENT='width=device-width, initial-scale=1.0'>"
+          "<TITLE>Update OK</TITLE>"
+          "<STYLE>BODY{font-family:sans-serif;text-align:center;padding:50px;}"
+          "H1{color:#4CAF50;}</STYLE>"
+          "</HEAD><BODY>"
+          "<H1>Update Complete!</H1><P>Device rebooting...</P></BODY></HTML>"
+        );
+        Serial.println("OTA: Success — rebooting in 1s");
+        delay(1000);
+        ESP.restart();
+      }
+    },
+    [](AsyncWebServerRequest *request, String filename, size_t index,
+       uint8_t *data, size_t len, bool final) {
+      // Upload chunk handler — streams into Update.write()
+      if (!index) {
+        // First chunk: validate and begin
+        int contentLength = request->contentLength();
+        if (contentLength < 100000) {
+          request->send(400, "text/plain", "Firmware too small (<100KB)");
+          return;
+        }
+        if (!filename.endsWith(".bin")) {
+          request->send(400, "text/plain", "Only .bin files accepted");
+          return;
+        }
+
+        Serial.printf("OTA: Starting %s (%d bytes)\n",
+                      filename.c_str(), contentLength);
+
+        if (!Update.begin(contentLength, U_FLASH)) {
+          Update.printError(Serial);
+          return;
+        }
+        otaProgress = 0;
+      }
+
+      // Write chunk to flash
+      if (Update.write(data, len) != len) {
+        Update.printError(Serial);
+      }
+
+      // Update progress display
+      int total = request->contentLength();
+      if (total > 0) {
+        int pct = (index + len) * 100 / total;
+        if (pct != otaProgress) {
+          otaProgress = pct;
+          Serial.printf("OTA: %d%%\n", pct);
+        }
+      }
+
+      if (final) {
+        if (Update.end(true)) {
+          Serial.printf("OTA: %s written successfully\n", filename.c_str());
+          otaProgress = 100;
+        } else {
+          Update.printError(Serial);
+          otaProgress = -1;
+        }
+      }
+    }
+  );
+
   // Start web server
   server.begin();
 }
@@ -589,6 +675,7 @@ static const String webRadioPage()
 "<H1>ATS-Mini Pocket Receiver</H1>"
 "<P ALIGN='CENTER'>"
   "<A HREF='/memory'>Memory</A>&nbsp;|&nbsp;<A HREF='/config'>Config</A>"
+  "&nbsp;|&nbsp;<A HREF='/update'>Update</A>"
 "</P>"
 "<TABLE COLUMNS=2>"
 "<TR>"
@@ -652,6 +739,7 @@ static const String webMemoryPage()
 "<H1>ATS-Mini Pocket Receiver Memory</H1>"
 "<P ALIGN='CENTER'>"
   "<A HREF='/'>Status</A>&nbsp;|&nbsp;<A HREF='/config'>Config</A>"
+  "&nbsp;|&nbsp;<A HREF='/update'>Update</A>"
 "</P>"
 "<TABLE COLUMNS=2>" + items + "</TABLE>"
 );
@@ -674,6 +762,7 @@ const String webConfigPage()
 "<P ALIGN='CENTER'>"
   "<A HREF='/'>Status</A>"
   "&nbsp;|&nbsp;<A HREF='/memory'>Memory</A>"
+  "&nbsp;|&nbsp;<A HREF='/update'>Update</A>"
 "</P>"
 "<FORM ACTION='/setconfig' METHOD='POST'>"
   "<TABLE COLUMNS=2>"
@@ -746,5 +835,30 @@ const String webConfigPage()
   "</TH></TR>"
   "</TABLE>"
 "</FORM>"
+);
+}
+
+static const String webUpdatePage()
+{
+  return webPage(
+"<H1>Firmware Update</H1>"
+"<P ALIGN='CENTER'>"
+  "<A HREF='/'>Status</A>&nbsp;|&nbsp;<A HREF='/config'>Config</A>"
+"</P>"
+"<P>Select the firmware <CODE>.bin</CODE> file to upload.</P>"
+"<FORM METHOD='POST' ACTION='/update' ENCTYPE='multipart/form-data'>"
+"<TABLE COLUMNS=1>"
+"<TR><TD>"
+  "<INPUT TYPE='FILE' NAME='firmware' ACCEPT='.bin'>"
+"</TD></TR>"
+"<TR><TD CLASS='CENTER'>"
+  "<INPUT TYPE='SUBMIT' VALUE='Upload &amp; Update'>"
+"</TD></TR>"
+"</TABLE>"
+"</FORM>"
+"<P STYLE='color:#888;font-size:smaller;'>"
+  "The device will reboot automatically after the update.<BR>"
+  "Do <STRONG>not</STRONG> power off during the update."
+"</P>"
 );
 }
