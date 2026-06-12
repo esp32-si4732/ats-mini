@@ -139,7 +139,8 @@ static bool remoteSetFrequency(Stream *stream)
   Band *band = getCurrentBand();
   uint16_t targetFreq = freqFromHz(freqHz, currentMode);
   int targetBfo = isSSB() ? bfoFromHz(freqHz) : 0;
-  if(!isFreqInBand(band, targetFreq) || (isSSB() && targetFreq == band->maximumFreq && targetBfo))
+  // The band-limit check is skipped when the frequency override is unlocked
+  if(!freqOverride && (!isFreqInBand(band, targetFreq) || (isSSB() && targetFreq == band->maximumFreq && targetBfo)))
     return remoteShowError(stream, "Frequency is out of range for the current band");
   if(!updateFrequency(targetFreq, false))
     return remoteShowError(stream, "Frequency is out of range for the current band");
@@ -422,6 +423,11 @@ int remoteDoCommand(Stream* stream, RemoteState* state, char key)
       break;
     case 'o':
       sleepOn(false);
+      break;
+    case 'P': // Toggle frequency limit override (lock/unlock band limits)
+      freqOverride = !freqOverride;
+      stream->printf("\r\nFreq override %s\r\n", freqOverride? "unlocked":"locked");
+      event |= REMOTE_PREFS;
       break;
     case 'I':
       doCal(1);

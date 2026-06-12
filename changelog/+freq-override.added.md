@@ -1,0 +1,1 @@
+Frequency limit override that allows tuning beyond the firmware band edges (still within the SI4732 physical range). It is locked by default for normal behavior and can be toggled via `Settings -> Freq Limit`, the Web UI, or the `P` serial command.

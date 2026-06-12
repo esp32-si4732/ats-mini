@@ -5,6 +5,7 @@
 #include "Draw.h"
 #include "EIBI.h"
 #include "BleMode.h"
+#include "Morse.h"
 #include "Menu.h"
 
 //
@@ -79,13 +80,14 @@ Band *getCurrentBand() { return(&bands[bandIdx]); }
 #define MENU_STEP         3
 #define MENU_SEEK         4
 #define MENU_SCAN         5
-#define MENU_MEMORY       6
-#define MENU_SQUELCH      7
-#define MENU_BW           8
-#define MENU_AGC_ATT      9
-#define MENU_AVC         10
-#define MENU_SOFTMUTE    11
-#define MENU_SETTINGS    12
+#define MENU_WATERFALL    6
+#define MENU_MEMORY       7
+#define MENU_SQUELCH      8
+#define MENU_BW           9
+#define MENU_AGC_ATT     10
+#define MENU_AVC         11
+#define MENU_SOFTMUTE    12
+#define MENU_SETTINGS    13
 
 int8_t menuIdx = MENU_VOLUME;
 
@@ -97,6 +99,7 @@ static const char *menu[] =
   "Step",
   "Seek",
   "Scan",
+  "Waterfall",
   "Memory",
   "Squelch",
   "Bandwidth",
@@ -125,7 +128,9 @@ static const char *menu[] =
 #define MENU_USBMODE      12
 #define MENU_BLEMODE      13
 #define MENU_WIFIMODE     14
-#define MENU_ABOUT        15
+#define MENU_MORSE        15
+#define MENU_FREQLIMIT    16
+#define MENU_ABOUT        17
 
 
 int8_t settingsIdx = MENU_BRIGHTNESS;
@@ -147,6 +152,8 @@ static const char *settings[] =
   "USB Port",
   "Bluetooth",
   "Wi-Fi",
+  "Morse",
+  "Freq Limit",
   "About",
 };
 
@@ -295,6 +302,11 @@ uint8_t wifiModeIdx = NET_OFF;
 static const char *wifiModeDesc[] =
 { "Off", "AP Only", "AP+Connect", "Connect", "Sync Only" };
 
+int getTotalRDSModes()   { return(ITEM_COUNT(rdsMode)); }
+int getTotalSleepModes() { return(ITEM_COUNT(sleepModeDesc)); }
+int getTotalUILayouts()  { return(ITEM_COUNT(uiLayoutDesc)); }
+int getTotalWiFiModes()  { return(ITEM_COUNT(wifiModeDesc)); }
+
 //
 // Step Menu
 //
@@ -349,6 +361,28 @@ static int getLastStep(int mode)
   }
 
   return(0);
+}
+
+// Number of supported steps for the current band/mode
+int getStepCount()
+{
+  return(getLastStep(currentMode) + 1);
+}
+
+// Value of the given step (by index) for the current band/mode, expressed
+// in kHz. The Step "step" field is stored in device-specific units
+// (FM: x10 kHz, AM: kHz, SSB: Hz), so convert to kHz. Sub-kHz SSB steps
+// round down to 0. Used to expose the real step list to the web UI.
+int getStepValueKHz(int idx)
+{
+  if(idx < 0 || idx > getLastStep(currentMode)) return(0);
+  int step = steps[currentMode][idx].step;
+  switch(currentMode)
+  {
+    case FM:  return(step * 10);   // table units: 10 kHz
+    case AM:  return(step);        // table units: kHz
+    default:  return(step / 1000); // SSB table units: Hz
+  }
 }
 
 const Step *getCurrentStep()
@@ -561,6 +595,14 @@ static void clickScan(bool shortPress)
   else currentCmd = CMD_NONE;
 }
 
+// Exit the continuous on-device RSSI waterfall on any click.
+// The waterfall owns the radio while active (see the main loop), so any
+// press returns to normal operation.
+static void clickWaterfall(bool shortPress)
+{
+  currentCmd = CMD_NONE;
+}
+
 static void doTheme(int16_t enc)
 {
   themeIdx = wrap_range(themeIdx, enc, 0, getTotalThemes() - 1);
@@ -676,6 +718,17 @@ static void doScrollDir(int16_t enc)
   scrollDirection = (scrollDirection == 1) ? -1 : 1;
 }
 
+static void doMorse(int16_t enc)
+{
+  morseModeIdx = wrap_range(morseModeIdx, enc, 0, getTotalMorseModes() - 1);
+  morseReset();
+}
+
+static void doFreqOverride(int16_t enc)
+{
+  freqOverride = !freqOverride;
+}
+
 uint8_t doAbout(int16_t enc)
 {
   static uint8_t aboutScreen = 0;
@@ -759,6 +812,47 @@ void doStep(int16_t enc)
     rx.setSeekFmSpacing(steps[currentMode][idx].spacing);
   else
     rx.setSeekAmSpacing(steps[currentMode][idx].spacing);
+}
+
+// Set the tuning step to the entry nearest to the requested size, given
+// in kHz, for the current band/mode. The Step "step" field is stored in
+// device-specific units (FM: x10 kHz, AM: kHz, SSB: Hz), so convert the
+// requested kHz value into the same units before searching for the
+// closest match. Used by the web UI quick-select step buttons.
+void setStepKHz(int khz)
+{
+  if(khz <= 0) return;
+
+  // Convert the requested kHz value into the step table's native units
+  long target;
+  switch(currentMode)
+  {
+    case FM:  target = (long)khz / 10;   break; // table units: 10 kHz
+    case AM:  target = (long)khz;        break; // table units: kHz
+    default:  target = (long)khz * 1000; break; // SSB table units: Hz
+  }
+
+  uint8_t last = getLastStep(currentMode);
+  uint8_t best = 0;
+  long bestDiff = -1;
+  for(uint8_t i = 0; i <= last; i++)
+  {
+    long diff = (long)steps[currentMode][i].step - target;
+    if(diff < 0) diff = -diff;
+    if(bestDiff < 0 || diff < bestDiff)
+    {
+      bestDiff = diff;
+      best = i;
+    }
+  }
+
+  bands[bandIdx].currentStepIdx = best;
+  rx.setFrequencyStep(steps[currentMode][best].step);
+
+  if(currentMode==FM)
+    rx.setSeekFmSpacing(steps[currentMode][best].spacing);
+  else
+    rx.setSeekAmSpacing(steps[currentMode][best].spacing);
 }
 
 void doAgc(int16_t enc)
@@ -898,6 +992,15 @@ static void clickMenu(int cmd, bool shortPress)
       currentCmd = CMD_SCAN;
       clickScan(true);
       break;
+
+    case MENU_WATERFALL:
+      // Enter the continuous on-device RSSI waterfall. The main loop
+      // repeatedly scans and feeds rows to the display while active.
+      currentCmd = CMD_WATERFALL;
+      clearStationInfo();
+      rssi = snr = 0;
+      waterfallReset();
+      break;
   }
 }
 
@@ -928,6 +1031,8 @@ static void clickSettings(int cmd, bool shortPress)
     case MENU_USBMODE:    currentCmd = CMD_USBMODE;    break;
     case MENU_BLEMODE:    currentCmd = CMD_BLEMODE;    break;
     case MENU_WIFIMODE:   currentCmd = CMD_WIFIMODE;   break;
+    case MENU_MORSE:      currentCmd = CMD_MORSE;      break;
+    case MENU_FREQLIMIT:  currentCmd = CMD_FREQOVR;    break;
     case MENU_FM_REGION:
       // Only in FM mode
       if(currentMode==FM) currentCmd = CMD_FM_REGION;
@@ -974,6 +1079,8 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_SCROLL:     doScrollDir(enc);break;
     case CMD_UTCOFFSET:  doUTCOffset(scrollDirection * enc);break;
     case CMD_SQUELCH:    doSquelch(enca);break;
+    case CMD_MORSE:      doMorse(scrollDirection * enc);break;
+    case CMD_FREQOVR:    doFreqOverride(enc);break;
     case CMD_ABOUT:      doAbout(enc);break;
     default:             return(false);
   }
@@ -995,6 +1102,7 @@ bool clickHandler(uint16_t cmd, bool shortPress)
     case CMD_SQUELCH:  clickSquelch(shortPress);break;
     case CMD_SEEK:     clickSeek(shortPress);break;
     case CMD_SCAN:     clickScan(shortPress);break;
+    case CMD_WATERFALL:clickWaterfall(shortPress);break;
     case CMD_FREQ:     return(clickFreq(shortPress));
     default:           return(false);
   }
@@ -1623,6 +1731,41 @@ static void drawScrollDir(int x, int y, int sx)
     spr.fillTriangle(39+x+(sx/2)-5, 85+y, 39+x+(sx/2)+5, 85+y, 39+x+(sx/2), 85+y+5, TH.menu_param);
 }
 
+static void drawMorse(int x, int y, int sx)
+{
+  drawCommon(settings[MENU_MORSE], x, y, sx);
+  drawZoomedMenu(settings[MENU_MORSE]);
+  spr.setTextDatum(MC_DATUM);
+
+  spr.setTextColor(TH.menu_param);
+  spr.drawString(morseModeName(morseModeIdx), 40+x+(sx/2), 50+y, 2);
+
+  spr.setTextColor(TH.menu_item);
+  if(morseModeIdx==MORSE_AUDIO && !morseAudioAvailable())
+  {
+    spr.drawString("needs mod:", 40+x+(sx/2), 78+y, 2);
+    spr.drawString("audio->IO11", 40+x+(sx/2), 94+y, 2);
+  }
+  else if(morseModeIdx!=MORSE_OFF)
+  {
+    spr.drawString("decoding", 40+x+(sx/2), 86+y, 2);
+  }
+}
+
+static void drawFreqOverride(int x, int y, int sx)
+{
+  drawCommon(settings[MENU_FREQLIMIT], x, y, sx);
+  drawZoomedMenu(settings[MENU_FREQLIMIT]);
+  spr.setTextDatum(MC_DATUM);
+
+  spr.setTextColor(TH.menu_param);
+  spr.drawString(freqOverride? "Unlocked" : "Locked", 40+x+(sx/2), 55+y, 2);
+
+  spr.setTextColor(TH.menu_item);
+  if(freqOverride)
+    spr.drawString("(no limits)", 40+x+(sx/2), 85+y, 2);
+}
+
 static void drawInfo(int x, int y, int sx)
 {
   char text[16];
@@ -1732,6 +1875,8 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_SCROLL:     drawScrollDir(x, y, sx);  break;
     case CMD_UTCOFFSET:  drawUTCOffset(x, y, sx);  break;
     case CMD_SQUELCH:    drawSquelch(x, y, sx);    break;
+    case CMD_MORSE:      drawMorse(x, y, sx);      break;
+    case CMD_FREQOVR:    drawFreqOverride(x, y, sx);break;
     default:             drawInfo(x, y, sx);       break;
   }
 }

@@ -1,0 +1,1 @@
+Morse (CW) decoder with a pluggable signal source. It defaults to the RSSI/SNR envelope (works on stock hardware) and can use an audio input on GPIO11 (ADC2) when the optional hardware mod is present (built with `-DMORSE_AUDIO_INPUT`). The decoded text is shown on screen and in the Web UI. Selectable via `Settings -> Morse`.

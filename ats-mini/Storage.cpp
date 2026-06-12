@@ -2,6 +2,7 @@
 #include "Storage.h"
 #include "Themes.h"
 #include "Menu.h"
+#include "Morse.h"
 #include <LittleFS.h>
 #include "nvs_flash.h"
 
@@ -197,6 +198,8 @@ void prefsSave(uint32_t items)
     prefs.putUChar("UILayout",    uiLayoutIdx);    // UI Layout
     prefs.putUChar("BLEMode",     bleModeIdx);     // Bluetooth mode
     prefs.putUChar("USBMode",     usbModeIdx);     // USB mode
+    prefs.putUChar("MorseMode",   morseModeIdx);   // Morse decoder mode
+    prefs.putBool("FreqOvr",      freqOverride);   // Frequency limit override
 
     // Done with global settings
     prefs.end();
@@ -278,6 +281,8 @@ bool prefsLoad(uint32_t items)
     uiLayoutIdx    = prefs.getUChar("UILayout", uiLayoutIdx);   // UI Layout
     bleModeIdx     = prefs.getUChar("BLEMode", bleModeIdx);     // Bluetooth mode
     usbModeIdx     = prefs.getUChar("USBMode", usbModeIdx);     // USB mode
+    morseModeIdx   = prefs.getUChar("MorseMode", morseModeIdx); // Morse decoder mode
+    freqOverride   = prefs.getBool("FreqOvr", freqOverride);    // Frequency limit override
 
     // Done with global settings
     prefs.end();

@@ -1,0 +1,1 @@
+Web UI that replicates the radio controls (tuning, band, mode, step, bandwidth, volume, AGC, direct frequency entry) with live status updates. It also shows the RDS station name, RDS radio text, and the decoded Morse text, and exposes the Morse source and frequency-limit override settings. Radio commands are queued and executed in the main loop to avoid racing with the receiver.

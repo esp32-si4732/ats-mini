@@ -425,8 +425,176 @@ void drawScanGraphs(uint32_t freq)
 }
 
 //
+// On-device RSSI waterfall
+//
+// A rolling 2D heatmap of completed scans. Each new scan becomes a new row
+// at the top and older rows scroll down. The buffer lives in PSRAM to keep
+// internal RAM free.
+//
+#define WF_W  200   // Columns stored per row (matches max scan points)
+#define WF_H  120   // Rows of time history (sized to the display)
+
+static uint8_t  *wfBuf      = nullptr;  // WF_H rows x WF_W cols, row 0 = newest
+static int       wfNumRows  = 0;        // Number of valid history rows
+static int       wfCols     = 0;        // Valid columns in the latest scan
+static uint16_t  wfStartFreq = 0;
+static uint16_t  wfStep      = 0;
+
+// Map a normalized RSSI byte (0..255) to a heat color (blue->green->red)
+static uint16_t wfHeat(uint8_t v)
+{
+  int r, g, b;
+  if(v < 128)
+  {
+    r = 0;
+    g = v * 2;
+    b = 255 - v * 2;
+  }
+  else
+  {
+    int u = v - 128;
+    r = u * 2;
+    g = 255 - u * 2;
+    b = 0;
+  }
+  return(tft.color565(r, g, b));
+}
+
+void waterfallReset()
+{
+  if(!wfBuf) wfBuf = (uint8_t *) ps_malloc((size_t)WF_H * WF_W);
+  if(wfBuf) memset(wfBuf, 0, (size_t)WF_H * WF_W);
+  wfNumRows = 0;
+  wfCols    = 0;
+}
+
+void waterfallAddRow()
+{
+  if(!wfBuf) return;
+
+  int count = scanGetCount();
+  if(count <= 0) return;
+  if(count > WF_W) count = WF_W;
+
+  // Normalize against the range present in this scan
+  uint8_t mn = 255, mx = 0;
+  for(int i=0 ; i<count ; i++)
+  {
+    uint8_t r = scanGetRawRSSI(i);
+    if(r < mn) mn = r;
+    if(r > mx) mx = r;
+  }
+  int span = mx - mn;
+  if(span < 1) span = 1;
+
+  // Scroll history down by one row, newest goes on top
+  memmove(wfBuf + WF_W, wfBuf, (size_t)(WF_H - 1) * WF_W);
+  uint8_t *row = wfBuf;
+  // Stretch the `count` samples across the full buffer width so a fast scan
+  // with fewer points still fills the whole waterfall
+  for(int i=0 ; i<WF_W ; i++)
+  {
+    int s = (count>1) ? (int)((long)i * (count-1) / (WF_W-1)) : 0;
+    row[i] = (uint8_t)((scanGetRawRSSI(s) - mn) * 255 / span);
+  }
+
+  wfCols      = count;
+  wfStartFreq = scanGetStartFreq();
+  wfStep      = scanGetStep();
+  if(wfNumRows < WF_H) wfNumRows++;
+}
+
+void drawWaterfall()
+{
+  if(sleepOn()) return;
+
+  spr.fillSprite(TH.bg);
+
+  // Header: band, center frequency and a hint
+  char buf[40];
+  bool fm = currentMode==FM;
+  if(fm)
+    sprintf(buf, "Waterfall  %s %.2f MHz", getCurrentBand()->bandName, currentFrequency/100.0);
+  else
+    sprintf(buf, "Waterfall  %s %u kHz", getCurrentBand()->bandName, currentFrequency);
+  spr.setTextDatum(TC_DATUM);
+  spr.setTextColor(TH.text, TH.bg);
+  spr.drawString(buf, 160, 4, 2);
+
+  const int X0 = 10, Y0 = 26, DW = 300;
+
+  if(!wfBuf)
+  {
+    spr.setTextDatum(MC_DATUM);
+    spr.setTextColor(TH.text_warn, TH.bg);
+    spr.drawString("No memory for waterfall", 160, 90, 2);
+    spr.pushSprite(0, 0);
+    return;
+  }
+
+  // Render the heatmap (row 0 is newest, drawn at the top)
+  for(int y=0 ; y<wfNumRows ; y++)
+  {
+    uint8_t *row = wfBuf + (size_t)y * WF_W;
+    for(int px=0 ; px<DW ; px++)
+      spr.drawPixel(X0 + px, Y0 + y, wfHeat(row[px * WF_W / DW]));
+  }
+
+  // Live scan window centered on the current frequency (same parameters as the
+  // scanRun() call that feeds the waterfall). Computing it here means the range
+  // labels and the pointer track the knob immediately, instead of lagging one
+  // (blocking) scan cycle behind the displayed rows.
+  const uint16_t wfStepLive = 10;
+  const uint16_t wfPtsLive  = WATERFALL_POINTS;
+  const Band *wband = getCurrentBand();
+  long sF = (long)wfStepLive * ((long)currentFrequency / wfStepLive - wfPtsLive / 2);
+  if(sF + (long)wfStepLive * (wfPtsLive - 1) > wband->maximumFreq)
+    sF = (long)wband->maximumFreq - (long)wfStepLive * (wfPtsLive - 1);
+  if(sF < wband->minimumFreq) sF = wband->minimumFreq;
+  uint16_t startF = (uint16_t)sF;
+  uint16_t endF   = startF + wfStepLive * (wfPtsLive - 1);
+
+  // Pointer at the current tuned frequency within the window
+  int fSpan = (int)(endF - startF);
+  int px = fSpan>0 ? (int)((long)(currentFrequency - startF) * DW / fSpan) : DW/2;
+  px = px<0 ? 0 : px>DW ? DW : px;
+  spr.drawLine(X0 + px, Y0, X0 + px, Y0 + WF_H - 1, TH.scale_pointer);
+
+  // Frequency range labels along the bottom
+  char lo[16], hi[16];
+  if(fm)
+  {
+    sprintf(lo, "%.1f", startF/100.0);
+    sprintf(hi, "%.1f", endF/100.0);
+  }
+  else
+  {
+    sprintf(lo, "%u", startF);
+    sprintf(hi, "%u", endF);
+  }
+  spr.setTextColor(TH.scale_text, TH.bg);
+  spr.setTextDatum(BL_DATUM);
+  spr.drawString(lo, X0, 168, 2);
+  spr.setTextDatum(BR_DATUM);
+  spr.drawString(hi, X0 + DW, 168, 2);
+
+  spr.pushSprite(0, 0);
+}
+
+//
 // Draw screen according to given command
 //
+//
+// Draw the decoded Morse (CW) text in the status area
+//
+void drawMorseText(const char *text, int x, int y)
+{
+  spr.setTextDatum(ML_DATUM);
+  spr.setTextColor(TH.text, TH.bg);
+  spr.drawString("CW:", x, y, 2);
+  spr.drawString(text, x + 28, y, 2);
+}
+
 void drawScreen(const char *statusLine1, const char *statusLine2)
 {
   if(sleepOn()) return;
@@ -438,6 +606,13 @@ void drawScreen(const char *statusLine1, const char *statusLine2)
   if(currentCmd==CMD_ABOUT)
   {
     drawAbout();
+    return;
+  }
+
+  // Waterfall takes over the whole screen and pushes the sprite itself
+  if(currentCmd==CMD_WATERFALL)
+  {
+    drawWaterfall();
     return;
   }
 

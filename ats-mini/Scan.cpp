@@ -26,6 +26,7 @@ static uint8_t  scanStatus = SCAN_OFF;
 static uint16_t scanStartFreq;
 static uint16_t scanStep;
 static uint16_t scanCount;
+static uint16_t scanPoints = SCAN_POINTS; // Points for the current scan (<= SCAN_POINTS)
 static uint8_t  scanMinRSSI;
 static uint8_t  scanMaxRSSI;
 static uint8_t  scanMinSNR;
@@ -54,6 +55,18 @@ float scanGetSNR(uint16_t freq)
   return((result - scanMinSNR) / (float)(scanMaxSNR - scanMinSNR + 1));
 }
 
+//
+// Raw scan data accessors, used by the web UI to draw an RSSI waterfall.
+// Data is only valid after a scan has completed (SCAN_DONE).
+//
+bool scanIsDone()             { return(scanStatus==SCAN_DONE); }
+bool scanIsRunning()          { return(scanStatus==SCAN_RUN); }
+uint16_t scanGetStartFreq()   { return(scanStartFreq); }
+uint16_t scanGetStep()        { return(scanStep); }
+int scanGetCount()            { return(scanStatus==SCAN_DONE ? scanCount : 0); }
+uint8_t scanGetRawRSSI(int i) { return((i>=0 && i<scanCount) ? scanData[i].rssi : 0); }
+uint8_t scanGetRawSNR(int i)  { return((i>=0 && i<scanCount) ? scanData[i].snr  : 0); }
+
 static void scanInit(uint16_t centerFreq, uint16_t step)
 {
   scanStep    = step;
@@ -66,11 +79,11 @@ static void scanInit(uint16_t centerFreq, uint16_t step)
   scanTime    = millis();
 
   const Band *band = getCurrentBand();
-  int freq = scanStep * (centerFreq / scanStep - SCAN_POINTS / 2);
+  int freq = scanStep * (centerFreq / scanStep - scanPoints / 2);
 
   // Adjust to band boundaries
-  if(freq + scanStep * (SCAN_POINTS - 1) > band->maximumFreq)
-    freq = band->maximumFreq - scanStep * (SCAN_POINTS - 1);
+  if(freq + scanStep * (scanPoints - 1) > band->maximumFreq)
+    freq = band->maximumFreq - scanStep * (scanPoints - 1);
   if(freq < band->minimumFreq)
     freq = band->minimumFreq;
   scanStartFreq = freq;
@@ -82,7 +95,7 @@ static void scanInit(uint16_t centerFreq, uint16_t step)
 static bool scanTickTime()
 {
   // Scan must be on
-  if((scanStatus!=SCAN_RUN) || (scanCount>=SCAN_POINTS)) return(false);
+  if((scanStatus!=SCAN_RUN) || (scanCount>=scanPoints)) return(false);
 
   // Wait for the right time
   if(millis() - scanTime < SCAN_POLL_TIME) return(true);
@@ -121,7 +134,7 @@ static bool scanTickTime()
   freq += scanStep;
 
   // Set next frequency to scan or expire scan
-  if((++scanCount >= SCAN_POINTS) || !isFreqInBand(getCurrentBand(), freq) || consumeAbortPending())
+  if((++scanCount >= scanPoints) || !isFreqInBand(getCurrentBand(), freq) || consumeAbortPending())
     scanStatus = SCAN_DONE;
   else
     rx.setFrequency(freq); // Implies tuning delay
@@ -136,10 +149,12 @@ static bool scanTickTime()
 //
 // Run entire scan once
 //
-void scanRun(uint16_t centerFreq, uint16_t step)
+void scanRun(uint16_t centerFreq, uint16_t step, uint16_t points, uint16_t tuneDelay)
 {
-  // Set tuning delay
-  rx.setMaxDelaySetFrequency(currentMode == FM ? TUNE_DELAY_FM : TUNE_DELAY_AM_SSB);
+  // Number of points to sample (0 = full-resolution one-shot scan)
+  scanPoints = points ? (points > SCAN_POINTS ? SCAN_POINTS : points) : SCAN_POINTS;
+  // Set tuning delay (0 = full per-mode settling delay)
+  rx.setMaxDelaySetFrequency(tuneDelay ? tuneDelay : (currentMode == FM ? TUNE_DELAY_FM : TUNE_DELAY_AM_SSB));
   // Mute the audio
   muteOn(MUTE_TEMP, true);
   // Flag is set by rotary encoder and cleared on seek/scan entry

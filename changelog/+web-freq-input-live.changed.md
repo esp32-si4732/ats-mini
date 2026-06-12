@@ -1,0 +1,1 @@
+The Web UI "Set frequency" box now stays live-updated with the current tuned frequency (unless you are editing it) and shows thousands-grouped digits matching the big readout, making fine adjustments easier; grouping/spaces are stripped on submit so tuning still works.

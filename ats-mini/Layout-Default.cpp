@@ -2,6 +2,7 @@
 #include "Themes.h"
 #include "Utils.h"
 #include "Menu.h"
+#include "Morse.h"
 #include "Draw.h"
 
 void drawLayoutDefault(const char *statusLine1, const char *statusLine2)
@@ -65,8 +66,10 @@ void drawLayoutDefault(const char *statusLine1, const char *statusLine2)
   }
   else if(!drawWiFiStatus(statusLine1, statusLine2, STATUS_OFFSET_X, STATUS_OFFSET_Y))
   {
-    // Show radio text if present, else show frequency scale
-    if(*getRadioText() || *getProgramInfo())
+    // Show decoded Morse if enabled, else radio text if present, else the scale
+    if(morseIsEnabled())
+      drawMorseText(morseGetText(), MENU_OFFSET_X + 6, STATUS_OFFSET_Y);
+    else if(*getRadioText() || *getProgramInfo())
       drawRadioText(STATUS_OFFSET_Y, STATUS_OFFSET_Y + 25);
     else
       drawScale(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency);

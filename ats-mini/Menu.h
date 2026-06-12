@@ -27,7 +27,8 @@
 #define CMD_MEMORY     0x1900 // |
 #define CMD_SEEK       0x1A00 // |
 #define CMD_SCAN       0x1B00 // |
-#define CMD_SQUELCH    0x1C00 //-+
+#define CMD_SQUELCH    0x1C00 // |
+#define CMD_WATERFALL  0x1D00 //-+
 #define CMD_SETTINGS   0x2000 //-SETTINGS MODE starts here
 #define CMD_BRT        0x2100 // |
 #define CMD_CAL        0x2200 // |
@@ -44,7 +45,9 @@
 #define CMD_USBMODE    0x2D00 // |
 #define CMD_BLEMODE    0x2E00 // |
 #define CMD_WIFIMODE   0x2F00 // |
-#define CMD_ABOUT      0x3000 //-+
+#define CMD_MORSE      0x3000 // |
+#define CMD_FREQOVR    0x3100 // |
+#define CMD_ABOUT      0x3200 //-+
 
 // UI Layouts
 #define UI_DEFAULT  0
@@ -120,6 +123,13 @@ int getCurrentUTCOffset();
 int getTotalUTCOffsets();
 int getTotalFmRegions();
 int getTotalBleModes();
+int getTotalRDSModes();
+int getTotalSleepModes();
+int getTotalUILayouts();
+int getTotalUSBModes();
+int getTotalWiFiModes();
+
+bool tuneToMemory(const Memory *memory);
 
 void doSoftMute(int16_t enc);
 void doAgc(int16_t enc);
@@ -130,6 +140,9 @@ void doVolume(int16_t enc);
 void doBrt(int16_t enc);
 void doCal(int16_t enc);
 void doStep(int16_t enc);
+void setStepKHz(int khz);
+int getStepCount();
+int getStepValueKHz(int idx);
 void doMode(int16_t enc);
 void doBand(int16_t enc);
 

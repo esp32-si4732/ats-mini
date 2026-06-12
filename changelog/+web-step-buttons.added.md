@@ -1,0 +1,1 @@
+Added dynamic quick-select tuning step buttons and a live step readout to the Web UI Tuning card. The buttons now reflect the actual steps supported by the current band/mode (sourced from the new "steps" field in /api/status), so each button applies a distinct, real step that matches its label.

@@ -14,6 +14,7 @@
 #include "EIBI.h"
 #include "Remote.h"
 #include "BleMode.h"
+#include "Morse.h"
 
 // SI473/5 and UI
 #define MIN_ELAPSED_TIME         5  // 300
@@ -75,6 +76,7 @@ uint16_t currentSleep = DEFAULT_SLEEP;  // Display sleep timeout, range = 0 to 2
 long elapsedSleep = millis();           // Display sleep timer
 bool zoomMenu = false;                  // Display zoomed menu item
 int8_t scrollDirection = 1;             // Menu scroll direction
+bool freqOverride = false;              // TRUE: allow tuning beyond band limits
 
 // Background screen refresh
 uint32_t background_timer = millis();   // Background screen refresh timer.
@@ -263,6 +265,9 @@ void setup()
   attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_A), rotaryEncoder, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_B), rotaryEncoder, CHANGE);
 
+  // Initialize the Morse (CW) decoder
+  morseSetup();
+
   // Connect WiFi, if necessary
   netInit(wifiModeIdx);
 
@@ -344,6 +349,25 @@ uint32_t consumeEncoderCounts()
 }
 
 //
+// Effective tuning limits.
+//
+// Normally these are the band edges defined in the bands table. When the
+// frequency override is unlocked, they widen to the physical capabilities
+// of the SI4732 (it is not possible to tune beyond the chip's range).
+//
+uint16_t effMinFreq(const Band *band)
+{
+  if(!freqOverride) return(band->minimumFreq);
+  return(band->bandMode==FM ? 6400 : 150);
+}
+
+uint16_t effMaxFreq(const Band *band)
+{
+  if(!freqOverride) return(band->maximumFreq);
+  return(band->bandMode==FM ? 10800 : 30000);
+}
+
+//
 // Switch radio to given band
 //
 void useBand(const Band *band)
@@ -353,12 +377,15 @@ void useBand(const Band *band)
   currentMode = band->bandMode;
   currentBFO = 0;
 
+  uint16_t loFreq = effMinFreq(band);
+  uint16_t hiFreq = effMaxFreq(band);
+
   if(band->bandMode==FM)
   {
     // rx.setMaxDelaySetFrequency(60);
-    rx.setFM(band->minimumFreq, band->maximumFreq, band->currentFreq, getCurrentStep()->step);
+    rx.setFM(loFreq, hiFreq, band->currentFreq, getCurrentStep()->step);
     // rx.setTuneFrequencyAntennaCapacitor(0);
-    rx.setSeekFmLimits(band->minimumFreq, band->maximumFreq);
+    rx.setSeekFmLimits(loFreq, hiFreq);
 
     // More sensitive seek thresholds
     // https://github.com/pu2clr/SI4735/issues/7#issuecomment-810963604
@@ -376,7 +403,7 @@ void useBand(const Band *band)
     // rx.setMaxDelaySetFrequency(80);
     if(band->bandMode==AM)
     {
-      rx.setAM(band->minimumFreq, band->maximumFreq, band->currentFreq, getCurrentStep()->step);
+      rx.setAM(loFreq, hiFreq, band->currentFreq, getCurrentStep()->step);
       // More sensitive seek thresholds
       // https://github.com/pu2clr/SI4735/issues/7#issuecomment-810963604
       rx.setSeekAmRssiThreshold(10); // default is 25
@@ -385,7 +412,7 @@ void useBand(const Band *band)
     else
     {
       // Configure SI4732 for SSB (SI4732 step not used, set to 0)
-      rx.setSSB(band->minimumFreq, band->maximumFreq, band->currentFreq, 0, currentMode);
+      rx.setSSB(loFreq, hiFreq, band->currentFreq, 0, currentMode);
       // G8PTN: Always enabled
       rx.setSSBAutomaticVolumeControl(1);
       // G8PTN: Commented out
@@ -407,7 +434,7 @@ void useBand(const Band *band)
     // G8PTN: Set GPIO1 = 1
     rx.setGpio(1, 0, 0);
     // Consider the range all defined current band
-    rx.setSeekAmLimits(band->minimumFreq, band->maximumFreq);
+    rx.setSeekAmLimits(loFreq, hiFreq);
   }
 
   // Set step and spacing based on mode (FM, AM, SSB)
@@ -446,18 +473,20 @@ bool updateBFO(int newBFO, bool wrap)
     newBFO  -= fCorrect;
   }
 
-  // Do not let new frequency exceed band limits
+  // Do not let new frequency exceed band limits (widened when unlocked)
+  uint16_t loFreq = effMinFreq(band);
+  uint16_t hiFreq = effMaxFreq(band);
   int f = newFreq * 1000 + newBFO;
-  if(f < band->minimumFreq * 1000)
+  if(f < loFreq * 1000)
   {
     if(!wrap) return false;
-    newFreq = band->maximumFreq;
+    newFreq = hiFreq;
     newBFO  = 0;
   }
-  else if(f > band->maximumFreq * 1000)
+  else if(f > hiFreq * 1000)
   {
     if(!wrap) return false;
-    newFreq = band->minimumFreq;
+    newFreq = loFreq;
     newBFO  = 0;
   }
 
@@ -496,14 +525,16 @@ bool updateFrequency(int newFreq, bool wrap)
 {
   Band *band = getCurrentBand();
 
-  // Do not let new frequency exceed band limits
-  if(newFreq < band->minimumFreq)
+  // Do not let new frequency exceed band limits (widened when unlocked)
+  uint16_t loFreq = effMinFreq(band);
+  uint16_t hiFreq = effMaxFreq(band);
+  if(newFreq < loFreq)
   {
-    if(!wrap) return false; else newFreq = band->maximumFreq;
+    if(!wrap) return false; else newFreq = hiFreq;
   }
-  else if(newFreq > band->maximumFreq)
+  else if(newFreq > hiFreq)
   {
-    if(!wrap) return false; else newFreq = band->minimumFreq;
+    if(!wrap) return false; else newFreq = loFreq;
   }
 
   // Set new frequency
@@ -519,6 +550,11 @@ bool updateFrequency(int newFreq, bool wrap)
   band->currentFreq = currentFrequency + currentBFO / 1000;
   return true;
 }
+
+// Set when a blocking operation was aborted specifically by the encoder
+// button (as opposed to encoder rotation). Used by the waterfall mode to
+// exit cleanly even when the button press is consumed mid-scan.
+static bool pbAbortPending = false;
 
 // This function is called by blocking operations that need a lightweight abort check.
 bool consumeAbortPending()
@@ -538,6 +574,7 @@ bool consumeAbortPending()
     // Wait till the button is released, otherwise the main loop will register a click
     while(pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW).isPressed)
       delay(100);
+    pbAbortPending = true;
     return true;
   }
 
@@ -782,6 +819,17 @@ void loop()
   encCountAccel = ble_direction? ble_direction : encCountAccel;
   if(ble_event & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
 
+  // Receive and execute queued Web UI command
+  int web_event = webRemoteLoop();
+  needRedraw |= !!(web_event & REMOTE_CHANGED);
+  pb1st.isPressed |= !!(web_event & REMOTE_PRESSED);
+  pb1st.wasClicked |= !!(web_event & REMOTE_CLICK);
+  pb1st.wasShortPressed |= !!(web_event & REMOTE_SHORT_PRESS);
+  int web_direction = web_event >> REMOTE_DIRECTION;
+  encCount = web_direction? web_direction : encCount;
+  encCountAccel = web_direction? web_direction : encCountAccel;
+  if(web_event & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
+
   // Block encoder rotation when in the locked sleep mode
   if(encCount && sleepOn() && sleepModeIdx==SLEEP_LOCKED) encCount = encCountAccel = 0;
 
@@ -834,7 +882,8 @@ void loop()
       {
         case CMD_NONE:
         case CMD_SCAN:
-          // Tuning
+        case CMD_WATERFALL:
+          // Tuning (in waterfall mode this moves the scan center frequency)
           needRedraw |= doTune(encCountAccel);
           // Current frequency may have changed
           prefsRequestSave(SAVE_CUR_BAND);
@@ -928,11 +977,38 @@ void loop()
     }
   }
 
+  // Drive the on-device RSSI waterfall: run one scan per iteration and feed
+  // the result to the display. While active, the waterfall owns the radio so
+  // normal tuning/listening is paused (Part 2 mutual exclusion). scanRun()
+  // mutes/restores audio and feeds the watchdog like the one-shot scan.
+  if(currentCmd == CMD_WATERFALL && !sleepOn())
+  {
+    scanRun(currentFrequency, 10, WATERFALL_POINTS, WATERFALL_TUNE_DELAY);
+    waterfallAddRow();
+    needRedraw = true;
+
+    // A button press during the (blocking) scan is consumed by the abort
+    // check, so use the flag it sets to exit the waterfall cleanly.
+    if(pbAbortPending)
+    {
+      pbAbortPending = false;
+      currentCmd = CMD_NONE;
+    }
+
+    // Scanning takes a while; keep the idle timeouts from firing
+    elapsedSleep = elapsedCommand = currentTime = millis();
+  }
+  else
+  {
+    // The abort flag is only meaningful for the waterfall mode
+    pbAbortPending = false;
+  }
+
   // Disable commands control
   if((currentTime - elapsedCommand) > ELAPSED_COMMAND)
   {
     // if(getCpuFrequencyMhz()!=80) setCpuFrequencyMhz(80);
-    if(currentCmd != CMD_NONE && currentCmd != CMD_SEEK && currentCmd != CMD_SCAN && currentCmd != CMD_MEMORY)
+    if(currentCmd != CMD_NONE && currentCmd != CMD_SEEK && currentCmd != CMD_SCAN && currentCmd != CMD_MEMORY && currentCmd != CMD_WATERFALL)
     {
       currentCmd = CMD_NONE;
       needRedraw = true;
@@ -954,6 +1030,9 @@ void loop()
     needRedraw |= processRssiSnr();
     elapsedRSSI = currentTime;
   }
+
+  // Sample and decode Morse (CW), if enabled
+  needRedraw |= morseTickTime();
 
   // Periodically check received RDS information
   if((currentTime - lastRDSCheck) > RDS_CHECK_TIME)
