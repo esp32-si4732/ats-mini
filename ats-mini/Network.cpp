@@ -103,6 +103,20 @@ static volatile int webPendingWifi = -1;
 static volatile bool webPendingScan = false;   // TRUE: run an RSSI scan
 static volatile int webPendingMemTune = -1;    // 1-based memory slot to tune
 static volatile int webPendingStep = -1;       // requested tuning step in kHz
+static volatile int webPendingAgc = -1;        // 1 = AGC auto on, 0 = manual/attenuator
+static volatile int webPendingMute = -1;       // 1 = muted, 0 = unmuted
+static volatile int webPendingMode = -1;       // target modulation mode index
+static volatile int webPendingBand = -1;       // target band index
+
+// Web-initiated RSSI waterfall mode. While active the device main loop locks
+// (normal tuning/listening paused) and audio is muted steadily for the whole
+// session instead of flapping on/off between scans.
+#define WEB_WATERFALL_TIMEOUT 3000             // Auto-clear if no scan request (ms)
+static volatile bool     webWaterfallOn = false;     // TRUE: waterfall mode active
+static volatile uint32_t webWaterfallLastReq = 0;    // millis() of last scan request
+static bool              webWaterfallMuted = false;  // TRUE: we hold the mute
+
+bool webWaterfallActive() { return webWaterfallOn; }
 
 static inline int clampInt(int v, int lo, int hi)
 {
@@ -259,12 +273,69 @@ int webRemoteLoop()
     setStepKHz(khz);
     event |= REMOTE_CHANGED | REMOTE_PREFS;
   }
+  if(webPendingAgc >= 0)
+  {
+    bool autoOn = webPendingAgc != 0;
+    webPendingAgc = -1;
+    // Mirror doAgc()'s tail: agcIdx 0 = AGC automatic, >=1 = manual/attenuator.
+    // Toggling to manual selects the first attenuation step (agcIdx 1).
+    int target = autoOn ? 0 : 1;
+    if(currentMode==FM)    agcIdx = FmAgcIdx  = target;
+    else if(isSSB())       agcIdx = SsbAgcIdx = target;
+    else                   agcIdx = AmAgcIdx  = target;
+    disableAgc = agcIdx>0 ? 1 : 0;
+    agcNdx     = agcIdx>1 ? agcIdx - 1 : 0;
+    rx.setAutomaticGainControl(disableAgc, agcNdx);
+    event |= REMOTE_CHANGED | REMOTE_PREFS;
+  }
+  if(webPendingMute >= 0)
+  {
+    bool m = webPendingMute != 0;
+    webPendingMute = -1;
+    muteOn(MUTE_MAIN, m ? 1 : 0);
+    if(!m) rx.setVolume(volume);
+    event |= REMOTE_CHANGED;
+  }
+  if(webPendingMode >= 0)
+  {
+    int mode = webPendingMode;
+    webPendingMode = -1;
+    if(setMode((uint8_t)mode))
+      event |= REMOTE_CHANGED | REMOTE_PREFS;
+  }
+  if(webPendingBand >= 0)
+  {
+    int idx = webPendingBand;
+    webPendingBand = -1;
+    if(setBand((uint8_t)idx))
+      event |= REMOTE_CHANGED | REMOTE_PREFS;
+  }
 
-  // Run a (blocking) RSSI scan for the waterfall display
+  // Web waterfall mode: auto-clear if the web client stopped polling (e.g. the
+  // tab was closed) so the device never stays locked forever.
+  if(webWaterfallOn && (millis() - webWaterfallLastReq > WEB_WATERFALL_TIMEOUT))
+    webWaterfallOn = false;
+
+  // Hold the audio mute for the whole waterfall session (set once on entry,
+  // released once on exit) so it does not flap on/off between scans.
+  if(webWaterfallOn && !webWaterfallMuted)
+  {
+    muteOn(MUTE_TEMP, true);
+    webWaterfallMuted = true;
+  }
+  else if(!webWaterfallOn && webWaterfallMuted)
+  {
+    muteOn(MUTE_TEMP, false);
+    webWaterfallMuted = false;
+    event |= REMOTE_CHANGED;
+  }
+
+  // Run a (blocking) RSSI scan for the waterfall display. While in waterfall
+  // mode the mute is held by us (holdMute), so scanRun() does not toggle it.
   if(webPendingScan)
   {
     webPendingScan = false;
-    scanRun(currentFrequency, 10, WATERFALL_POINTS, WATERFALL_TUNE_DELAY);
+    scanRun(currentFrequency, 10, WATERFALL_POINTS, WATERFALL_TUNE_DELAY, webWaterfallOn);
     event |= REMOTE_CHANGED;
   }
 
@@ -629,14 +700,31 @@ static void webInit()
       webPendingWifi = p->value().toInt();
     if((p = request->getParam("step", true)) || (p = request->getParam("step")))
       webPendingStep = p->value().toInt();
+    if((p = request->getParam("agc", true)) || (p = request->getParam("agc")))
+      webPendingAgc = p->value().toInt() ? 1 : 0;
+    if((p = request->getParam("mute", true)) || (p = request->getParam("mute")))
+      webPendingMute = p->value().toInt() ? 1 : 0;
+    if((p = request->getParam("mode", true)) || (p = request->getParam("mode")))
+      webPendingMode = p->value().toInt();
+    if((p = request->getParam("band", true)) || (p = request->getParam("band")))
+      webPendingBand = p->value().toInt();
     request->send(200, "text/plain", "OK");
   });
 
   // Trigger a blocking RSSI scan (?run=1) or fetch the latest scan data (GET)
   server.on("/api/scan", HTTP_ANY, [] (AsyncWebServerRequest *request) {
+    // Waterfall mode on/off signal from the web client (?auto=1 / ?auto=0).
+    // This locks/unlocks the device and controls steady audio muting.
+    const AsyncWebParameter *pa;
+    if((pa = request->getParam("auto", true)) || (pa = request->getParam("auto")))
+    {
+      webWaterfallOn = pa->value().toInt() != 0;
+      webWaterfallLastReq = millis();
+    }
     if(request->hasParam("run") || request->hasParam("run", true))
     {
       webPendingScan = true;
+      webWaterfallLastReq = millis();
       request->send(200, "text/plain", "OK");
       return;
     }
@@ -797,6 +885,9 @@ static const String webStyleSheet()
   "vertical-align:middle;text-shadow:none;font-weight:600}"
 ".meta{margin-top:.45em;color:var(--mut);font-size:.86em;letter-spacing:.07em}"
 ".meta B{color:var(--tx)}"
+".rdstop{margin-top:.5em;color:var(--acc);font-weight:600;font-size:1.05em;"
+  "overflow-wrap:anywhere}"
+".rdsrt{margin-top:.2em;color:var(--mut);font-size:.82em;overflow-wrap:anywhere}"
 /* control groups */
 ".grid{display:grid;grid-template-columns:1fr 1fr;gap:.8em}"
 "@media(max-width:560px){.grid{grid-template-columns:1fr}}"
@@ -995,8 +1086,46 @@ static const String webStatusJson()
   json += "],";
   json += "\"bw\":\"" + String(getCurrentBandwidth()->desc) + "\",";
   json += "\"agc\":" + String(agcIdx) + ",";
+  // TRUE when AGC is automatic (agcIdx 0); FALSE in manual/attenuator mode
+  json += "\"agcAuto\":" + String(agcIdx==0? "true" : "false") + ",";
   json += "\"vol\":" + String(volume) + ",";
   json += "\"muted\":" + String(muteOn(MUTE_MAIN)? "true" : "false") + ",";
+  // Current modulation mode (index) and the modes valid for the current band.
+  // FM bands can only be FM; AM/SW bands can switch among AM/LSB/USB.
+  json += "\"modeIdx\":" + String(currentMode) + ",";
+  json += "\"modes\":[";
+  {
+    bool first = true;
+    for(int i=0 ; i<getTotalModes() ; i++)
+    {
+      bool ok = (currentMode==FM) ? (i==FM) : (i!=FM);
+      if(!ok) continue;
+      if(!first) json += ",";
+      json += "{\"i\":" + String(i) + ",\"n\":\"" + String(bandModeDesc[i]) + "\"}";
+      first = false;
+    }
+  }
+  json += "],";
+  // Current band (index) and all selectable bands. All bands are always listed:
+  // selecting one switches the mode to that band's mode (setBand), which is how
+  // the band/mode dependency is honored (e.g. picking the FM "VHF" band from an
+  // AM/SSB mode switches the radio to FM). Each entry carries a "fm" flag so the
+  // client can format the edges correctly (FM in 10kHz units, others in kHz).
+  json += "\"bandIdx\":" + String(bandIdx) + ",";
+  json += "\"bands\":[";
+  {
+    bool first = true;
+    for(int i=0 ; i<getTotalBands() ; i++)
+    {
+      if(!first) json += ",";
+      json += "{\"i\":" + String(i) + ",\"n\":\"" + webJsonEscape(bands[i].bandName) +
+              "\",\"fm\":" + String(bands[i].bandType==FM_BAND_TYPE? 1 : 0) +
+              ",\"lo\":" + String(bands[i].minimumFreq) +
+              ",\"hi\":" + String(bands[i].maximumFreq) + "}";
+      first = false;
+    }
+  }
+  json += "],";
   json += "\"rssi\":" + String(rssi) + ",";
   json += "\"snr\":" + String(snr) + ",";
   json += "\"batt\":" + String(batteryMonitor(), 2) + ",";
@@ -1151,6 +1280,8 @@ static const String webControlPage()
   "<DIV CLASS='card freqcard'>"
     "<DIV CLASS='freq' ID='freq'>--<SPAN CLASS='u'></SPAN></DIV>"
     "<DIV CLASS='meta' ID='meta'>--</DIV>"
+    "<DIV CLASS='rdstop' ID='topStation' STYLE='display:none'></DIV>"
+    "<DIV CLASS='rdsrt' ID='topRt' STYLE='display:none'></DIV>"
   "</DIV>"
 
   "<DIV CLASS='card'>"
@@ -1190,12 +1321,14 @@ static const String webControlPage()
         "<BUTTON ONCLICK=\"cmd('r')\">&laquo; Tune</BUTTON>"
         "<BUTTON ONCLICK=\"cmd('R')\">Tune &raquo;</BUTTON></DIV></DIV>"
     "<DIV CLASS='card grp'><DIV CLASS='ttl'>Band &amp; Mode</DIV>"
-      "<DIV CLASS='seg' STYLE='margin-bottom:.35em'>"
-        "<BUTTON ONCLICK=\"cmd('b')\">&laquo; Band</BUTTON>"
-        "<BUTTON ONCLICK=\"cmd('B')\">Band &raquo;</BUTTON></DIV>"
+      "<DIV CLASS='seg' ID='modebtns' STYLE='margin-bottom:.35em'></DIV>"
+      "<DIV CLASS='setrow' STYLE='margin-bottom:.35em'>"
+        "<SELECT ID='bandsel' ONCHANGE=\"setVal('band',this.value)\"></SELECT></DIV>"
       "<DIV CLASS='seg'>"
         "<BUTTON ONCLICK=\"cmd('m')\">&laquo; Mode</BUTTON>"
-        "<BUTTON ONCLICK=\"cmd('M')\">Mode &raquo;</BUTTON></DIV></DIV>"
+        "<BUTTON ONCLICK=\"cmd('M')\">Mode &raquo;</BUTTON>"
+        "<BUTTON ONCLICK=\"cmd('b')\">&laquo; Band</BUTTON>"
+        "<BUTTON ONCLICK=\"cmd('B')\">Band &raquo;</BUTTON></DIV></DIV>"
     "<DIV CLASS='card grp'><DIV CLASS='ttl'>Step &amp; Bandwidth</DIV>"
       "<DIV CLASS='seg' STYLE='margin-bottom:.35em'>"
         "<BUTTON ONCLICK=\"cmd('s')\">&laquo; Step</BUTTON>"
@@ -1205,9 +1338,11 @@ static const String webControlPage()
         "<BUTTON ONCLICK=\"cmd('W')\">BW &raquo;</BUTTON></DIV></DIV>"
     "<DIV CLASS='card grp'><DIV CLASS='ttl'>Volume &amp; AGC</DIV>"
       "<DIV CLASS='seg' STYLE='margin-bottom:.35em'>"
+        "<BUTTON ID='mutebtn' ONCLICK='toggleMute()'>Mute</BUTTON>"
         "<BUTTON ONCLICK=\"cmd('v')\">Vol &minus;</BUTTON>"
         "<BUTTON ONCLICK=\"cmd('V')\">Vol &plus;</BUTTON></DIV>"
       "<DIV CLASS='seg'>"
+        "<BUTTON ID='agcbtn' ONCLICK='toggleAgc()'>AGC</BUTTON>"
         "<BUTTON ONCLICK=\"cmd('a')\">AGC &minus;</BUTTON>"
         "<BUTTON ONCLICK=\"cmd('A')\">AGC &plus;</BUTTON></DIV></DIV>"
   "</DIV>"
@@ -1270,6 +1405,28 @@ static const String webControlPage()
   "var c=document.getElementById('stepbtns');if(!c)return;c.innerHTML='';"
   "for(var i=0;i<a.length;i++){var b=document.createElement('BUTTON');b.textContent=fmtStep(a[i]);"
   "b.onclick=(function(k){return function(){setStep(k);};})(a[i]);c.appendChild(b);}}"
+"var curAgcAuto=false,curMuted=false;"
+"function toggleAgc(){setVal('agc',curAgcAuto?0:1);}"
+"function toggleMute(){setVal('mute',curMuted?0:1);}"
+"var lastModes='';"
+"function renderModes(d){if(!d.modes)return;var c=document.getElementById('modebtns');if(!c)return;"
+  "var key=d.modes.map(function(m){return m.i;}).join(',');"
+  "if(key!==lastModes){lastModes=key;c.innerHTML='';"
+    "d.modes.forEach(function(m){var b=document.createElement('BUTTON');b.textContent=m.n;b.setAttribute('data-i',m.i);"
+    "b.onclick=(function(i){return function(){setVal('mode',i);};})(m.i);c.appendChild(b);});}"
+  "var bs=c.children;for(var i=0;i<bs.length;i++){bs[i].classList.toggle('acc',+bs[i].getAttribute('data-i')===d.modeIdx);}}"
+"var lastBands='';"
+"function fmt1(x){return x%1?x.toFixed(1):x.toFixed(0);}"
+"function bandRange(b){"
+  "if(b.fm)return fmt1(b.lo/100)+' ~ '+fmt1(b.hi/100)+' MHz';"
+  "if(b.hi>=1000000)return fmt1(b.lo/1000)+' ~ '+fmt1(b.hi/1000)+' MHz';"
+  "return fmtFreq(b.lo)+' ~ '+fmtFreq(b.hi)+' kHz';}"
+"function renderBands(d){if(!d.bands)return;var sel=document.getElementById('bandsel');if(!sel)return;"
+  "var key=d.bands.map(function(b){return b.i;}).join(',');"
+  "if(key!==lastBands&&sel!==document.activeElement){lastBands=key;sel.innerHTML='';"
+    "d.bands.forEach(function(b){var o=document.createElement('OPTION');o.value=b.i;"
+    "o.textContent=b.n+' ('+bandRange(b)+')';sel.appendChild(o);});}"
+  "if(sel!==document.activeElement)sel.value=d.bandIdx;}"
 "function txt(id,v){document.getElementById(id).textContent=v;}"
 "function fmtHz(hz,u){return u=='MHz'?(hz/1e6).toFixed(2)+' MHz':(hz/1000).toFixed(0)+' kHz';}"
 "function grp(p){return p>=66?'fill g':p>=33?'fill a':'fill r';}"
@@ -1289,10 +1446,17 @@ static const String webControlPage()
   "meter('battFill','battVal',(d.batt-3.0)/1.2*100,d.batt+' V');"
   "bdg('bdgWifi',d.wifi>0);bdg('bdgBle',d.ble>0);bdg('bdgRds',!!(d.station&&d.station.length));"
   "bdg('bdgMorse',d.morse>0);bdg('bdgOvr',d.override,true);bdg('bdgMute',d.muted,true);"
-  "txt('step',d.step);txt('bw',d.bw);txt('vol',d.muted?'Muted':d.vol);txt('agc',d.agc);"
+  "txt('step',d.step);txt('bw',d.bw);txt('vol',d.muted?'Muted':d.vol);txt('agc',d.agcAuto?'AGC':('Att '+d.agc));"
   "var sb=document.getElementById('stepbox');if(sb)sb.textContent=d.step;"
   "renderSteps(d.steps);"
+  "curAgcAuto=!!d.agcAuto;curMuted=!!d.muted;"
+  "var ab=document.getElementById('agcbtn');if(ab)ab.classList.toggle('acc',curAgcAuto);"
+  "var mb=document.getElementById('mutebtn');if(mb)mb.classList.toggle('acc',curMuted);"
+  "renderModes(d);renderBands(d);"
   "txt('station',d.station||'-');txt('rt',d.rt||'-');txt('morsetext',d.morseText||'-');"
+  "var st=(d.station||'').trim(),rtx=(d.rt||'').trim();"
+  "var ts=document.getElementById('topStation');ts.textContent=st;ts.style.display=st?'block':'none';"
+  "var trt=document.getElementById('topRt');trt.textContent=rtx;trt.style.display=rtx?'block':'none';"
   "var ms=document.getElementById('morse');if(ms!==document.activeElement)ms.value=d.morse;"
   "var ov=document.getElementById('override');if(ov!==document.activeElement)ov.checked=d.override;"
   "document.getElementById('morsehint').style.color=(d.morse==2&&!d.morseAudio)?'var(--bad)':'';"
@@ -1314,18 +1478,19 @@ static const String webControlPage()
   "b.textContent=on?'Scanning\\u2026':'Scan now';}"
 "function scanDone(){scanning=false;setScanBtn(false);}"
 "function pollScan(tries){scanPollT=null;fetch('/api/scan').then(r=>r.json()).then(d=>{"
-  "if(d.busy){if(tries<60)scanPollT=setTimeout(function(){pollScan(tries+1);},500);else scanDone();return;}"
+  "if(d.busy){if(tries<240)scanPollT=setTimeout(function(){pollScan(tries+1);},120);else scanDone();return;}"
   "if(d.count>0)addRow(d);scanDone();"
-  "if(autoScan)scanPollT=setTimeout(scanOnce,300);"
-  "}).catch(function(){if(tries<60)scanPollT=setTimeout(function(){pollScan(tries+1);},500);else scanDone();});}"
+  "if(autoScan)scanPollT=setTimeout(scanOnce,60);"
+  "}).catch(function(){if(tries<240)scanPollT=setTimeout(function(){pollScan(tries+1);},120);else scanDone();});}"
 "function scanOnce(){if(scanning)return;scanning=true;setScanBtn(true);"
-  "fetch('/api/scan?run=1').then(function(){pollScan(0);}).catch(function(){"
-  "scanPollT=setTimeout(function(){pollScan(0);},500);});}"
+  "fetch('/api/scan?run=1'+(autoScan?'&auto=1':'')).then(function(){pollScan(0);}).catch(function(){"
+  "scanPollT=setTimeout(function(){pollScan(0);},120);});}"
 "function lockRadio(on){var n=document.querySelectorAll('.lockable');"
   "for(var i=0;i<n.length;i++)n[i].classList.toggle('locked',on);"
   "var ban=document.getElementById('wfban');if(ban)ban.style.display=on?'block':'none';}"
 "function toggleAuto(){autoScan=!autoScan;var b=document.getElementById('autobtn');"
   "b.textContent='Waterfall: '+(autoScan?'On':'Off');b.classList.toggle('acc',autoScan);lockRadio(autoScan);"
+  "fetch('/api/scan?auto='+(autoScan?1:0)).catch(function(){});"
   "if(autoScan){if(!scanning)scanOnce();}else if(scanPollT){clearTimeout(scanPollT);scanPollT=null;}}"
 "setInterval(poll,1000);poll();scanOnce();"
 "</SCRIPT>"

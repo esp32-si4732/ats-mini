@@ -595,6 +595,30 @@ void drawMorseText(const char *text, int x, int y)
   spr.drawString(text, x + 28, y, 2);
 }
 
+//
+// Full-screen lock shown while an RSSI waterfall is running via the Web UI.
+// The device radio is paused (mutual exclusion) until the web client stops
+// the waterfall or polling times out.
+//
+void drawWebWaterfallLock()
+{
+  if(sleepOn()) return;
+
+  spr.fillSprite(TH.bg);
+
+  spr.setTextDatum(TC_DATUM);
+  spr.setTextColor(TH.text, TH.bg);
+  spr.drawString("Waterfall (Web UI)", 160, 50, 4);
+
+  spr.setTextColor(TH.text_warn, TH.bg);
+  spr.drawString("radio paused", 160, 90, 2);
+
+  spr.setTextColor(TH.scale_text, TH.bg);
+  spr.drawString(getCurrentBand()->bandName, 160, 130, 2);
+
+  spr.pushSprite(0, 0);
+}
+
 void drawScreen(const char *statusLine1, const char *statusLine2)
 {
   if(sleepOn()) return;

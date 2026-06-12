@@ -933,6 +933,49 @@ void doBand(int16_t enc)
   selectBand(bandIdx);
 }
 
+//
+// Set the modulation mode for the current band by absolute index (used by the
+// web UI mode selector). FM bands cannot change mode and you cannot switch
+// to/from FM, mirroring doMode()'s constraints. Returns TRUE if mode changed.
+//
+bool setMode(uint8_t mode)
+{
+  currentMode = bands[bandIdx].bandMode;
+
+  // Cannot change away from FM, into FM, or pick an invalid mode
+  if(currentMode==FM || mode==FM || mode>=getTotalModes() || mode==currentMode)
+    return(false);
+
+  // Save current band settings (same as doMode)
+  bands[bandIdx].currentFreq = currentFrequency + currentBFO / 1000;
+  bands[bandIdx].currentStepIdx = defaultStepIdx[mode];
+  bands[bandIdx].bandwidthIdx = defaultBwIdx[mode];
+  bands[bandIdx].bandMode = mode;
+  currentMode = mode;
+
+  // Enable the new band/mode
+  selectBand(bandIdx);
+  return(true);
+}
+
+//
+// Select a band by absolute index (used by the web UI band selector). The mode
+// follows the band's configured mode, mirroring doBand(). Returns TRUE on change.
+//
+bool setBand(uint8_t idx)
+{
+  if(idx>=getTotalBands() || idx==bandIdx) return(false);
+
+  // Save current band settings (same as doBand)
+  bands[bandIdx].currentFreq = currentFrequency + currentBFO / 1000;
+  bands[bandIdx].bandMode = currentMode;
+
+  // Switch to the new band
+  bandIdx = idx;
+  selectBand(bandIdx);
+  return(true);
+}
+
 void doBandwidth(int16_t enc)
 {
   uint8_t idx = bands[bandIdx].bandwidthIdx;

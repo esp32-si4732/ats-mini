@@ -149,14 +149,16 @@ static bool scanTickTime()
 //
 // Run entire scan once
 //
-void scanRun(uint16_t centerFreq, uint16_t step, uint16_t points, uint16_t tuneDelay)
+void scanRun(uint16_t centerFreq, uint16_t step, uint16_t points, uint16_t tuneDelay, bool holdMute)
 {
   // Number of points to sample (0 = full-resolution one-shot scan)
   scanPoints = points ? (points > SCAN_POINTS ? SCAN_POINTS : points) : SCAN_POINTS;
   // Set tuning delay (0 = full per-mode settling delay)
   rx.setMaxDelaySetFrequency(tuneDelay ? tuneDelay : (currentMode == FM ? TUNE_DELAY_FM : TUNE_DELAY_AM_SSB));
-  // Mute the audio
-  muteOn(MUTE_TEMP, true);
+  // Mute the audio (unless the caller already owns the mute, e.g. the web
+  // waterfall mode keeps audio muted across many back-to-back scans to avoid
+  // the audio flapping on/off between cycles)
+  if(!holdMute) muteOn(MUTE_TEMP, true);
   // Flag is set by rotary encoder and cleared on seek/scan entry
   seekStop = false;
   // Save current frequency
@@ -165,8 +167,8 @@ void scanRun(uint16_t centerFreq, uint16_t step, uint16_t points, uint16_t tuneD
   for(scanInit(centerFreq, step) ; scanTickTime(););
   // Restore current frequency
   rx.setFrequency(curFreq);
-  // Unmute the audio
-  muteOn(MUTE_TEMP, false);
+  // Unmute the audio (unless the caller owns the mute)
+  if(!holdMute) muteOn(MUTE_TEMP, false);
   // Restore tuning delay
   rx.setMaxDelaySetFrequency(TUNE_DELAY_DEFAULT);
 }

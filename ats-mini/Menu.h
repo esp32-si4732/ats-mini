@@ -145,5 +145,7 @@ int getStepCount();
 int getStepValueKHz(int idx);
 void doMode(int16_t enc);
 void doBand(int16_t enc);
+bool setMode(uint8_t mode);
+bool setBand(uint8_t idx);
 
 #endif // MENU_H

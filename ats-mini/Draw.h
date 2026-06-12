@@ -39,6 +39,7 @@ void drawScanGraphs(uint32_t freq);
 void waterfallReset();
 void waterfallAddRow();
 void drawWaterfall();
+void drawWebWaterfallLock();
 void drawScreen(const char *statusLine1 = 0, const char *statusLine2 = 0);
 
 void drawWiFiIndicator(int x, int y);

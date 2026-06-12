@@ -830,6 +830,19 @@ void loop()
   encCountAccel = web_direction? web_direction : encCountAccel;
   if(web_event & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
 
+  // Web-initiated RSSI waterfall locks the device: normal tuning/listening is
+  // paused (mutual exclusion, like CMD_WATERFALL) and a message is shown until
+  // the web client stops the waterfall or polling times out.
+  bool webWfLock = webWaterfallActive();
+  if(webWfLock)
+  {
+    // Ignore all local input so the user cannot resume normal tuning
+    encCount = encCountAccel = 0;
+    pb1st.wasClicked = pb1st.wasShortPressed = pb1st.isLongPressed = false;
+    // Keep idle/sleep timeouts from firing while locked
+    elapsedSleep = elapsedCommand = currentTime = millis();
+  }
+
   // Block encoder rotation when in the locked sleep mode
   if(encCount && sleepOn() && sleepModeIdx==SLEEP_LOCKED) encCount = encCountAccel = 0;
 
@@ -1025,7 +1038,7 @@ void loop()
     elapsedSleep = elapsedCommand = currentTime = millis();
   }
 
-  if((currentTime - elapsedRSSI) > MIN_ELAPSED_RSSI_TIME)
+  if(!webWfLock && (currentTime - elapsedRSSI) > MIN_ELAPSED_RSSI_TIME)
   {
     needRedraw |= processRssiSnr();
     elapsedRSSI = currentTime;
@@ -1074,8 +1087,20 @@ void loop()
     background_timer = currentTime;
   }
 
-  // Redraw screen if necessary
-  if(needRedraw) drawScreen();
+  // Redraw screen if necessary. While the web waterfall lock is active, show
+  // the lock message once on entry and keep it (no other drawing) until the
+  // web client releases the lock.
+  static bool webWfLockPrev = false;
+  if(webWfLock)
+  {
+    if(!webWfLockPrev) drawWebWaterfallLock();
+    webWfLockPrev = true;
+  }
+  else
+  {
+    if(webWfLockPrev) { needRedraw = true; webWfLockPrev = false; }
+    if(needRedraw) drawScreen();
+  }
 
   // Add a small default delay in the main loop
   delay(5);
