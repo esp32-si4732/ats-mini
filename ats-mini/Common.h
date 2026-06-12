@@ -214,7 +214,7 @@ bool drawBattery(int x, int y);
 // Scan.c
 // Fast-scan parameters for the continuous RSSI waterfall (fewer points and a
 // shorter per-point tuning delay than a full one-shot scan, for responsiveness)
-#define WATERFALL_POINTS      60
+#define WATERFALL_POINTS      40
 #define WATERFALL_TUNE_DELAY  10
 
 // points==0 / tuneDelay==0 keep the full-quality defaults (one-shot scan)

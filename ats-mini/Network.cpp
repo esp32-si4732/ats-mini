@@ -115,6 +115,7 @@ static volatile int webPendingBand = -1;       // target band index
 static volatile bool     webWaterfallOn = false;     // TRUE: waterfall mode active
 static volatile uint32_t webWaterfallLastReq = 0;    // millis() of last scan request
 static bool              webWaterfallMuted = false;  // TRUE: we hold the mute
+static volatile int      webWaterfallStep = 10;      // Scan step (band units) = span/points
 
 bool webWaterfallActive() { return webWaterfallOn; }
 
@@ -335,7 +336,7 @@ int webRemoteLoop()
   if(webPendingScan)
   {
     webPendingScan = false;
-    scanRun(currentFrequency, 10, WATERFALL_POINTS, WATERFALL_TUNE_DELAY, webWaterfallOn);
+    scanRun(currentFrequency, (uint16_t)webWaterfallStep, WATERFALL_POINTS, WATERFALL_TUNE_DELAY, webWaterfallOn);
     event |= REMOTE_CHANGED;
   }
 
@@ -721,6 +722,10 @@ static void webInit()
       webWaterfallOn = pa->value().toInt() != 0;
       webWaterfallLastReq = millis();
     }
+    // Waterfall span control: the per-point scan step in band units. The covered
+    // span is WATERFALL_POINTS * step (FM units are 10kHz, AM/SSB units are kHz).
+    if((pa = request->getParam("span", true)) || (pa = request->getParam("span")))
+      webWaterfallStep = clampInt(pa->value().toInt(), 1, 200);
     if(request->hasParam("run") || request->hasParam("run", true))
     {
       webPendingScan = true;
@@ -935,6 +940,9 @@ static const String webStyleSheet()
 "CANVAS#wf{width:100%;height:150px;border:1px solid var(--bd);border-radius:10px;background:#000;"
   "image-rendering:pixelated;margin-top:.6em;display:block}"
 ".wfbar{display:flex;justify-content:space-between;color:var(--mut);font-size:.72em;margin-top:.3em}"
+".wfruler{display:flex;justify-content:space-between;color:var(--mut);font-size:.62em;"
+  "font-variant-numeric:tabular-nums;margin-top:.15em}"
+".wfruler SPAN:first-child{text-align:left}.wfruler SPAN:last-child{text-align:right}"
 ".wfbanner{background:linear-gradient(90deg,#b9851f,var(--warn));color:#1a1205;font-weight:600;"
   "padding:.6em .9em;border-radius:12px;margin:0 0 1em;text-align:center;box-shadow:var(--sh)}"
 ".lockable.locked{opacity:.4;pointer-events:none;filter:grayscale(.6)}"
@@ -1309,7 +1317,13 @@ static const String webControlPage()
       "<BUTTON ID='autobtn' ONCLICK='toggleAuto()'>Waterfall: Off</BUTTON>"
     "</DIV>"
     "<CANVAS ID='wf' WIDTH='200' HEIGHT='140'></CANVAS>"
+    "<DIV CLASS='wfruler' ID='wfruler'></DIV>"
     "<DIV CLASS='wfbar'><SPAN ID='wflo'></SPAN><SPAN>RSSI waterfall</SPAN><SPAN ID='wfhi'></SPAN></DIV>"
+    "<DIV CLASS='row' ID='spanrow' STYLE='margin-top:.4em'>"
+      "<BUTTON DATA-S='10' ONCLICK='setSpan(10)'>Span 1&times;</BUTTON>"
+      "<BUTTON DATA-S='20' ONCLICK='setSpan(20)'>2&times;</BUTTON>"
+      "<BUTTON DATA-S='40' ONCLICK='setSpan(40)'>4&times;</BUTTON>"
+    "</DIV>"
   "</DIV>"
 
   "<DIV CLASS='grid lockable'>"
@@ -1463,17 +1477,25 @@ static const String webControlPage()
   "}).catch(e=>{});}"
 "function heat(v){v=Math.max(0,Math.min(1,v));var r=Math.round(255*Math.min(1,v*2)),"
   "g=Math.round(255*(1-Math.abs(v-0.5)*2)),b=Math.round(255*Math.max(0,1-v*2));return[r,g,b];}"
-"var wfRows=[];"
+"var wfRows=[],wfGrid=4;"
 "function drawWf(){var c=document.getElementById('wf'),x=c.getContext('2d'),W=c.width,H=c.height;"
   "var img=x.createImageData(W,H);for(var y=0;y<H;y++){var row=wfRows[y];for(var i=0;i<W;i++){"
   "var v=row?row[i]:0,col=heat(v),o=(y*W+i)*4;img.data[o]=col[0];img.data[o+1]=col[1];img.data[o+2]=col[2];img.data[o+3]=255;}}"
-  "x.putImageData(img,0,0);}"
+  "x.putImageData(img,0,0);"
+  "x.strokeStyle='rgba(255,255,255,0.15)';x.lineWidth=1;"
+  "for(var g=1;g<wfGrid;g++){var gx=Math.round(g*W/wfGrid)+0.5;"
+  "x.beginPath();x.moveTo(gx,0);x.lineTo(gx,H);x.stroke();}}"
+"function wfTick(hz,unit){return unit=='MHz'?(hz/1e6).toFixed(1):fmtFreq(Math.round(hz/1000));}"
+"function setRuler(lo,hi,unit){var r=document.getElementById('wfruler');if(!r)return;var h='';"
+  "for(var g=0;g<=wfGrid;g++){var f=lo+(hi-lo)*g/wfGrid,wu=(g==0||g==wfGrid);"
+  "h+='<SPAN>'+wfTick(f,unit)+(wu?' '+unit:'')+'</SPAN>';}r.innerHTML=h;}"
 "function addRow(d){var a=d.rssi,n=d.count;if(!n)return;"
   "var mn=Math.min.apply(null,a),mx=Math.max.apply(null,a);"
   "var c=document.getElementById('wf'),W=c.width;var row=new Array(W);"
   "for(var i=0;i<W;i++){row[i]=(a[Math.floor(i*n/W)]-mn)/(mx-mn+1);}"
   "wfRows.unshift(row);if(wfRows.length>c.height)wfRows.pop();drawWf();"
-  "txt('wflo',fmtHz(d.startHz,d.unit));txt('wfhi',fmtHz(d.startHz+d.stepHz*(n-1),d.unit));}"
+  "var hi=d.startHz+d.stepHz*(n-1);"
+  "txt('wflo',fmtHz(d.startHz,d.unit));txt('wfhi',fmtHz(hi,d.unit));setRuler(d.startHz,hi,d.unit);}"
 "function setScanBtn(on){var b=document.getElementById('scanbtn');if(!b)return;b.disabled=on;"
   "b.textContent=on?'Scanning\\u2026':'Scan now';}"
 "function scanDone(){scanning=false;setScanBtn(false);}"
@@ -1492,7 +1514,12 @@ static const String webControlPage()
   "b.textContent='Waterfall: '+(autoScan?'On':'Off');b.classList.toggle('acc',autoScan);lockRadio(autoScan);"
   "fetch('/api/scan?auto='+(autoScan?1:0)).catch(function(){});"
   "if(autoScan){if(!scanning)scanOnce();}else if(scanPollT){clearTimeout(scanPollT);scanPollT=null;}}"
-"setInterval(poll,1000);poll();scanOnce();"
+"var curSpan=10;"
+"function setSpan(s){curSpan=s;wfRows=[];drawWf();"
+  "var r=document.getElementById('spanrow');if(r){var b=r.children;"
+  "for(var i=0;i<b.length;i++)b[i].classList.toggle('acc',+b[i].getAttribute('data-s')===s);}"
+  "fetch('/api/scan?span='+s).catch(function(){});}"
+"setSpan(10);setInterval(poll,1000);poll();scanOnce();"
 "</SCRIPT>"
 );
 }

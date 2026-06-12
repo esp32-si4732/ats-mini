@@ -554,29 +554,46 @@ void drawWaterfall()
   uint16_t startF = (uint16_t)sF;
   uint16_t endF   = startF + wfStepLive * (wfPtsLive - 1);
 
+  // Subtle vertical frequency grid lines at the quarter divisions. Drawn over
+  // the heatmap but BEFORE the tuned pointer so the (brighter) pointer stays
+  // visually distinct from the (dimmer) grid.
+  for(int g=1 ; g<4 ; g++)
+  {
+    int gx = X0 + g * DW / 4;
+    spr.drawLine(gx, Y0, gx, Y0 + WF_H - 1, TH.scale_line);
+  }
+
   // Pointer at the current tuned frequency within the window
   int fSpan = (int)(endF - startF);
   int px = fSpan>0 ? (int)((long)(currentFrequency - startF) * DW / fSpan) : DW/2;
   px = px<0 ? 0 : px>DW ? DW : px;
   spr.drawLine(X0 + px, Y0, X0 + px, Y0 + WF_H - 1, TH.scale_pointer);
 
-  // Frequency range labels along the bottom
-  char lo[16], hi[16];
+  // Frequency labels along the bottom: lo/hi at the ends carry the unit, and a
+  // bare center label marks the middle division (the quarter divisions are left
+  // unlabeled to avoid overlap at 300px width). Center label is well clear of
+  // the unit-bearing end labels, so all three stay legible at font 2.
+  char lo[16], hi[16], mid[16];
+  uint16_t midF = startF + (endF - startF) / 2;
   if(fm)
   {
-    sprintf(lo, "%.1f", startF/100.0);
-    sprintf(hi, "%.1f", endF/100.0);
+    sprintf(lo,  "%.1f MHz", startF/100.0);
+    sprintf(hi,  "%.1f MHz", endF/100.0);
+    sprintf(mid, "%.1f",     midF/100.0);
   }
   else
   {
-    sprintf(lo, "%u", startF);
-    sprintf(hi, "%u", endF);
+    sprintf(lo,  "%u kHz", startF);
+    sprintf(hi,  "%u kHz", endF);
+    sprintf(mid, "%u",     midF);
   }
   spr.setTextColor(TH.scale_text, TH.bg);
   spr.setTextDatum(BL_DATUM);
   spr.drawString(lo, X0, 168, 2);
   spr.setTextDatum(BR_DATUM);
   spr.drawString(hi, X0 + DW, 168, 2);
+  spr.setTextDatum(BC_DATUM);
+  spr.drawString(mid, X0 + DW/2, 168, 2);
 
   spr.pushSprite(0, 0);
 }
