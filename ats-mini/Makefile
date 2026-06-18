@@ -10,6 +10,8 @@ DEBUG_LEVEL ?= 0
 
 #
 # HALF_STEP       : Enable encoder half-steps
+# BLE_POWER_LEVEL : BLE TX power level, for example ESP_PWR_LVL_N12
+# WIFI_POWER_LEVEL: WiFi TX power level, for example WIFI_POWER_13dBm
 #
 DEFINES = -DDEBUG=$(DEBUG_LEVEL)
 
@@ -19,6 +21,14 @@ endif
 
 ifdef HALF_STEP
         DEFINES += -DHALF_STEP
+endif
+
+ifdef BLE_POWER_LEVEL
+        DEFINES += -DBLE_POWER_LEVEL=$(BLE_POWER_LEVEL)
+endif
+
+ifdef WIFI_POWER_LEVEL
+        DEFINES += -DWIFI_POWER_LEVEL=$(WIFI_POWER_LEVEL)
 endif
 
 OPTIONS = \

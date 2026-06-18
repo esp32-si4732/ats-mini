@@ -32,11 +32,19 @@ The available options are:
 
 * `HALF_STEP` - enable encoder half-steps (useful for EC11E encoder)
 * `LILYGO_SI473X` - compile for [LILYGO T-Embed SI4732](hardware.md#lilygo-t-embed-si4732) hardware variant
+* `BLE_POWER_LEVEL` - Bluetooth LE TX power level (default: `ESP_PWR_LVL_N0`). Possible values are `ESP_PWR_LVL_N24`, `ESP_PWR_LVL_N21`, `ESP_PWR_LVL_N18`, `ESP_PWR_LVL_N15`, `ESP_PWR_LVL_N12`, `ESP_PWR_LVL_N9`, `ESP_PWR_LVL_N6`, `ESP_PWR_LVL_N3`, `ESP_PWR_LVL_N0`, `ESP_PWR_LVL_P3`, `ESP_PWR_LVL_P6`, `ESP_PWR_LVL_P9`, `ESP_PWR_LVL_P12`, `ESP_PWR_LVL_P15`, `ESP_PWR_LVL_P18`, and `ESP_PWR_LVL_P20`.
+* `WIFI_POWER_LEVEL` - Wi-Fi TX power level. Possible values are `WIFI_POWER_21dBm`, `WIFI_POWER_20_5dBm`, `WIFI_POWER_20dBm`, `WIFI_POWER_19_5dBm`, `WIFI_POWER_19dBm`, `WIFI_POWER_18_5dBm`, `WIFI_POWER_17dBm`, `WIFI_POWER_15dBm`, `WIFI_POWER_13dBm`, `WIFI_POWER_11dBm`, `WIFI_POWER_8_5dBm`, `WIFI_POWER_7dBm`, `WIFI_POWER_5dBm`, `WIFI_POWER_2dBm`, and `WIFI_POWER_MINUS_1dBm`.
 
 To set an option, add the `--build-property` command line argument like this:
 
 ```shell
 arduino-cli compile --build-property "compiler.cpp.extra_flags=-DHALF_STEP" --clean -e -p COM_PORT -u ats-mini
+```
+
+For example, to lower Bluetooth LE and Wi-Fi TX power:
+
+```shell
+arduino-cli compile --build-property "compiler.cpp.extra_flags=-DBLE_POWER_LEVEL=ESP_PWR_LVL_N12 -DWIFI_POWER_LEVEL=WIFI_POWER_13dBm" --clean -e -p COM_PORT -u ats-mini
 ```
 
 ## Using the make command
@@ -45,6 +53,12 @@ You can do all of the above using the `make` command as well:
 
 ```shell
 HALF_STEP=1 PORT=/dev/tty.usbmodem14401 make upload
+```
+
+To set Bluetooth LE and Wi-Fi TX power with `make`:
+
+```shell
+BLE_POWER_LEVEL=ESP_PWR_LVL_N12 WIFI_POWER_LEVEL=WIFI_POWER_13dBm PORT=/dev/tty.usbmodem14401 make upload
 ```
 
 ## Decoding stack traces
