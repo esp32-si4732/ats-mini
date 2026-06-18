@@ -105,6 +105,7 @@ The ad hoc protocol is the main remote-control protocol. It can be used over:
 | <kbd>o</kbd> | Sleep Off           |                                                                                                  |
 | <kbd>t</kbd> | Toggle Log          | Toggle the receiver monitor (log) on and off                                                     |
 | <kbd>C</kbd> | Screenshot          | Capture a screenshot and print it as a BMP image in HEX format                                   |
+| <kbd>c</kbd> | Screenshot (binary) | Capture a screenshot as a raw little-endian RGB565 BMP (about half the bytes of `C`)             |
 | <kbd>$</kbd> | Show Memory Slots   | Show memory slots in a format suitable for restoring them after the reset                        |
 | <kbd>#</kbd> | Set Memory Slot     | Example `#01,VHF,107900000,FM` (slot, band, frequency, mode). Set freq to 0 to clear a slot.     |
 | <kbd>F</kbd> | Set Frequency       | Example `F107900000`. Frequency is in Hz and must stay within the current band. In SSB modes, sub-kHz digits set the BFO. |
@@ -142,12 +143,45 @@ In SSB mode, the "Display" frequency (Hz) = (currentFrequency x 1000) + currentB
 
 #### Making screenshots
 
-The screenshot function is intended for interface and theme designers, as well as for the documentation writers. It dumps the screen to the remote console as a BMP image in HEX format. To convert it to an image file, you need to convert the HEX string to binary format.
+The screenshot function is intended for interface and theme designers, as well as for the documentation writers. There are two commands, both capturing the same 320×170 image; they differ only in how the pixels are encoded on the wire:
+
+| Command      | Encoding       | Size on the wire | Notes                                     |
+|--------------|----------------|------------------|-------------------------------------------|
+| <kbd>C</kbd> | ASCII hex BMP  | ~218 KB          | Terminal-safe, widest tool support        |
+| <kbd>c</kbd> | Raw binary BMP | ~108 KB          | About half of `C`; a standard `.bmp` file |
+
+##### `C` — hex BMP
 
 A quick one-liner for macOS and Linux over the **USB Serial** transport (change the `/dev/cu.usbmodem14401` serial port name as needed):
 
 ```shell
-echo -n C | socat stdio /dev/cu.usbmodem14401,echo=0,raw | xxd -r -p > /tmp/screenshot.bmp
+echo -n C | socat -T5 stdio /dev/cu.usbmodem14401,echo=0,raw | xxd -r -p > /tmp/screenshot.bmp
+```
+
+The `-T5` idle timeout makes `socat` exit a few seconds after the transfer finishes, instead of waiting until you press Ctrl-C. `xxd -r -p` ignores whitespace, so the carriage returns between rows are harmless.
+
+The `C` output format is stable and may be relied upon by tools:
+
+* A leading CRLF, then a single 132-hex-character header line (a 66-byte little-endian BMP header: 14-byte file header + 40-byte `BITMAPINFOHEADER` + 12-byte `BI_BITFIELDS` masks).
+* 170 rows of exactly 1280 lowercase hex characters (320 px × 4), bottom-up, each terminated by CRLF.
+* Geometry 320×170, 16 bpp RGB565, masks R = `0xF800`, G = `0x07E0`, B = `0x001F`.
+
+##### `c` — binary BMP
+
+`c` writes the same image as a raw little-endian BMP, preceded by an ASCII frame `BMP:<size>\r\n` so a reader can find the start of the binary and pre-allocate. The decoded file is byte-for-byte identical to `xxd`-decoding the `C` output, in half the bytes:
+
+```shell
+echo -n c | socat -T5 stdio /dev/cu.usbmodem14401,echo=0,raw | tail -c +$(( $(printf 'BMP:%s\r\n' 0 | wc -c) )) > /tmp/screenshot.bmp
+```
+
+(The framing line is short; the simplest portable approach is to read the stream in a small script, split on the first `\r\n`, and write the rest to a `.bmp` file.)
+
+```{note}
+On the LILYGO T-Embed SI473X variant the panel uses BGR colour order, so the red and blue channels are swapped in both formats (this matches the existing `C` behaviour and is not specific to `c`).
+```
+
+```{note}
+Screenshots over Bluetooth LE work but are slow because the link runs at roughly 2 KB/s; prefer the `c` binary format, or use the USB Serial connection. The raw `socat` one-liners above are written for the USB Serial transport.
 ```
 
 ### Bluetooth HID protocol

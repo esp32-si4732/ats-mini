@@ -13,6 +13,9 @@ void BleCentral::begin(const char* deviceName)
   if (state_ != State::Idle) return;
 
   BLEDevice::init(deviceName);
+  // Match BlePeripheral's 0 dBm setting so the BLE central does not transmit at
+  // the stack default (~+9 dBm) right next to the SI4732 antenna input.
+  BLEDevice::setPower(ESP_PWR_LVL_N0);
   configureSecurity();
   clearPeer();
   scanAttempts = 0;
