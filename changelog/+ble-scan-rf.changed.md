@@ -1,1 +1,1 @@
-Reduce Bluetooth RF interference and improve responsiveness during BLE HID pairing: scanning now uses a 25% duty cycle instead of 100%, the BLE central transmits at 0 dBm (matching the peripheral), and the blocking `delay()` calls and a screen flash during HID scan/connect were removed.
+Reduce Bluetooth RF interference and improve responsiveness during BLE HID pairing: scanning now uses a 25% duty cycle instead of 100%, and the blocking `delay()` calls and a screen flash during HID scan/connect were removed.

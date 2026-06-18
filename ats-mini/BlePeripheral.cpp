@@ -1,11 +1,15 @@
 #include "BlePeripheral.h"
 
+#ifndef BLE_POWER_LEVEL
+#define BLE_POWER_LEVEL ESP_PWR_LVL_N0
+#endif
+
 void BlePeripheral::begin(const char* deviceName)
 {
   if (started) return;
 
   BLEDevice::init(deviceName);
-  BLEDevice::setPower(ESP_PWR_LVL_N0);
+  BLEDevice::setPower(BLE_POWER_LEVEL);
   configureDefaults();
   configureSecurity();
 

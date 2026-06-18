@@ -3,6 +3,15 @@
 BleCentral* BleCentral::activeScanner = nullptr;
 static constexpr uint32_t BLE_DISCONNECT_WAIT_MS = 500;
 
+#ifndef BLE_POWER_LEVEL
+#define BLE_POWER_LEVEL ESP_PWR_LVL_N0
+#endif
+
+static void configureBleCentralPower()
+{
+  BLEDevice::setPower(BLE_POWER_LEVEL);
+}
+
 BleCentral::~BleCentral()
 {
   clearPeer();
@@ -13,9 +22,7 @@ void BleCentral::begin(const char* deviceName)
   if (state_ != State::Idle) return;
 
   BLEDevice::init(deviceName);
-  // Match BlePeripheral's 0 dBm setting so the BLE central does not transmit at
-  // the stack default (~+9 dBm) right next to the SI4732 antenna input.
-  BLEDevice::setPower(ESP_PWR_LVL_N0);
+  configureBleCentralPower();
   configureSecurity();
   clearPeer();
   scanAttempts = 0;

@@ -9,6 +9,24 @@ static BleUartPeripheral BLESerial;
 static BleHidCentral BLEHid;
 static RemoteState remoteBLEState;
 
+static void bleControllerDisable()
+{
+  if (BLEDevice::getInitialized() && esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED)
+    esp_bt_controller_disable();
+}
+
+static bool bleControllerEnable()
+{
+  if (!BLEDevice::getInitialized()) return true;
+
+  esp_bt_controller_status_t status = esp_bt_controller_get_status();
+  if (status == ESP_BT_CONTROLLER_STATUS_ENABLED) return true;
+  if (status == ESP_BT_CONTROLLER_STATUS_INITED)
+    return esp_bt_controller_enable(ESP_BT_MODE_BLE) == ESP_OK;
+
+  return false;
+}
+
 //
 // Get current connection status
 // (-1 - not connected, 0 - disabled, 1 - connected)
@@ -27,6 +45,9 @@ int8_t getBleStatus()
 //
 // Stop BLE hardware
 //
+// We do not deinit the BLE stack fully because it leads to crashes
+// Also see: https://github.com/afpineda/NuS-NimBLE-Serial/issues/12#issuecomment-2912732754
+//
 void bleStop()
 {
   if (BLESerial.isStarted())
@@ -34,11 +55,16 @@ void bleStop()
 
   if (BLEHid.isStarted())
     BLEHid.end();
+
+  // Experimental attempt to stop consuming power
+  // https://github.com/esp32-si4732/ats-mini/discussions/324#discussioncomment-17123023
+  bleControllerDisable();
 }
 
 void bleInit(uint8_t bleMode)
 {
   bleStop();
+  if (bleMode != BLE_OFF && !bleControllerEnable()) return;
 
   switch(bleMode)
   {

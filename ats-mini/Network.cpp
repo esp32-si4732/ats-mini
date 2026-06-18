@@ -47,6 +47,7 @@ NTPClient ntpClient(ntpUDP, "pool.ntp.org");
 static bool wifiInitAP();
 static bool wifiConnect();
 static void webInit();
+static void wifiSetPowerLevel();
 
 static void webSetConfig(AsyncWebServerRequest *request);
 
@@ -144,18 +145,21 @@ void netInit(uint8_t netMode, bool showStatus)
     case NET_AP_ONLY:
       // Start WiFi access point if requested
       WiFi.mode(WIFI_AP);
+      wifiSetPowerLevel();
       // Let user see connection status if successful
       if(wifiInitAP() && showStatus) delay(2000);
       break;
     case NET_AP_CONNECT:
       // Start WiFi access point if requested
       WiFi.mode(WIFI_AP_STA);
+      wifiSetPowerLevel();
       // Let user see connection status if successful
       if(wifiInitAP() && showStatus) delay(2000);
       break;
     default:
       // No access point
       WiFi.mode(WIFI_STA);
+      wifiSetPowerLevel();
       break;
   }
 
@@ -217,6 +221,13 @@ bool ntpSyncTime()
       ));
   }
   return(false);
+}
+
+static void wifiSetPowerLevel()
+{
+#ifdef WIFI_POWER_LEVEL
+  WiFi.setTxPower(WIFI_POWER_LEVEL);
+#endif
 }
 
 //
