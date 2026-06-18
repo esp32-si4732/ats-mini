@@ -171,10 +171,12 @@ The `C` output format is stable and may be relied upon by tools:
 `c` writes the same image as a raw little-endian BMP, preceded by an ASCII frame `BMP:<size>\r\n` so a reader can find the start of the binary and pre-allocate. The decoded file is byte-for-byte identical to `xxd`-decoding the `C` output, in half the bytes:
 
 ```shell
-echo -n c | socat -T5 stdio /dev/cu.usbmodem14401,echo=0,raw | tail -c +$(( $(printf 'BMP:%s\r\n' 0 | wc -c) )) > /tmp/screenshot.bmp
+echo -n c | socat -T5 stdio /dev/cu.usbmodem14401,echo=0,raw \
+  | python3 -c "import sys; d = sys.stdin.buffer.read(); sys.stdout.buffer.write(d.split(b'\r\n', 1)[1])" \
+  > /tmp/screenshot.bmp
 ```
 
-(The framing line is short; the simplest portable approach is to read the stream in a small script, split on the first `\r\n`, and write the rest to a `.bmp` file.)
+The `BMP:<size>\r\n` frame is variable-length (the size has a varying number of digits), so the reader must discard everything up to and including the first `\r\n` rather than skip a fixed number of bytes; the snippet above splits on the first `\r\n` and writes the remaining bytes verbatim.
 
 ```{note}
 On the LILYGO T-Embed SI473X variant the panel uses BGR colour order, so the red and blue channels are swapped in both formats (this matches the existing `C` behaviour and is not specific to `c`).
