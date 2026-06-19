@@ -16,6 +16,10 @@
 #define CONNECT_TIME  3000  // Time of inactivity to start connecting WiFi
 #define WIFI_MULTI_TOTAL_TIMEOUT  30000
 
+#ifndef WIFI_POWER_LEVEL
+#define WIFI_POWER_LEVEL WIFI_POWER_18_5dBm
+#endif
+
 WiFiMulti wifiMulti;
 
 //
@@ -47,7 +51,8 @@ NTPClient ntpClient(ntpUDP, "pool.ntp.org");
 static bool wifiInitAP();
 static bool wifiConnect();
 static void webInit();
-static void wifiSetPowerLevel();
+static void wifiRegisterPowerLevelCallback();
+static void wifiPowerLevelOnEvent(WiFiEvent_t event);
 
 static void webSetConfig(AsyncWebServerRequest *request);
 
@@ -136,6 +141,7 @@ void netInit(uint8_t netMode, bool showStatus)
 {
   // Always disable WiFi first
   netStop();
+  wifiRegisterPowerLevelCallback();
 
   switch(netMode)
   {
@@ -145,21 +151,18 @@ void netInit(uint8_t netMode, bool showStatus)
     case NET_AP_ONLY:
       // Start WiFi access point if requested
       WiFi.mode(WIFI_AP);
-      wifiSetPowerLevel();
       // Let user see connection status if successful
       if(wifiInitAP() && showStatus) delay(2000);
       break;
     case NET_AP_CONNECT:
       // Start WiFi access point if requested
       WiFi.mode(WIFI_AP_STA);
-      wifiSetPowerLevel();
       // Let user see connection status if successful
       if(wifiInitAP() && showStatus) delay(2000);
       break;
     default:
       // No access point
       WiFi.mode(WIFI_STA);
-      wifiSetPowerLevel();
       break;
   }
 
@@ -223,11 +226,21 @@ bool ntpSyncTime()
   return(false);
 }
 
-static void wifiSetPowerLevel()
+static void wifiRegisterPowerLevelCallback()
 {
-#ifdef WIFI_POWER_LEVEL
+  static bool registered = false;
+
+  if(registered) return;
+
+  WiFi.onEvent(wifiPowerLevelOnEvent, ARDUINO_EVENT_WIFI_AP_START);
+  WiFi.onEvent(wifiPowerLevelOnEvent, ARDUINO_EVENT_WIFI_STA_START);
+  registered = true;
+}
+
+static void wifiPowerLevelOnEvent(WiFiEvent_t event)
+{
+  (void)event;
   WiFi.setTxPower(WIFI_POWER_LEVEL);
-#endif
 }
 
 //
