@@ -17,7 +17,7 @@
 #define WIFI_MULTI_TOTAL_TIMEOUT  30000
 
 #ifndef WIFI_POWER_LEVEL
-#define WIFI_POWER_LEVEL WIFI_POWER_18_5dBm
+#define WIFI_POWER_LEVEL WIFI_POWER_17dBm
 #endif
 
 WiFiMulti wifiMulti;
