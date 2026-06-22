@@ -82,8 +82,17 @@ int bleLoop(uint8_t bleMode)
   if (bleMode == BLE_ADHOC)
   {
     if (BLESerial.isConnected())
+    {
       remoteTickTime(&BLESerial, &remoteBLEState);
-    if (!BLESerial.isConnected()) return 0;
+      remoteMemoryDumpTick(&BLESerial, &remoteBLEState);
+    }
+    else
+    {
+      // Scope a chunked "$" dump to a single connection: drop any in-progress
+      // dump so it does not resume and stream unsolicited slots to a new client.
+      remoteBLEState.memoryDumpSlot = -1;
+      return 0;
+    }
     if (BLESerial.available())
       return remoteDoCommand(&BLESerial, &remoteBLEState, BLESerial.read());
     return 0;
@@ -92,12 +101,11 @@ int bleLoop(uint8_t bleMode)
   if (bleMode != BLE_HID)
     return 0;
 
+  // Show the connecting status without the previous blank-screen flash and
+  // blocking delay(500). The message persists until the next redraw, and
+  // BLEHid.loop() below drives the actual connect on this same tick.
   if (BLEHid.isStarted() && !BLEHid.isConnected() && BLEHid.isConnectPending() && BLEHid.peerName())
-  {
-    drawScreen();
     drawScreen("Connecting BLE HID", BLEHid.peerName());
-    delay(500);
-  }
 
   BLEHid.loop();
   if (!BLEHid.isConnected()) return 0;

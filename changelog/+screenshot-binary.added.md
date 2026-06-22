@@ -1,0 +1,1 @@
+Add a compact binary screenshot command `c` (raw little-endian RGB565 BMP). It is about half the size on the wire of the hex `C` command and decodes to a byte-identical image, which helps especially over the slower Bluetooth LE link.

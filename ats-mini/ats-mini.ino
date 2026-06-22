@@ -103,7 +103,13 @@ SI4735_fixed rx;
 //
 void setup()
 {
-  // Enable serial port
+  // Enable serial port.
+  // Both build profiles use USBMode=hwcdc, so the 115200 baud argument is only a
+  // CDC line-coding label and does not limit throughput (USB FS runs much
+  // faster). Enlarging the TX ring (default 256 B) lets bulk output such as the
+  // screenshot drain more smoothly with fewer producer stalls; it must precede
+  // begin() and is drawn from internal DRAM, not the PSRAM sprite framebuffer.
+  Serial.setTxBufferSize(4096);
   Serial.begin(115200);
 
   // Encoder pins. Enable internal pull-ups
