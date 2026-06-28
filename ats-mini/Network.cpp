@@ -12,6 +12,7 @@
 #include <ESPAsyncWebServer.h>
 #include <NTPClient.h>
 #include <ESPmDNS.h>
+#include <Update.h>
 
 #define CONNECT_TIME  3000  // Time of inactivity to start connecting WiFi
 #define WIFI_MULTI_TOTAL_TIMEOUT  30000
@@ -41,6 +42,8 @@ String loginUsername = "";
 String loginPassword = "";
 static bool wifiScanHidden = false;
 
+volatile int otaProgress = -1; // OTA update progress: -1 = idle, 0-100 = in progress
+
 // AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
@@ -64,6 +67,7 @@ static const String webThemeSelector();
 static const String webRadioPage();
 static const String webMemoryPage();
 static const String webConfigPage();
+static const String webUpdatePage();
 
 //
 // Delayed WiFi connection
@@ -366,6 +370,112 @@ static void webInit()
   // This method saves configuration form contents
   server.on("/setconfig", HTTP_ANY, webSetConfig);
 
+  // ── OTA firmware update ─────────────────────────────────────────
+  // GET:  shows upload form
+  // POST: receives firmware binary and applies it
+  server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/html", webUpdatePage());
+  });
+
+  server.on("/update", HTTP_POST,
+    [](AsyncWebServerRequest *request) {
+      if (Update.hasError()) {
+        String msg = String("Update failed: ") + Update.errorString();
+        Serial.println(msg);
+        AsyncWebServerResponse *resp = request->beginResponse(500, "text/html",
+          "<!DOCTYPE HTML><HTML><HEAD><META CHARSET='UTF-8'>"
+          "<META NAME='viewport' CONTENT='width=device-width, initial-scale=1.0'>"
+          "<TITLE>Update Failed</TITLE>"
+          "<STYLE>BODY{font-family:sans-serif;text-align:center;padding:50px;}"
+          "H1{color:#f44336;}</STYLE>"
+          "</HEAD><BODY>"
+          "<H1>Update Failed</H1><P>" + msg + "</P>"
+          "<P><A HREF='/update'>Try again</A></P></BODY></HTML>"
+        );
+        resp->addHeader("Connection", "close");
+        request->send(resp);
+      } else {
+        request->send(200, "text/html",
+          "<!DOCTYPE HTML><HTML><HEAD><META CHARSET='UTF-8'>"
+          "<META HTTP-EQUIV='refresh' CONTENT='20;URL=/'>"
+          "<META NAME='viewport' CONTENT='width=device-width, initial-scale=1.0'>"
+          "<TITLE>Update OK</TITLE>"
+          "<STYLE>BODY{font-family:sans-serif;text-align:center;padding:50px;}"
+          "H1{color:#4CAF50;}</STYLE>"
+          "</HEAD><BODY>"
+          "<H1>Update Complete!</H1><P>Device rebooting...</P></BODY></HTML>"
+        );
+        Serial.println("OTA: Success — rebooting in 1s");
+        delay(1000);
+        ESP.restart();
+      }
+    },
+    [](AsyncWebServerRequest *request, String filename, size_t index,
+       uint8_t *data, size_t len, bool final) {
+      // Note: request->send() does NOT work in the chunk handler; use Serial.
+      static size_t totalOtaWritten = 0;
+      static bool otaAborted = false;
+
+      if (!index) {
+        totalOtaWritten = 0;
+        otaAborted = false;
+
+        if (!filename.endsWith(".bin")) {
+          Serial.println("OTA: Rejected (not a .bin file)");
+          otaAborted = true;
+          return;
+        }
+
+        Serial.printf("OTA: Starting %s\n", filename.c_str());
+
+        // contentLength includes multipart overhead, use unknown
+        if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) {
+          Update.printError(Serial);
+          otaAborted = true;
+          return;
+        }
+        otaProgress = 0;
+      }
+
+      if (otaAborted)
+        return;
+
+      size_t written = Update.write(data, len);
+      if (written != len)
+        Update.printError(Serial);
+      totalOtaWritten += written;
+
+      size_t maxSize = Update.size();
+      if (maxSize > 0) {
+        int pct = (totalOtaWritten * 100) / maxSize;
+        if (pct > 99) pct = 99;
+        if (pct != otaProgress) {
+          otaProgress = pct;
+          Serial.printf("OTA: %d %% (%zu KB)\n", pct, totalOtaWritten / 1024);
+        }
+      } else {
+        otaProgress = (int)(totalOtaWritten / 1024);
+      }
+
+      if (final) {
+        if (totalOtaWritten < 100000) {
+          Serial.printf("OTA: Too small (%zu bytes), aborting\n", totalOtaWritten);
+          Update.abort();
+          otaProgress = -1;
+          return;
+        }
+
+        if (Update.end(true)) {
+          Serial.printf("OTA: Success! %zu bytes written\n", totalOtaWritten);
+          otaProgress = 100;
+        } else {
+          Update.printError(Serial);
+          otaProgress = -1;
+        }
+      }
+    }
+  );
+
   // Start web server
   server.begin();
 }
@@ -589,6 +699,7 @@ static const String webRadioPage()
 "<H1>ATS-Mini Pocket Receiver</H1>"
 "<P ALIGN='CENTER'>"
   "<A HREF='/memory'>Memory</A>&nbsp;|&nbsp;<A HREF='/config'>Config</A>"
+  "&nbsp;|&nbsp;<A HREF='/update'>Update</A>"
 "</P>"
 "<TABLE COLUMNS=2>"
 "<TR>"
@@ -652,6 +763,7 @@ static const String webMemoryPage()
 "<H1>ATS-Mini Pocket Receiver Memory</H1>"
 "<P ALIGN='CENTER'>"
   "<A HREF='/'>Status</A>&nbsp;|&nbsp;<A HREF='/config'>Config</A>"
+  "&nbsp;|&nbsp;<A HREF='/update'>Update</A>"
 "</P>"
 "<TABLE COLUMNS=2>" + items + "</TABLE>"
 );
@@ -674,6 +786,7 @@ const String webConfigPage()
 "<P ALIGN='CENTER'>"
   "<A HREF='/'>Status</A>"
   "&nbsp;|&nbsp;<A HREF='/memory'>Memory</A>"
+  "&nbsp;|&nbsp;<A HREF='/update'>Update</A>"
 "</P>"
 "<FORM ACTION='/setconfig' METHOD='POST'>"
   "<TABLE COLUMNS=2>"
@@ -746,5 +859,30 @@ const String webConfigPage()
   "</TH></TR>"
   "</TABLE>"
 "</FORM>"
+);
+}
+
+static const String webUpdatePage()
+{
+  return webPage(
+"<H1>Firmware Update</H1>"
+"<P ALIGN='CENTER'>"
+  "<A HREF='/'>Status</A>&nbsp;|&nbsp;<A HREF='/config'>Config</A>"
+"</P>"
+"<P>Select the firmware <CODE>.bin</CODE> file to upload.</P>"
+"<FORM METHOD='POST' ACTION='/update' ENCTYPE='multipart/form-data'>"
+"<TABLE COLUMNS=1>"
+"<TR><TD>"
+  "<INPUT TYPE='FILE' NAME='firmware' ACCEPT='.bin'>"
+"</TD></TR>"
+"<TR><TD CLASS='CENTER'>"
+  "<INPUT TYPE='SUBMIT' VALUE='Upload &amp; Update'>"
+"</TD></TR>"
+"</TABLE>"
+"</FORM>"
+"<P STYLE='color:#888;font-size:smaller;'>"
+  "The device will reboot automatically after the update.<BR>"
+  "Do <STRONG>not</STRONG> power off during the update."
+"</P>"
 );
 }

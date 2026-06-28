@@ -431,6 +431,33 @@ void drawScreen(const char *statusLine1, const char *statusLine2)
 {
   if(sleepOn()) return;
 
+  // If OTA update in progress, show progress screen (no race — runs in main loop)
+  if(otaProgress >= 0)
+  {
+    spr.fillSprite(TFT_BLACK);
+
+    spr.setTextDatum(TC_DATUM);
+    spr.setFreeFont(&Orbitron_Light_24);
+    spr.setTextColor(TFT_CYAN);
+    spr.drawString("OTA UPDATE", 160, 45);
+
+    spr.setFreeFont(nullptr);
+    spr.setTextColor(TFT_YELLOW);
+    spr.drawString("Do not power off!", 160, 78, 2);
+
+    spr.drawRect(40, 105, 240, 18, TFT_WHITE);
+    if(otaProgress > 0)
+      spr.fillRect(41, 106, (238 * otaProgress) / 100, 16, TFT_GREEN);
+
+    char pct[8];
+    snprintf(pct, sizeof(pct), "%d%%", otaProgress);
+    spr.setTextColor(TFT_WHITE);
+    spr.drawString(pct, 160, 135, 4);
+
+    spr.pushSprite(0, 0);
+    return;
+  }
+
   // Clear screen buffer
   spr.fillSprite(TH.bg);
 
