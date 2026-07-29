@@ -12,6 +12,9 @@ void drawLayoutDefault(const char *statusLine1, const char *statusLine2)
   // Draw BLE icon
   drawBleIndicator(BLE_OFFSET_X, BLE_OFFSET_Y);
 
+  // Draw Sleep Timer icon
+  drawSleepTimerIndicator(SLEEP_OFFSET_X, SLEEP_OFFSET_Y);
+
   // Draw battery indicator & voltage
   bool has_voltage = drawBattery(BATT_OFFSET_X, BATT_OFFSET_Y);
 
