@@ -98,6 +98,8 @@ TFT_eSPI tft    = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
 SI4735_fixed rx;
 
+uint32_t activityTimer = 0; // Timer to track user activity for sleep mode
+
 //
 // Hardware initialization and setup
 //
@@ -758,8 +760,6 @@ void loop()
 
   ButtonTracker::State pb1st = pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW);
 
-  // if(encCount && getCpuFrequencyMhz()!=240) setCpuFrequencyMhz(240);
-
   // Receive and execute serial command
   int ser_event = serialLoop(usbModeIdx);
   needRedraw |= !!(ser_event & REMOTE_CHANGED);
@@ -795,6 +795,9 @@ void loop()
     pushAndRotate = false;
     needRedraw = true;
   }
+
+  // If button is being pressed or encoder is being rotated, reset activity timer
+  if(pb1st.isPressed || encCount) activityTimer = currentTime;
 
   // If push and rotate mode is active...
   if(pushAndRotate)
@@ -998,6 +1001,15 @@ void loop()
   // Redraw screen if necessary
   if(needRedraw) drawScreen();
 
-  // Add a small default delay in the main loop
-  delay(5);
+  // Put ESP32 into light sleep if no user input for a while
+  if((currentTime - activityTimer) > ACTIVITY_TIMEOUT)
+  {
+    if(getCpuFrequencyMhz()!=80) setCpuFrequencyMhz(80);
+    esp_sleep_enable_timer_wakeup(SLEEP_PERIOD_MS * 1000);
+    esp_light_sleep_start();
+  }else
+  {
+    if(getCpuFrequencyMhz()!=240) setCpuFrequencyMhz(240);
+    // No sleep
+  }
 }
