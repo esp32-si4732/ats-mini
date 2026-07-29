@@ -124,7 +124,7 @@ void setup()
   // Enable SI4732 VDD
   pinMode(PIN_POWER_ON, OUTPUT);
   digitalWrite(PIN_POWER_ON, HIGH);
-  delay(100);
+  delay(5);
 
   // The line below may be necessary to setup I2C pins on ESP32
   Wire.begin(ESP32_I2C_SDA, ESP32_I2C_SCL);
@@ -251,7 +251,7 @@ void setup()
 
   // SI4732 STARTUP!
   selectBand(bandIdx, false);
-  delay(50);
+  delay(5);
   rx.setVolume(volume);
   rx.setMaxSeekTime(SEEK_TIMEOUT);
 
@@ -421,7 +421,7 @@ void useBand(const Band *band)
   // Set currentAVC values based on mode (AM, SSB)
   doAvc(0);
   // Wait a bit for things to calm down
-  delay(100);
+  delay(5);
   // Clear signal strength readings
   rssi = 0;
   snr  = 0;
