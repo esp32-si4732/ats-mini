@@ -998,6 +998,11 @@ void loop()
     background_timer = currentTime;
   }
 
+  //Always redraw if the FPS counter is enabled
+#if defined(FPS_COUNTER)
+  needRedraw = true;
+#endif
+
   // Redraw screen if necessary
   if(needRedraw) drawScreen();
 

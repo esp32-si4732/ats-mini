@@ -424,6 +424,30 @@ void drawScanGraphs(uint32_t freq)
   spr.drawLine(160, 130, 160, 169, TH.scale_pointer);
 }
 
+#if defined(FPS_COUNTER)
+void drawFPS()
+{
+  static uint32_t lastTime = 0;
+  static uint8_t fps = 0;
+  static uint8_t fpsCount = 0;
+
+  if(millis() - lastTime >= 1000)
+  {
+    lastTime = millis();
+    fps = fpsCount;
+    fpsCount = 0;
+  }
+  else
+  {
+    fpsCount++;
+  }
+
+  spr.setTextDatum(TC_DATUM);
+  spr.setTextColor(TH.band_text);
+  spr.drawNumber(fps, FPS_OFFSET_X, FPS_OFFSET_Y, 2);
+}
+#endif
+
 //
 // Draw screen according to given command
 //
@@ -450,6 +474,10 @@ void drawScreen(const char *statusLine1, const char *statusLine2)
       drawLayoutDefault(statusLine1, statusLine2);
       break;
   }
+
+#if defined(FPS_COUNTER)
+  drawFPS();
+#endif
 
   spr.pushSprite(0, 0);
 }

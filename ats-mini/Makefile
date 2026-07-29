@@ -10,6 +10,7 @@ DEBUG_LEVEL ?= 0
 
 #
 # HALF_STEP       : Enable encoder half-steps
+# FPS_COUNTER     : Enable FPS counter
 # BLE_POWER_LEVEL : BLE TX power level, for example ESP_PWR_LVL_N12
 # WIFI_POWER_LEVEL: WiFi TX power level, for example WIFI_POWER_13dBm
 #
@@ -21,6 +22,10 @@ endif
 
 ifdef HALF_STEP
         DEFINES += -DHALF_STEP
+endif
+
+ifdef FPS_COUNTER
+        DEFINES += -DFPS_COUNTER
 endif
 
 ifdef BLE_POWER_LEVEL
