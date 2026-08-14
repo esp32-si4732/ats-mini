@@ -833,6 +833,13 @@ void loop()
       switch(currentCmd)
       {
         case CMD_NONE:
+          // The dial controls the volume in the normal mode
+          currentCmd = CMD_VOLUME;
+          doVolume(encCountAccel);
+          needRedraw = true;
+          // Volume has changed
+          prefsRequestSave(SAVE_SETTINGS);
+          break;
         case CMD_SCAN:
           // Tuning
           needRedraw |= doTune(encCountAccel);
@@ -899,6 +906,13 @@ void loop()
           needRedraw = true;
         }
       }
+      else if(currentCmd==CMD_NONE || currentCmd==CMD_VOLUME)
+      {
+        // Any press that is not a long press opens the station list,
+        // both from the normal mode and from the volume it falls back to
+        enterPresetMode();
+        needRedraw = true;
+      }
       else if(clickHandler(currentCmd, pb1st.wasShortPressed))
       {
         // Command handled, redraw screen
@@ -907,22 +921,10 @@ void loop()
         // EiBi can take long time, renew the timestamps
         elapsedSleep = elapsedCommand = currentTime = millis();
       }
-      else if(currentCmd != CMD_NONE)
+      else
       {
         // Deactivate modal mode
         currentCmd = CMD_NONE;
-        needRedraw = true;
-      }
-      else if(pb1st.wasShortPressed)
-      {
-        // Volume shortcut (only active in VFO mode)
-        currentCmd = CMD_VOLUME;
-        needRedraw = true;
-      }
-      else
-      {
-        // Activate menu
-        currentCmd = CMD_MENU;
         needRedraw = true;
       }
     }

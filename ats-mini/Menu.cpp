@@ -745,6 +745,88 @@ static void clickMemory(uint8_t idx, bool shortPress)
   else currentCmd = CMD_NONE;
 }
 
+//
+// Station Presets
+//
+// A simplified station list, reached with a single click from the
+// normal (VFO) mode. It only shows the memory slots that have been
+// filled in, followed by an extra item leading to the normal menu.
+//
+
+static int8_t presetIdx = 0;
+
+// Count the memory slots in use
+static int getPresetCount()
+{
+  int total = ITEM_COUNT(memories);
+  int count = 0;
+
+  for(int i=0 ; i<total ; i++)
+    if(memories[i].freq) count++;
+
+  return(count);
+}
+
+// Get the memory slot holding the Nth preset, -1 if there is none
+static int getPresetSlot(int idx)
+{
+  int total = ITEM_COUNT(memories);
+
+  for(int i=0 ; i<total ; i++)
+    if(memories[i].freq && !idx--) return(i);
+
+  return(-1);
+}
+
+// Compose the list label for a memory slot
+static void getPresetLabel(int slot, char *buf, size_t size)
+{
+  if(memories[slot].mode==FM)
+    snprintf(buf, size, "%3.2f %s", memories[slot].freq / 1000000.0, bandModeDesc[memories[slot].mode]);
+  else
+    snprintf(buf, size, "%5lu %s", memories[slot].freq / 1000, bandModeDesc[memories[slot].mode]);
+}
+
+void enterPresetMode()
+{
+  int count = getPresetCount();
+
+  // Start at the preset currently on the air, at the top of the list otherwise
+  presetIdx = 0;
+  for(int i=0 ; i<count ; i++)
+  {
+    const Memory *memory = &memories[getPresetSlot(i)];
+
+    if(memory->band==bandIdx && memory->mode==currentMode
+    && freqFromHz(memory->freq, memory->mode)==currentFrequency)
+    {
+      presetIdx = i;
+      break;
+    }
+  }
+
+  currentCmd = CMD_PRESET;
+}
+
+static void doPreset(int16_t enc)
+{
+  // The extra item past the last preset leads to the menu, so the
+  // list must not wrap around
+  presetIdx = clamp_range(presetIdx, enc, 0, getPresetCount());
+
+  // Tune to the selected station right away, unless on the menu item
+  int slot = getPresetSlot(presetIdx);
+  if(slot>=0) tuneToMemory(&memories[slot]);
+}
+
+static void clickPreset(uint8_t idx, bool shortPress)
+{
+  // The extra item past the last preset leads to the menu
+  if(idx>=getPresetCount()) currentCmd = CMD_MENU;
+  // Station has already been tuned in doPreset(), just leave the list
+  else currentCmd = CMD_NONE;
+}
+
 void doStep(int16_t enc)
 {
   uint8_t idx = bands[bandIdx].currentStepIdx;
@@ -965,6 +1047,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_UI:         doUILayout(scrollDirection * enc);break;
     case CMD_RDS:        doRDSMode(scrollDirection * enc);break;
     case CMD_MEMORY:     doMemory(scrollDirection * enca);break;
+    case CMD_PRESET:     doPreset(scrollDirection * enc);break;
     case CMD_SLEEP:      doSleep(enca);break;
     case CMD_SLEEPMODE:  doSleepMode(scrollDirection * enc);break;
     case CMD_USBMODE:    doUSBMode(scrollDirection * enc);break;
@@ -989,6 +1072,7 @@ bool clickHandler(uint16_t cmd, bool shortPress)
     case CMD_MENU:     clickMenu(menuIdx, shortPress);break;
     case CMD_SETTINGS: clickSettings(settingsIdx, shortPress);break;
     case CMD_MEMORY:   clickMemory(memoryIdx, shortPress);break;
+    case CMD_PRESET:   clickPreset(presetIdx, shortPress);break;
     case CMD_BLEMODE:  clickBleMode(bleModeIdx, shortPress);break;
     case CMD_WIFIMODE: clickWiFiMode(wifiModeIdx, shortPress);break;
     case CMD_VOLUME:   clickVolume(shortPress);break;
@@ -1442,6 +1526,43 @@ static void drawMemory(int x, int y, int sx)
   }
 }
 
+static void drawPreset(int x, int y, int sx)
+{
+  drawCommon("Stations", x, y, sx, true);
+
+  // The extra item past the last preset leads to the menu
+  int total = getPresetCount() + 1;
+
+  for(int i=-2 ; i<3 ; i++)
+  {
+    int j = presetIdx + i;
+    char buf[16];
+    const char *text;
+
+    // This list does not wrap around
+    if(j<0 || j>=total) continue;
+
+    int slot = getPresetSlot(j);
+    if(slot<0)
+      text = "Menu >";
+    else
+    {
+      getPresetLabel(slot, buf, sizeof(buf));
+      text = buf;
+    }
+
+    if(i==0) {
+      drawZoomedMenu(text);
+      spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
+    } else {
+      spr.setTextColor(TH.menu_item);
+    }
+
+    spr.setTextDatum(MC_DATUM);
+    spr.drawString(text, 40+x+(sx/2), 64+y+(i*16), 2);
+  }
+}
+
 static void drawVolume(int x, int y, int sx)
 {
   drawCommon(menu[MENU_VOLUME], x, y, sx);
@@ -1723,6 +1844,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_BRT:        drawBrt(x, y, sx);        break;
     case CMD_RDS:        drawRDSMode(x, y, sx);    break;
     case CMD_MEMORY:     drawMemory(x, y, sx);     break;
+    case CMD_PRESET:     drawPreset(x, y, sx);     break;
     case CMD_SLEEP:      drawSleep(x, y, sx);      break;
     case CMD_SLEEPMODE:  drawSleepMode(x, y, sx);  break;
     case CMD_USBMODE:    drawUSBMode(x, y, sx);    break;
