@@ -32,8 +32,8 @@
 #define BLE_OFFSET_X   104    // BLE x offset
 #define BLE_OFFSET_Y     0    // BLE y offset
 #if defined(FPS_COUNTER)
-#define FPS_OFFSET_X   100    // Power state indicator x offset
-#define FPS_OFFSET_Y     0    // Power state indicator y offset
+#define FPS_OFFSET_X   100    // FPS counter x offset
+#define FPS_OFFSET_Y     0    // FPS counter y offset
 #endif
 
 void drawMessage(const char *msg);
