@@ -14,6 +14,7 @@
 #include "EIBI.h"
 #include "Remote.h"
 #include "BleMode.h"
+#include "esp_wifi.h"
 
 // SI473/5 and UI
 #define MIN_ELAPSED_TIME         5  // 300
@@ -98,6 +99,8 @@ TFT_eSPI tft    = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
 SI4735_fixed rx;
 
+uint32_t activityTimer = 0; // Timer to track user activity for sleep mode
+
 //
 // Hardware initialization and setup
 //
@@ -122,7 +125,7 @@ void setup()
   // Enable SI4732 VDD
   pinMode(PIN_POWER_ON, OUTPUT);
   digitalWrite(PIN_POWER_ON, HIGH);
-  delay(100);
+  delay(5);
 
   // The line below may be necessary to setup I2C pins on ESP32
   Wire.begin(ESP32_I2C_SDA, ESP32_I2C_SCL);
@@ -249,7 +252,7 @@ void setup()
 
   // SI4732 STARTUP!
   selectBand(bandIdx, false);
-  delay(50);
+  delay(5);
   rx.setVolume(volume);
   rx.setMaxSeekTime(SEEK_TIMEOUT);
 
@@ -265,6 +268,9 @@ void setup()
 
   // Connect WiFi, if necessary
   netInit(wifiModeIdx);
+
+  // Configure WiFi power save mode (must be done after WiFi initialization)
+  esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
 
   // Start Bluetooth LE, if necessary
   bleInit(bleModeIdx);
@@ -419,7 +425,7 @@ void useBand(const Band *band)
   // Set currentAVC values based on mode (AM, SSB)
   doAvc(0);
   // Wait a bit for things to calm down
-  delay(100);
+  delay(5);
   // Clear signal strength readings
   rssi = 0;
   snr  = 0;
@@ -758,8 +764,6 @@ void loop()
 
   ButtonTracker::State pb1st = pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW);
 
-  // if(encCount && getCpuFrequencyMhz()!=240) setCpuFrequencyMhz(240);
-
   // Receive and execute serial command
   int ser_event = serialLoop(usbModeIdx);
   needRedraw |= !!(ser_event & REMOTE_CHANGED);
@@ -795,6 +799,9 @@ void loop()
     pushAndRotate = false;
     needRedraw = true;
   }
+
+  // If button is being pressed or encoder is being rotated, reset activity timer
+  if(pb1st.isPressed || encCount) activityTimer = currentTime;
 
   // If push and rotate mode is active...
   if(pushAndRotate)
@@ -995,9 +1002,22 @@ void loop()
     background_timer = currentTime;
   }
 
+  //Always redraw if the FPS counter is enabled
+#if defined(FPS_COUNTER)
+  needRedraw = true;
+#endif
+
   // Redraw screen if necessary
   if(needRedraw) drawScreen();
 
-  // Add a small default delay in the main loop
-  delay(5);
+  // Put ESP32 into light sleep if no user input for a while
+  if((currentTime - activityTimer) > ACTIVITY_TIMEOUT)
+  {
+    if(getCpuFrequencyMhz()!=80) setCpuFrequencyMhz(80);
+    delay(SLEEP_PERIOD_MS);
+  }else
+  {
+    if(getCpuFrequencyMhz()!=240) setCpuFrequencyMhz(240);
+    // No sleep
+  }
 }

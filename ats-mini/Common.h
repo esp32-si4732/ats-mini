@@ -14,6 +14,10 @@
 #define AUTHORS_LINE3  "Goshante, G8PTN (Dave), R9UCL (Max Arnold),"
 #define AUTHORS_LINE4  "Marat Fayzullin"
 
+
+#define SLEEP_PERIOD_MS 5   // Duration of sleep between loop() iterations, in milliseconds
+#define ACTIVITY_TIMEOUT 200 // Duration of inactivity before starting to sleep again, in milliseconds
+
 #define VER_APP        235  // Firmware version
 #define VER_SETTINGS   71   // Settings version
 #define VER_MEMORIES   71   // Memories version
