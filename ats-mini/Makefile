@@ -4,7 +4,7 @@ PROFILE	= esp32s3-ospi
 FQBN	= esp32.esp32.esp32s3
 INO	= ats-mini.ino
 ELF	= ./build/$(FQBN)/$(INO).elf
-PORT	?= /dev/cu.usbmodem1101
+PORT	?= /dev/cu.usbmodem3101
 
 DEBUG_LEVEL ?= 0
 

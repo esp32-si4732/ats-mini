@@ -14,6 +14,7 @@
 #include "EIBI.h"
 #include "Remote.h"
 #include "BleMode.h"
+#include "esp_wifi.h"
 
 // SI473/5 and UI
 #define MIN_ELAPSED_TIME         5  // 300
@@ -267,6 +268,9 @@ void setup()
 
   // Connect WiFi, if necessary
   netInit(wifiModeIdx);
+
+  // Configure WiFi power save mode (must be done after WiFi initialization)
+  esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
 
   // Start Bluetooth LE, if necessary
   bleInit(bleModeIdx);
@@ -1010,8 +1014,7 @@ void loop()
   if((currentTime - activityTimer) > ACTIVITY_TIMEOUT)
   {
     if(getCpuFrequencyMhz()!=80) setCpuFrequencyMhz(80);
-    esp_sleep_enable_timer_wakeup(SLEEP_PERIOD_MS * 1000);
-    esp_light_sleep_start();
+    delay(SLEEP_PERIOD_MS);
   }else
   {
     if(getCpuFrequencyMhz()!=240) setCpuFrequencyMhz(240);
