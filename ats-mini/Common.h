@@ -189,6 +189,8 @@ extern uint8_t bleModeIdx;
 extern uint8_t wifiModeIdx;
 extern uint8_t FmRegionIdx;
 
+extern volatile int otaProgress; // OTA update progress: -1 = idle, 0-100 = in progress
+
 extern int8_t agcIdx;
 extern int8_t agcNdx;
 extern int8_t softMuteMaxAttIdx;
