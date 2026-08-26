@@ -4,6 +4,19 @@ The user manual is available at <https://esp32-si4732.github.io/ats-mini/manual.
 
 <!-- towncrier release notes start -->
 
+## 2.36 (2026-08-26)
+
+
+### Added
+
+- Add optional compile-time options to define TX power levels (BLE_POWER_LEVEL, WIFI_POWER_LEVEL), reduce the default WiFi power level from 19.S to 17dBm. See <https://esp32-si4732.github.io/ats-mini/development.html#compile-time-options> for additional details. [#307](https://github.com/esp32-si4732/ats-mini/issues/307)
+
+
+### Changed
+
+- Make possible using either RSSI or SNR for Squelch. The setting is saved separately for each mode (FM, LSB, USB, AM).
+- Try to return the power consumption back to normal when BLE is switched off <https://github.com/esp32-si4732/ats-mini/discussions/324#discussioncomment-17123023>.
+
 ## 2.35 (2026-05-03)
 
 
