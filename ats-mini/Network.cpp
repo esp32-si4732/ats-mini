@@ -4,6 +4,7 @@
 #include "Utils.h"
 #include "Menu.h"
 #include "Draw.h"
+#include "Splash.h"
 
 #include <WiFi.h>
 #include <WiFiMulti.h>
@@ -12,9 +13,11 @@
 #include <ESPAsyncWebServer.h>
 #include <NTPClient.h>
 #include <ESPmDNS.h>
+#include <LittleFS.h>
 
 #define CONNECT_TIME  3000  // Time of inactivity to start connecting WiFi
 #define WIFI_MULTI_TOTAL_TIMEOUT  30000
+#define SPLASH_MAX_FILE_SIZE (512U * 1024U)
 
 #ifndef WIFI_POWER_LEVEL
 #define WIFI_POWER_LEVEL WIFI_POWER_17dBm
@@ -55,6 +58,8 @@ static void wifiRegisterPowerLevelCallback();
 static void wifiPowerLevelOnEvent(WiFiEvent_t event);
 
 static void webSetConfig(AsyncWebServerRequest *request);
+static void webUploadSplash(AsyncWebServerRequest *request, const String &filename,
+                            size_t index, uint8_t *data, size_t len, bool final);
 
 static const String webInputField(const String &name, const String &value, bool pass = false);
 static const String webStyleSheet();
@@ -64,6 +69,12 @@ static const String webThemeSelector();
 static const String webRadioPage();
 static const String webMemoryPage();
 static const String webConfigPage();
+
+struct SplashUploadState
+{
+  bool incomplete;
+  bool tooLarge;
+};
 
 //
 // Delayed WiFi connection
@@ -359,20 +370,118 @@ static void webInit()
     request->send(200, "text/html", webConfigPage());
   });
 
+  server.on("/splash.png", HTTP_GET, [] (AsyncWebServerRequest *request) {
+    if(!LittleFS.exists(SPLASH_PATH))
+      return request->send(404, "text/plain", "Not found");
+    request->send(LittleFS, SPLASH_PATH, "image/png");
+  });
+
   server.onNotFound([] (AsyncWebServerRequest *request) {
     request->send(404, "text/plain", "Not found");
   });
 
   // This method saves configuration form contents
-  server.on("/setconfig", HTTP_ANY, webSetConfig);
+  server.on("/setconfig", HTTP_POST, webSetConfig, webUploadSplash);
 
   // Start web server
   server.begin();
 }
 
+static void webUploadSplash(AsyncWebServerRequest *request, const String &filename,
+                            size_t index, uint8_t *data, size_t len, bool final)
+{
+  if(index == 0)
+  {
+    LittleFS.remove(SPLASH_TEMP_PATH);
+
+    SplashUploadState *state = static_cast<SplashUploadState *>(calloc(1, sizeof(SplashUploadState)));
+    if(!state) return;
+
+    request->_tempObject = state;
+    request->onDisconnect([request, state]() {
+      if(state->incomplete)
+      {
+        request->_tempFile.close();
+        LittleFS.remove(SPLASH_TEMP_PATH);
+      }
+    });
+
+    // The browser filter is only advisory, so enforce the extension here too.
+    if(filename.endsWith(".png"))
+    {
+      request->_tempFile = LittleFS.open(SPLASH_TEMP_PATH, "w");
+      state->incomplete = request->_tempFile;
+    }
+  }
+
+  SplashUploadState *state = static_cast<SplashUploadState *>(request->_tempObject);
+
+  if(request->_tempFile && len)
+  {
+    if((index + len) > SPLASH_MAX_FILE_SIZE)
+    {
+      state->tooLarge = true;
+      state->incomplete = false;
+      request->_tempFile.close();
+      LittleFS.remove(SPLASH_TEMP_PATH);
+    }
+    else if(request->_tempFile.write(data, len) != len)
+    {
+      state->incomplete = false;
+      request->_tempFile.close();
+      LittleFS.remove(SPLASH_TEMP_PATH);
+    }
+  }
+
+  if(final && request->_tempFile)
+    request->_tempFile.close();
+
+  if(final && state)
+    state->incomplete = false;
+}
+
 void webSetConfig(AsyncWebServerRequest *request)
 {
   uint32_t prefsSave = 0;
+
+  if(request->hasParam("deletesplash", true))
+  {
+    LittleFS.remove(SPLASH_TEMP_PATH);
+    LittleFS.remove(SPLASH_PATH);
+  }
+  else if(request->hasParam("splash", true, true))
+  {
+    String filename = request->getParam("splash", true, true)->value();
+
+    if(filename != "")
+    {
+      SplashUploadState *state = static_cast<SplashUploadState *>(request->_tempObject);
+      if(state && state->tooLarge)
+        return request->send(413, "text/plain", "The splash image must not exceed 512 KB.");
+
+      if(!filename.endsWith(".png"))
+      {
+        LittleFS.remove(SPLASH_TEMP_PATH);
+        return request->send(400, "text/plain", "The splash image filename must end in .png.");
+      }
+
+      if(!LittleFS.exists(SPLASH_TEMP_PATH))
+        return request->send(500, "text/plain", "The splash image could not be stored.");
+
+      String error = splashValidate();
+      if(error != "")
+      {
+        LittleFS.remove(SPLASH_TEMP_PATH);
+        return request->send(400, "text/plain", error);
+      }
+
+      if(!LittleFS.rename(SPLASH_TEMP_PATH, SPLASH_PATH))
+      {
+        LittleFS.remove(SPLASH_TEMP_PATH);
+        return request->send(500, "text/plain", "The splash image could not be installed.");
+      }
+    }
+  }
 
   // Start modifying preferences
   prefs.begin("network", false, STORAGE_PARTITION);
@@ -669,13 +778,18 @@ const String webConfigPage()
   bool scanHidden = prefs.getBool("wifiscanhidden", false);
   prefs.end();
 
+  String splashImage = LittleFS.exists(SPLASH_PATH)?
+    "<IMG SRC='/splash.png?" + String(millis()) + "' ALT='Current splash screen' STYLE='max-width:100%;height:auto;'>"
+  : "Not installed";
+  String splashResolution = String(spr.width()) + "x" + String(spr.height());
+
   return webPage(
 "<H1>ATS-Mini Config</H1>"
 "<P ALIGN='CENTER'>"
   "<A HREF='/'>Status</A>"
   "&nbsp;|&nbsp;<A HREF='/memory'>Memory</A>"
 "</P>"
-"<FORM ACTION='/setconfig' METHOD='POST'>"
+"<FORM ACTION='/setconfig' METHOD='POST' ENCTYPE='multipart/form-data'>"
   "<TABLE COLUMNS=2>"
   "<TR><TH COLSPAN=2 CLASS='HEADING'>WiFi Network 1</TH></TR>"
   "<TR>"
@@ -736,10 +850,24 @@ const String webConfigPage()
     "<TD><INPUT TYPE='CHECKBOX' NAME='scroll' VALUE='on'" +
     (scrollDirection<0? " CHECKED ":"") + "></TD>"
   "</TR>"
-   "<TR>"
+  "<TR>"
     "<TD CLASS='LABEL'>Zoomed Menu</TD>"
     "<TD><INPUT TYPE='CHECKBOX' NAME='zoom' VALUE='on'" +
     (zoomMenu? " CHECKED ":"") + "></TD>"
+  "</TR>"
+  "<TR><TH COLSPAN=2 CLASS='HEADING'>Splash Screen</TH></TR>"
+  "<TR>"
+    "<TD CLASS='LABEL'>Current Image</TD>"
+    "<TD>" + splashImage + "</TD>"
+  "</TR>"
+  "<TR>"
+    "<TD CLASS='LABEL'>Upload PNG</TD>"
+    "<TD><INPUT TYPE='FILE' NAME='splash' ACCEPT='.png'>"
+    "<BR><SMALL>Required resolution: " + splashResolution + " pixels; maximum size: 512 KB</SMALL></TD>"
+  "</TR>"
+  "<TR>"
+    "<TD CLASS='LABEL'>Delete Image</TD>"
+    "<TD><INPUT TYPE='CHECKBOX' NAME='deletesplash' VALUE='on'></TD>"
   "</TR>"
   "<TR><TH COLSPAN=2 CLASS='HEADING'>"
     "<INPUT TYPE='SUBMIT' VALUE='Save'>"
