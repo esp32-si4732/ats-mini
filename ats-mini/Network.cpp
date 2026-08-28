@@ -60,6 +60,7 @@ static void wifiPowerLevelOnEvent(WiFiEvent_t event);
 static void webSetConfig(AsyncWebServerRequest *request);
 static void webUploadSplash(AsyncWebServerRequest *request, const String &filename,
                             size_t index, uint8_t *data, size_t len, bool final);
+static bool webIsAuthenticated(AsyncWebServerRequest *request);
 
 static const String webInputField(const String &name, const String &value, bool pass = false);
 static const String webStyleSheet();
@@ -75,6 +76,12 @@ struct SplashUploadState
   bool incomplete;
   bool tooLarge;
 };
+
+static bool webIsAuthenticated(AsyncWebServerRequest *request)
+{
+  return(loginUsername == "" || loginPassword == "" ||
+         request->authenticate(loginUsername.c_str(), loginPassword.c_str()));
+}
 
 //
 // Delayed WiFi connection
@@ -364,9 +371,7 @@ static void webInit()
   });
 
   server.on("/config", HTTP_ANY, [] (AsyncWebServerRequest *request) {
-    if(loginUsername != "" && loginPassword != "")
-      if(!request->authenticate(loginUsername.c_str(), loginPassword.c_str()))
-        return request->requestAuthentication();
+    if(!webIsAuthenticated(request)) return request->requestAuthentication();
     request->send(200, "text/html", webConfigPage());
   });
 
@@ -390,6 +395,8 @@ static void webInit()
 static void webUploadSplash(AsyncWebServerRequest *request, const String &filename,
                             size_t index, uint8_t *data, size_t len, bool final)
 {
+  if(!webIsAuthenticated(request)) return;
+
   if(index == 0)
   {
     LittleFS.remove(SPLASH_TEMP_PATH);
@@ -442,6 +449,8 @@ static void webUploadSplash(AsyncWebServerRequest *request, const String &filena
 
 void webSetConfig(AsyncWebServerRequest *request)
 {
+  if(!webIsAuthenticated(request)) return request->requestAuthentication();
+
   uint32_t prefsSave = 0;
 
   if(request->hasParam("deletesplash", true))
