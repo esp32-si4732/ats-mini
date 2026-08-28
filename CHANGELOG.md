@@ -4,6 +4,18 @@ The user manual is available at <https://esp32-si4732.github.io/ats-mini/manual.
 
 <!-- towncrier release notes start -->
 
+## 2.37 (2026-08-28)
+
+
+### Added
+
+- Added an optional, user-uploadable PNG splash screen that is displayed when the receiver starts.
+
+
+### Fixed
+
+- Protected web configuration changes and splash image uploads with the configured web interface credentials.
+
 ## 2.36 (2026-08-26)
 
 
