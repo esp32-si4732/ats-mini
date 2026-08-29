@@ -1,0 +1,1 @@
+Greatly speed up screenshot capture (`C`): the framebuffer is now read directly and each row is sent in a single write instead of 54,400 per-pixel `printf` calls, freeing the main loop much sooner. The output is byte-for-byte identical. The USB TX buffer was also enlarged for smoother bulk transfers.

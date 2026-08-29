@@ -237,7 +237,10 @@ void BleHidCentral::onScanStart()
   char statusLine[40];
   uint8_t maxAttempts = MAX_SCAN_ATTEMPTS;
 
-  drawScreen();
+  // Draw the status once and return. The previous code also drew a blank screen
+  // first (a visible flash) and blocked the cooperative loop with delay(500) per
+  // attempt (up to 1.5 s total). The message persists until the next redraw, so
+  // no delay is needed and the loop stays responsive while scanning.
   if (maxAttempts)
   {
     snprintf(statusLine, sizeof(statusLine), "Scanning for BLE HID %u/%u...", scanAttempts, maxAttempts);
@@ -245,8 +248,6 @@ void BleHidCentral::onScanStart()
   }
   else
     drawScreen("Scanning for BLE HID...");
-
-  delay(500);
 }
 
 bool BleHidCentral::acceptsAdvertisement(BLEAdvertisedDevice& device)

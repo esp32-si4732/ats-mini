@@ -3,7 +3,13 @@
 
 #include "BleCentral.h"
 
-#define BLE_SCAN_INTERVAL 100
+// Milliseconds (the BLEScan API divides by 0.625 to get hardware units). A 400 ms
+// interval with a 100 ms window is a 25% scan duty cycle instead of the previous
+// 100% (interval == window): it cuts the RF the 2.4 GHz radio radiates next to
+// the SI4732 antenna (lower SW/AM noise floor and current draw while scanning)
+// and adds at most ~300 ms of discovery latency per cycle, imperceptible for a
+// one-time HID pairing.
+#define BLE_SCAN_INTERVAL 400
 #define BLE_SCAN_WINDOW 100
 
 struct BleHidState {
