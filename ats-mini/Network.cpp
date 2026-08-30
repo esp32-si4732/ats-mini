@@ -14,6 +14,7 @@
 #include <NTPClient.h>
 #include <ESPmDNS.h>
 #include <LittleFS.h>
+#include <time.h>
 
 #define CONNECT_TIME  3000  // Time of inactivity to start connecting WiFi
 #define WIFI_MULTI_TOTAL_TIMEOUT  30000
@@ -61,6 +62,7 @@ static void webSetConfig(AsyncWebServerRequest *request);
 static void webUploadSplash(AsyncWebServerRequest *request, const String &filename,
                             size_t index, uint8_t *data, size_t len, bool final);
 static bool webIsAuthenticated(AsyncWebServerRequest *request);
+static bool webParseUTCDateTime(const String &text, uint32_t *epoch);
 
 static const String webInputField(const String &name, const String &value, bool pass = false);
 static const String webStyleSheet();
@@ -403,10 +405,10 @@ static void webUploadSplash(AsyncWebServerRequest *request, const String &filena
     request->_tempObject = state;
     request->onDisconnect([request, state]() {
       if(state->incomplete)
-      {
         request->_tempFile.close();
-        LittleFS.remove(SPLASH_TEMP_PATH);
-      }
+
+      // Discard an upload that was not installed by webSetConfig().
+      LittleFS.remove(SPLASH_TEMP_PATH);
     });
 
     // The browser filter is only advisory, so enforce the extension here too.
@@ -448,6 +450,19 @@ void webSetConfig(AsyncWebServerRequest *request)
   if(!webIsAuthenticated(request)) return request->requestAuthentication();
 
   uint32_t prefsSave = 0;
+  uint32_t epoch;
+  bool setClock = false;
+
+  if(request->hasParam("datetime", true))
+  {
+    String dateTime = request->getParam("datetime", true)->value();
+    if(dateTime != "")
+    {
+      if(!webParseUTCDateTime(dateTime, &epoch))
+        return request->send(400, "text/plain", "Date/time must use the YYYY-mm-dd HH:MM:SS format and contain a valid UTC date and time.");
+      setClock = true;
+    }
+  }
 
   if(request->hasParam("deletesplash", true))
   {
@@ -527,9 +542,12 @@ void webSetConfig(AsyncWebServerRequest *request)
   // Save time zone
   if(request->hasParam("utcoffset", true))
   {
-    String utcOffset = request->getParam("utcoffset", true)->value();
-    utcOffsetIdx = utcOffset.toInt();
-    prefsSave |= SAVE_SETTINGS;
+    int idx = request->getParam("utcoffset", true)->value().toInt();
+    if(idx >= 0 && idx < getTotalUTCOffsets())
+    {
+      utcOffsetIdx = idx;
+      prefsSave |= SAVE_SETTINGS;
+    }
   }
 
   // Save theme
@@ -551,6 +569,8 @@ void webSetConfig(AsyncWebServerRequest *request)
   // Save preferences immediately
   prefsRequestSave(prefsSave, true);
 
+  if(setClock) clockSetEpoch(epoch);
+
   // Show config page again
   request->redirect("/config");
 
@@ -571,6 +591,29 @@ static const String webInputField(const String &name, const String &value, bool 
     "<INPUT TYPE='" + String(pass? "PASSWORD":"TEXT") + "' NAME='" +
     name + "' VALUE='" + newValue + "'>"
   );
+}
+
+static bool webParseUTCDateTime(const String &text, uint32_t *epoch)
+{
+  struct tm fields = {};
+  if(!epoch || text.length() != 19 ||
+     sscanf(text.c_str(), "%4d-%2d-%2d %2d:%2d:%2d",
+       &fields.tm_year, &fields.tm_mon, &fields.tm_mday,
+       &fields.tm_hour, &fields.tm_min, &fields.tm_sec) != 6)
+    return(false);
+
+  fields.tm_year -= 1900;
+  fields.tm_mon--;
+
+  time_t value = mktime(&fields);
+  char formatted[20];
+  if(value < 0 || value > UINT32_MAX ||
+     !strftime(formatted, sizeof(formatted), "%Y-%m-%d %H:%M:%S", &fields) ||
+     text != formatted)
+    return(false);
+
+  *epoch = value;
+  return(true);
 }
 
 static const String webStyleSheet()
@@ -646,11 +689,11 @@ static const String webUtcOffsetSelector()
 
   for(int i=0 ; i<getTotalUTCOffsets(); i++)
   {
-    char text[64];
+    char text[96];
 
     sprintf(text,
-      "<OPTION VALUE='%d'%s>%s</OPTION>",
-      i, utcOffsetIdx==i? " SELECTED":"",
+      "<OPTION VALUE='%d' DATA-MINUTES='%d'%s>%s</OPTION>",
+      i, utcOffsets[i].offset * 15, utcOffsetIdx==i? " SELECTED":"",
       utcOffsets[i].desc
     );
 
@@ -683,9 +726,31 @@ static const String webRadioPage()
 {
   String ip = "";
   String ssid = "";
+  String receiverTime = "Not synchronized";
+  int offsetMinutes = getCurrentUTCOffset() * 15;
+  int offsetMagnitude = abs(offsetMinutes);
+  char utcOffset[10];
+  snprintf(utcOffset, sizeof(utcOffset), "UTC%c%02d:%02d",
+           offsetMinutes < 0? '-' : '+', offsetMagnitude / 60, offsetMagnitude % 60);
   String freq = currentMode == FM?
     String(currentFrequency / 100.0) + "MHz "
   : String(currentFrequency + currentBFO / 1000.0) + "kHz ";
+
+  if(clockAvailable())
+  {
+    time_t localTime = time(NULL) + offsetMinutes * 60;
+    struct tm fields;
+    gmtime_r(&localTime, &fields);
+    char text[20];
+
+    strftime(text, sizeof(text),
+             clockGetDate(NULL, NULL, NULL, NULL)? "%Y-%m-%d %H:%M:%S" : "%H:%M:%S",
+             &fields);
+
+    receiverTime = text;
+  }
+
+  receiverTime += " (" + String(utcOffset) + ")";
 
   if(WiFi.status()==WL_CONNECTED)
   {
@@ -715,6 +780,10 @@ static const String webRadioPage()
 "<TR>"
   "<TD CLASS='LABEL'>Firmware</TD>"
   "<TD>" + String(getVersion(true)) + "</TD>"
+"</TR>"
+"<TR>"
+  "<TD CLASS='LABEL'>Date/Time</TD>"
+  "<TD>" + receiverTime + "</TD>"
 "</TR>"
 "<TR>"
   "<TD CLASS='LABEL'>Band</TD>"
@@ -793,7 +862,7 @@ const String webConfigPage()
   "<A HREF='/'>Status</A>"
   "&nbsp;|&nbsp;<A HREF='/memory'>Memory</A>"
 "</P>"
-"<FORM ACTION='/setconfig' METHOD='POST' ENCTYPE='multipart/form-data'>"
+"<FORM ACTION='/setconfig' METHOD='POST' ENCTYPE='multipart/form-data' ONSUBMIT='browserDateTime(true)'>"
   "<TABLE COLUMNS=2>"
   "<TR><TH COLSPAN=2 CLASS='HEADING'>WiFi Network 1</TH></TR>"
   "<TR>"
@@ -838,9 +907,17 @@ const String webConfigPage()
     (scanHidden? " CHECKED ":"") + "></TD>"
   "</TR>"
   "<TR>"
+    "<TD CLASS='LABEL'>Use Browser Date/Time</TD>"
+    "<TD><INPUT TYPE='CHECKBOX' ID='browserdatetime' ONCHANGE='browserDateTime()'></TD>"
+  "</TR>"
+  "<TR>"
+    "<TD CLASS='LABEL'>UTC Date/Time</TD>"
+    "<TD><INPUT TYPE='TEXT' ID='datetime' NAME='datetime' PLACEHOLDER='YYYY-mm-dd HH:MM:SS'></TD>"
+  "</TR>"
+  "<TR>"
     "<TD CLASS='LABEL'>Time Zone</TD>"
     "<TD>"
-      "<SELECT NAME='utcoffset'>" + webUtcOffsetSelector() + "</SELECT>"
+      "<SELECT ID='utcoffset' NAME='utcoffset'>" + webUtcOffsetSelector() + "</SELECT>"
     "</TD>"
   "</TR>"
   "<TR>"
@@ -878,5 +955,22 @@ const String webConfigPage()
   "</TH></TR>"
   "</TABLE>"
 "</FORM>"
+"<SCRIPT>"
+"function browserDateTime(submit)"
+"{"
+  "const enabled=document.getElementById('browserdatetime').checked;"
+  "const dateTime=document.getElementById('datetime');"
+  "const utcOffset=document.getElementById('utcoffset');"
+  "if(enabled)"
+  "{"
+    "const now=new Date();"
+    "dateTime.value=now.toISOString().slice(0,19).replace('T',' ');"
+    "const minutes=-now.getTimezoneOffset();"
+    "for(const option of utcOffset.options)"
+      "if(Number(option.dataset.minutes)===minutes) utcOffset.value=option.value;"
+  "}"
+  "dateTime.disabled=utcOffset.disabled=enabled&&!submit;"
+"}"
+"</SCRIPT>"
 );
 }
