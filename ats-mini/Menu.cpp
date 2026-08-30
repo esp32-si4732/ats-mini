@@ -7,6 +7,8 @@
 #include "BleMode.h"
 #include "Menu.h"
 
+#include <time.h>
+
 //
 // Bands Menu
 //
@@ -114,18 +116,19 @@ static const char *menu[] =
 #define MENU_CALIBRATION  1
 #define MENU_RDS          2
 #define MENU_UTCOFFSET    3
-#define MENU_FM_REGION    4
-#define MENU_THEME        5
-#define MENU_UI           6
-#define MENU_ZOOM         7
-#define MENU_SCROLL       8
-#define MENU_SLEEP        9
-#define MENU_SLEEPMODE    10
-#define MENU_LOADEIBI     11
-#define MENU_USBMODE      12
-#define MENU_BLEMODE      13
-#define MENU_WIFIMODE     14
-#define MENU_ABOUT        15
+#define MENU_DATETIME     4
+#define MENU_FM_REGION    5
+#define MENU_THEME        6
+#define MENU_UI           7
+#define MENU_ZOOM         8
+#define MENU_SCROLL       9
+#define MENU_SLEEP        10
+#define MENU_SLEEPMODE    11
+#define MENU_LOADEIBI     12
+#define MENU_USBMODE      13
+#define MENU_BLEMODE      14
+#define MENU_WIFIMODE     15
+#define MENU_ABOUT        16
 
 
 int8_t settingsIdx = MENU_BRIGHTNESS;
@@ -136,6 +139,7 @@ static const char *settings[] =
   "Calibration",
   "RDS",
   "UTC Offset",
+  "Date/Time",
   "FM Region",
   "Theme",
   "UI Layout",
@@ -259,6 +263,30 @@ const UTCOffset utcOffsets[] =
 
 int getCurrentUTCOffset() { return(utcOffsets[utcOffsetIdx].offset); }
 int getTotalUTCOffsets() { return(ITEM_COUNT(utcOffsets)); }
+
+//
+// Date/Time Menu
+//
+enum DateTimeField
+{
+  DATETIME_YEAR,
+  DATETIME_MONTH,
+  DATETIME_DAY,
+  DATETIME_HOUR,
+  DATETIME_MINUTE,
+  DATETIME_SECOND,
+  DATETIME_FIELD_COUNT,
+};
+
+static const uint16_t dateTimeMinYear = 2026;
+static const uint16_t dateTimeMaxYear = 2105;
+static uint8_t dateTimeField;
+static uint16_t dateTimeYear;
+static uint8_t dateTimeMonth;
+static uint8_t dateTimeDay;
+static uint8_t dateTimeHour;
+static uint8_t dateTimeMinute;
+static uint8_t dateTimeSecond;
 
 //
 // UI Layout Menu
@@ -505,6 +533,89 @@ static inline int clamp_range(int v, int enc, int vMin, int vMax)
   v += enc;
   v  = v>vMax? vMax : v<vMin? vMin : v;
   return(v);
+}
+
+static uint8_t dateTimeDaysInMonth(uint16_t year, uint8_t month)
+{
+  struct tm fields = {};
+  fields.tm_year = year - 1900;
+  fields.tm_mon = month;
+  fields.tm_mday = 0;
+  mktime(&fields);
+  return(fields.tm_mday);
+}
+
+static void dateTimeInit()
+{
+  dateTimeField = DATETIME_YEAR;
+  dateTimeYear = dateTimeMonth = dateTimeDay = 0;
+  dateTimeHour = dateTimeMinute = dateTimeSecond = 0;
+
+  if(!clockAvailable()) return;
+
+  time_t now = time(NULL);
+  struct tm fields;
+  gmtime_r(&now, &fields);
+  dateTimeHour = fields.tm_hour;
+  dateTimeMinute = fields.tm_min;
+  dateTimeSecond = fields.tm_sec;
+
+  // A time-only RDS update does not provide a usable date.
+  if(!clockGetDate(NULL, NULL, NULL, NULL)) return;
+
+  dateTimeYear = min(fields.tm_year + 1900, dateTimeMaxYear);
+  dateTimeMonth = fields.tm_mon + 1;
+  dateTimeDay = fields.tm_mday;
+}
+
+static void doDateTime(int16_t enc)
+{
+  bool dateMissing = dateTimeYear < dateTimeMinYear || !dateTimeMonth || !dateTimeDay;
+  if(dateMissing)
+  {
+    dateTimeYear = dateTimeMinYear;
+    dateTimeMonth = 1;
+    dateTimeDay = 1;
+    // The first step toward a higher value selects the minimum date value.
+    if(dateTimeField <= DATETIME_DAY && enc > 0) enc--;
+  }
+
+  switch(dateTimeField)
+  {
+    case DATETIME_YEAR:   dateTimeYear   = clamp_range(dateTimeYear,   enc, dateTimeMinYear, dateTimeMaxYear);break;
+    case DATETIME_MONTH:  dateTimeMonth  = wrap_range(dateTimeMonth,  enc, 1, 12);break;
+    case DATETIME_DAY:    dateTimeDay    = wrap_range(dateTimeDay,    enc, 1, dateTimeDaysInMonth(dateTimeYear, dateTimeMonth));break;
+    case DATETIME_HOUR:   dateTimeHour   = wrap_range(dateTimeHour,   enc, 0, 23);break;
+    case DATETIME_MINUTE: dateTimeMinute = wrap_range(dateTimeMinute, enc, 0, 59);break;
+    case DATETIME_SECOND: dateTimeSecond = wrap_range(dateTimeSecond, enc, 0, 59);break;
+  }
+
+  // Keep the day valid when the month or year changes.
+  dateTimeDay = min(dateTimeDay, dateTimeDaysInMonth(dateTimeYear, dateTimeMonth));
+}
+
+static void clickDateTime(bool shortPress)
+{
+  if(!shortPress)
+  {
+    dateTimeField = (dateTimeField + 1) % DATETIME_FIELD_COUNT;
+    return;
+  }
+
+  if(dateTimeYear >= dateTimeMinYear && dateTimeMonth && dateTimeDay)
+  {
+    struct tm fields = {};
+    fields.tm_year = dateTimeYear - 1900;
+    fields.tm_mon = dateTimeMonth - 1;
+    fields.tm_mday = dateTimeDay;
+    fields.tm_hour = dateTimeHour;
+    fields.tm_min = dateTimeMinute;
+    fields.tm_sec = dateTimeSecond;
+    time_t epoch = mktime(&fields);
+    if(epoch >= 0 && (uint64_t)epoch <= UINT32_MAX) clockSetEpoch(epoch);
+  }
+
+  currentCmd = CMD_NONE;
 }
 
 //
@@ -919,6 +1030,10 @@ static void clickSettings(int cmd, bool shortPress)
     case MENU_THEME:      currentCmd = CMD_THEME;      break;
     case MENU_UI:         currentCmd = CMD_UI;         break;
     case MENU_RDS:        currentCmd = CMD_RDS;        break;
+    case MENU_DATETIME:
+      dateTimeInit();
+      currentCmd = CMD_DATETIME;
+      break;
     case MENU_ZOOM:       currentCmd = CMD_ZOOM;       break;
     case MENU_SCROLL:     currentCmd = CMD_SCROLL;     break;
     case MENU_SLEEP:      currentCmd = CMD_SLEEP;      break;
@@ -972,6 +1087,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_ZOOM:       doZoom(enc);break;
     case CMD_SCROLL:     doScrollDir(enc);break;
     case CMD_UTCOFFSET:  doUTCOffset(scrollDirection * enc);break;
+    case CMD_DATETIME:   doDateTime(enc);break;
     case CMD_SQUELCH:    doSquelch(enca);break;
     case CMD_ABOUT:      doAbout(enc);break;
     default:             return(false);
@@ -995,6 +1111,7 @@ bool clickHandler(uint16_t cmd, bool shortPress)
     case CMD_SEEK:     clickSeek(shortPress);break;
     case CMD_SCAN:     clickScan(shortPress);break;
     case CMD_FREQ:     return(clickFreq(shortPress));
+    case CMD_DATETIME: clickDateTime(shortPress);break;
     default:           return(false);
   }
 
@@ -1409,6 +1526,52 @@ static void drawUTCOffset(int x, int y, int sx)
   }
 }
 
+static void drawDateTimeHighlight(const char *text, uint8_t start, uint8_t length, int x, int y)
+{
+  char prefix[11];
+  char value[5];
+  snprintf(prefix, sizeof(prefix), "%.*s", start, text);
+  snprintf(value, sizeof(value), "%.*s", length, text + start);
+
+  int left = x - spr.textWidth(text, 2) / 2;
+  int valueX = left + spr.textWidth(prefix, 2);
+  int valueWidth = spr.textWidth(value, 2);
+
+  spr.fillRoundRect(valueX - 1, y - 8, valueWidth + 2, 16, 2, TH.menu_hl_bg);
+  spr.setTextDatum(ML_DATUM);
+  spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
+  spr.drawString(value, valueX, y, 2);
+}
+
+static void drawDateTime(int x, int y, int sx)
+{
+  static const uint8_t starts[] = { 0, 5, 8, 0, 3, 6 };
+  static const uint8_t lengths[] = { 4, 2, 2, 2, 2, 2 };
+  char date[16];
+  char time[16];
+
+  snprintf(date, sizeof(date), "%04u-%02u-%02u",
+    (unsigned)dateTimeYear, (unsigned)dateTimeMonth, (unsigned)dateTimeDay);
+  snprintf(time, sizeof(time), "%02u:%02u:%02u",
+    (unsigned)dateTimeHour, (unsigned)dateTimeMinute, (unsigned)dateTimeSecond);
+
+  drawCommon(settings[MENU_DATETIME], x, y, sx);
+  drawZoomedMenu(settings[MENU_DATETIME]);
+
+  int center = 40 + x + sx / 2;
+  spr.setTextDatum(MC_DATUM);
+  spr.setTextColor(TH.menu_item);
+  spr.drawString(date, center, 41 + y, 2);
+  spr.drawString(time, center, 64 + y, 2);
+  spr.drawString("(UTC)", center, 91 + y, 2);
+
+  drawDateTimeHighlight(
+    dateTimeField <= DATETIME_DAY ? date : time,
+    starts[dateTimeField], lengths[dateTimeField], center,
+    (dateTimeField <= DATETIME_DAY ? 41 : 64) + y
+  );
+}
+
 static void drawMemory(int x, int y, int sx)
 {
   char label_memory[16];
@@ -1742,6 +1905,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_ZOOM:       drawZoom(x, y, sx);       break;
     case CMD_SCROLL:     drawScrollDir(x, y, sx);  break;
     case CMD_UTCOFFSET:  drawUTCOffset(x, y, sx);  break;
+    case CMD_DATETIME:   drawDateTime(x, y, sx);   break;
     case CMD_SQUELCH:    drawSquelch(x, y, sx);    break;
     default:             drawInfo(x, y, sx);       break;
   }

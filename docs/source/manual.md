@@ -71,6 +71,7 @@ The menu can be invoked by clicking the encoder button and is closed automatical
 * **Calibration** - SSB calibration offset (-2000...2000, per mode/band).
 * **RDS** - Radio Data System options: PS - radio station name, CT - date and time, RT - text, PTY - genre, ALL (EU/US) - everything. RDS CT should contain UTC date and time, but some stations incorrectly transmit local or completely bogus values. The clock is synchronized from RDS only once. To synchronize it again, disable and re-enable RDS CT or switch the receiver off and on.
 * **UTC Offset** - Affects the displayed date and time. Please note that automatic DST transitions are not supported; the offset needs to be adjusted manually.
+* **Date/Time** - Set the UTC date and time with the encoder. Click to select the next field, or short press to set the clock and close the menu. A timeout closes the menu without changing the clock.
 * **FM Region** - FM de-emphasis time constant by region (50µs for EU/JP/AU and 70µs for the US).
 * **Theme** - Color theme.
 * **UI Layout** - Alternative UI layouts. For now there is just one alternative UI with large S-meter and S/N-meter.
@@ -125,7 +126,7 @@ When on the go, you can set up a mobile Wi-Fi hotspot on your smartphone and use
 The receiver can download the [EiBi](http://eibispace.de/dx/eibi.txt) shortwave schedule and use it to display broadcasting stations, allowing you to quickly tune to them. Here’s how it works:
 
 * The schedule only needs to be downloaded once via [Wi-Fi](#wi-fi). It will be stored in the receiver's flash memory so it doesn't need to be fetched every time the device powers on.
-* To display scheduled stations correctly, the receiver’s clock must be set. You can set the UTC date/time manually or from the browser on the configuration web page, or configure a Wi-Fi internet connection and use Sync Only mode for NTP synchronization. The UTC offset setting doesn’t affect the schedule. A less reliable alternative is to use RDS CT, but this requires finding a station that broadcasts UTC time (not local time).
+* To display scheduled stations correctly, the receiver’s clock must be set. You can set the UTC date/time from the Settings menu or the configuration web page, or configure a Wi-Fi internet connection and use Sync Only mode for NTP synchronization. The UTC offset setting doesn’t affect the schedule. A less reliable alternative is to use RDS CT, but this requires finding a station that broadcasts UTC time (not local time).
 * Once set up, the receiver will display station names currently broadcasting on specific frequencies (only scheduled times are considered; days of the week are ignored for now).
 * You can quickly jump between stations using the Seek mode (marked by a clock icon). To switch between modes, short press the encoder while in Seek mode.
 

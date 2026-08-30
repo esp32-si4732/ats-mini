@@ -44,7 +44,8 @@
 #define CMD_USBMODE    0x2D00 // |
 #define CMD_BLEMODE    0x2E00 // |
 #define CMD_WIFIMODE   0x2F00 // |
-#define CMD_ABOUT      0x3000 //-+
+#define CMD_DATETIME   0x3000 // |
+#define CMD_ABOUT      0x3100 //-+
 
 // UI Layouts
 #define UI_DEFAULT  0

@@ -1,1 +1,1 @@
-Added manual and browser-based date/time synchronization to the web configuration page, and date/time with the configured UTC offset to the status page.
+Added offline date/time setup from the web configuration page, and display of the date/time and configured UTC offset on the status page.
