@@ -33,6 +33,10 @@ A cheaper rugged option ([ozon.ru](https://ozon.ru/t/nknLOP8)):
 
 ![](_static/case-offroad-team.jpg)
 
+A camera case ([amazon.com](https://www.amazon.com/dp/B06WGZMH2X)):
+
+![](_static/case-sumax.jpg)
+
 ## Portable wire antenna
 
 XHDATA AN-80 ([aliexpress.com](https://www.aliexpress.com/item/32820393148.html), [ozon.ru](https://www.ozon.ru/product/xhdata-an-80-vneshnyaya-antenna-fm-sw-korotkovolnovoe-fm-radio-razem-vneshney-antenny-s-2158059581/)):
