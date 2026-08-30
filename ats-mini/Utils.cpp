@@ -22,7 +22,6 @@ static bool ssbLoaded = false;
 
 // Time
 static bool clockHasBeenSet = false;
-static const time_t validDateEpoch = 1767225600; // 2026-01-01 00:00:00 UTC
 
 //
 // Get firmware version and build time, as a string
@@ -302,16 +301,39 @@ bool clockGetDate(uint16_t *year, uint8_t *month, uint8_t *day, uint8_t *weekday
   if(!clockHasBeenSet) return(false);
 
   time_t now = time(NULL);
-  if(now < validDateEpoch) return(false);
+  struct tm tm;
+  gmtime_r(&now, &tm);
+  if(tm.tm_year + 1900 < CLOCK_MIN_YEAR) return(false);
 
   now += getCurrentUTCOffset() * 15 * 60;
-  struct tm tm;
   gmtime_r(&now, &tm);
 
   if(year) *year = tm.tm_year + 1900;
   if(month) *month = tm.tm_mon + 1;
   if(day) *day = tm.tm_mday;
   if(weekday) *weekday = tm.tm_wday == 0? 7 : tm.tm_wday;
+  return(true);
+}
+
+bool clockUTCDateTimeToEpoch(int year, int month, int day, int hour, int minute, int second, uint32_t *epoch)
+{
+  if(!epoch || year < CLOCK_MIN_YEAR) return(false);
+
+  struct tm fields = {};
+  fields.tm_year = year - 1900;
+  fields.tm_mon = month - 1;
+  fields.tm_mday = day;
+  fields.tm_hour = hour;
+  fields.tm_min = minute;
+  fields.tm_sec = second;
+
+  time_t value = mktime(&fields);
+  if(value < 0 || value > UINT32_MAX ||
+     fields.tm_year != year - 1900 || fields.tm_mon != month - 1 || fields.tm_mday != day ||
+     fields.tm_hour != hour || fields.tm_min != minute || fields.tm_sec != second)
+    return(false);
+
+  *epoch = value;
   return(true);
 }
 

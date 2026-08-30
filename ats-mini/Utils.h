@@ -8,6 +8,8 @@
 #define MUTE_SQUELCH 3
 #define MUTE_TEMP    4
 
+#define CLOCK_MIN_YEAR 2026
+
 // SSB patch functions
 void loadSSB(uint8_t bandwidth, bool draw = true);
 void unloadSSB();
@@ -30,6 +32,7 @@ const char *clockGet();
 bool clockAvailable();
 bool clockGetHM(uint8_t *hours, uint8_t *minutes);
 bool clockGetDate(uint16_t *year, uint8_t *month, uint8_t *day, uint8_t *weekday);
+bool clockUTCDateTimeToEpoch(int year, int month, int day, int hour, int minute, int second, uint32_t *epoch);
 bool clockSetEpoch(uint32_t epoch);
 void clockReset();
 bool clockUpdate();

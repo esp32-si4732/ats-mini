@@ -278,7 +278,6 @@ enum DateTimeField
   DATETIME_FIELD_COUNT,
 };
 
-static const uint16_t dateTimeMinYear = 2026;
 static const uint16_t dateTimeMaxYear = 2105;
 static uint8_t dateTimeField;
 static uint16_t dateTimeYear;
@@ -570,10 +569,10 @@ static void dateTimeInit()
 
 static void doDateTime(int16_t enc)
 {
-  bool dateMissing = dateTimeYear < dateTimeMinYear || !dateTimeMonth || !dateTimeDay;
+  bool dateMissing = dateTimeYear < CLOCK_MIN_YEAR || !dateTimeMonth || !dateTimeDay;
   if(dateMissing)
   {
-    dateTimeYear = dateTimeMinYear;
+    dateTimeYear = CLOCK_MIN_YEAR;
     dateTimeMonth = 1;
     dateTimeDay = 1;
     // The first step toward a higher value selects the minimum date value.
@@ -582,7 +581,7 @@ static void doDateTime(int16_t enc)
 
   switch(dateTimeField)
   {
-    case DATETIME_YEAR:   dateTimeYear   = clamp_range(dateTimeYear,   enc, dateTimeMinYear, dateTimeMaxYear);break;
+    case DATETIME_YEAR:   dateTimeYear   = clamp_range(dateTimeYear,   enc, CLOCK_MIN_YEAR, dateTimeMaxYear);break;
     case DATETIME_MONTH:  dateTimeMonth  = wrap_range(dateTimeMonth,  enc, 1, 12);break;
     case DATETIME_DAY:    dateTimeDay    = wrap_range(dateTimeDay,    enc, 1, dateTimeDaysInMonth(dateTimeYear, dateTimeMonth));break;
     case DATETIME_HOUR:   dateTimeHour   = wrap_range(dateTimeHour,   enc, 0, 23);break;
@@ -591,7 +590,8 @@ static void doDateTime(int16_t enc)
   }
 
   // Keep the day valid when the month or year changes.
-  dateTimeDay = min(dateTimeDay, dateTimeDaysInMonth(dateTimeYear, dateTimeMonth));
+  if(dateTimeField <= DATETIME_MONTH)
+    dateTimeDay = min(dateTimeDay, dateTimeDaysInMonth(dateTimeYear, dateTimeMonth));
 }
 
 static void clickDateTime(bool shortPress)
@@ -602,18 +602,10 @@ static void clickDateTime(bool shortPress)
     return;
   }
 
-  if(dateTimeYear >= dateTimeMinYear && dateTimeMonth && dateTimeDay)
-  {
-    struct tm fields = {};
-    fields.tm_year = dateTimeYear - 1900;
-    fields.tm_mon = dateTimeMonth - 1;
-    fields.tm_mday = dateTimeDay;
-    fields.tm_hour = dateTimeHour;
-    fields.tm_min = dateTimeMinute;
-    fields.tm_sec = dateTimeSecond;
-    time_t epoch = mktime(&fields);
-    if(epoch >= 0 && (uint64_t)epoch <= UINT32_MAX) clockSetEpoch(epoch);
-  }
+  uint32_t epoch;
+  if(clockUTCDateTimeToEpoch(dateTimeYear, dateTimeMonth, dateTimeDay,
+                            dateTimeHour, dateTimeMinute, dateTimeSecond, &epoch))
+    clockSetEpoch(epoch);
 
   currentCmd = CMD_NONE;
 }
@@ -1850,7 +1842,8 @@ static void drawInfo(int x, int y, int sx)
   }
 
   // Draw current time
-  if(clockGet())
+  const char *clock = clockGet();
+  if(clock)
   {
     uint16_t year;
     uint8_t month, day, weekday;
@@ -1865,7 +1858,7 @@ static void drawInfo(int x, int y, int sx)
     }
 
     spr.drawString(label, 6+x, 64+y+(2*16), 2);
-    spr.drawString(clockGet(), 48+x, 64+y+(2*16), 2);
+    spr.drawString(clock, 48+x, 64+y+(2*16), 2);
   }
 }
 

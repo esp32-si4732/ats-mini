@@ -595,25 +595,11 @@ static const String webInputField(const String &name, const String &value, bool 
 
 static bool webParseUTCDateTime(const String &text, uint32_t *epoch)
 {
-  struct tm fields = {};
-  if(!epoch || text.length() != 19 ||
-     sscanf(text.c_str(), "%4d-%2d-%2d %2d:%2d:%2d",
-       &fields.tm_year, &fields.tm_mon, &fields.tm_mday,
-       &fields.tm_hour, &fields.tm_min, &fields.tm_sec) != 6)
-    return(false);
-
-  fields.tm_year -= 1900;
-  fields.tm_mon--;
-
-  time_t value = mktime(&fields);
-  char formatted[20];
-  if(value < 0 || value > UINT32_MAX ||
-     !strftime(formatted, sizeof(formatted), "%Y-%m-%d %H:%M:%S", &fields) ||
-     text != formatted)
-    return(false);
-
-  *epoch = value;
-  return(true);
+  int year, month, day, hour, minute, second;
+  return(epoch && text.length() == 19 &&
+         sscanf(text.c_str(), "%4d-%2d-%2d %2d:%2d:%2d",
+                &year, &month, &day, &hour, &minute, &second) == 6 &&
+         clockUTCDateTimeToEpoch(year, month, day, hour, minute, second, epoch));
 }
 
 static const String webStyleSheet()
