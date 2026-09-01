@@ -4,6 +4,15 @@ The user manual is available at <https://esp32-si4732.github.io/ats-mini/manual.
 
 <!-- towncrier release notes start -->
 
+## 2.38 (2026-09-01)
+
+
+### Added
+
+- Added date synchronization via NTP and RDS Clock Time; the current date is shown alongside the clock when available.
+- Added offline UTC date/time setup from the Settings menu.
+- Added offline date/time setup from the web configuration page, and display of the date/time and configured UTC offset on the status page.
+
 ## 2.37 (2026-08-28)
 
 
