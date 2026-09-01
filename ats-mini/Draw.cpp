@@ -62,9 +62,9 @@ void drawWiFiIndicator(int x, int y)
     if(switchThemeEditor())
       color = millis()&0x2000? TH.rf_icon_conn : TH.rf_icon;
 
-    spr.drawSmoothArc(x, 15+y, 14, 13, 150, 210, color, TH.bg);
-    spr.drawSmoothArc(x, 15+y, 9, 8, 150, 210, color, TH.bg);
-    spr.drawSmoothArc(x, 15+y, 4, 3, 150, 210, color, TH.bg);
+    spr.drawArc(x, 15+y, 14, 13, 240, 300, color);
+    spr.drawArc(x, 15+y, 9, 8, 240, 300, color);
+    spr.drawArc(x, 15+y, 4, 3, 240, 300, color);
   }
 }
 
@@ -78,8 +78,8 @@ bool drawWiFiStatus(const char *statusLine1, const char *statusLine2, int x, int
     // Draw two lines of network status
     spr.setTextDatum(TC_DATUM);
     spr.setTextColor(TH.rds_text);
-    if(statusLine1) spr.drawString(statusLine1, x, y, 2);
-    if(statusLine2) spr.drawString(statusLine2, x, y+17, 2);
+    if(statusLine1) spr.drawString(statusLine1, x, y, FONT_SMALL);
+    if(statusLine2) spr.drawString(statusLine2, x, y+17, FONT_SMALL);
     return(true);
   }
 
@@ -96,8 +96,8 @@ void drawZoomedMenu(const char *text, bool force)
   spr.fillSmoothRoundRect(RDS_OFFSET_X - 72 + 1, RDS_OFFSET_Y - 3 + 1, 152, 26, 4, TH.menu_bg);
   spr.setTextDatum(TC_DATUM);
   spr.setTextColor(TH.menu_item);
-  spr.drawString(text, RDS_OFFSET_X + 5, RDS_OFFSET_Y, 4);
-  spr.drawSmoothRoundRect(RDS_OFFSET_X - 72, RDS_OFFSET_Y - 3, 4, 4, 154, 28, TH.menu_border, TH.menu_bg);
+  spr.drawString(text, RDS_OFFSET_X + 5, RDS_OFFSET_Y, FONT_LARGE);
+  spr.drawRoundRect(RDS_OFFSET_X - 72, RDS_OFFSET_Y - 3, 154, 28, 4, TH.menu_border);
 }
 
 //
@@ -122,9 +122,9 @@ void drawBandAndMode(const char *band, const char *mode, int x, int y)
 
   spr.setTextDatum(TL_DATUM);
   spr.setTextColor(TH.mode_text);
-  uint16_t mode_width = spr.drawString(mode, x + band_width / 2 + 12, y + 8, 2);
+  uint16_t mode_width = spr.drawString(mode, x + band_width / 2 + 12, y + 8, FONT_SMALL);
 
-  spr.drawSmoothRoundRect(x + band_width / 2 + 7, y + 7, 4, 4, mode_width + 8, 17, TH.mode_border, TH.bg);
+  spr.drawRoundRect(x + band_width / 2 + 7, y + 7, mode_width + 8, 17, 4, TH.mode_border);
 }
 
 //
@@ -138,11 +138,11 @@ void drawRadioText(int y, int ymax)
   spr.setTextDatum(TC_DATUM);
   spr.setTextColor(TH.rds_text);
   for(; *rt && (y<ymax) ; y+=17, rt+=strlen(rt)+1)
-    spr.drawString(rt, 160, y, 2);
+    spr.drawString(rt, 160, y, FONT_SMALL);
 
   // Show program info if we have it and there is enough space
   if((y<ymax) && *getProgramInfo())
-    spr.drawString(getProgramInfo(), 160, y, 2);
+    spr.drawString(getProgramInfo(), 160, y, FONT_SMALL);
 }
 
 //
@@ -200,7 +200,7 @@ void drawFrequency(uint32_t freq, int x, int y, int ux, int uy, uint8_t hl)
     li = hl<ITEM_COUNT(hlDigitsFM)? &hlDigitsFM[hl] : 0;
 
     // FM frequency
-    spr.drawFloat(freq/100.00, 2, x, y, 7);
+    spr.drawFloat(freq/100.00, 2, x, y, FONT_DIGITS);
     spr.setTextDatum(ML_DATUM);
     spr.setTextColor(TH.funit_text);
     spr.drawString("MHz", ux, uy);
@@ -216,17 +216,17 @@ void drawFrequency(uint32_t freq, int x, int y, int ux, int uy, uint8_t hl)
       char text[32];
       freq = freq * 1000 + currentBFO;
       sprintf(text, "%3.3lu", freq / 1000);
-      spr.drawString(text, x, y, 7);
+      spr.drawString(text, x, y, FONT_DIGITS);
       spr.setTextDatum(ML_DATUM);
       sprintf(text, ".%3.3lu", freq % 1000);
-      spr.drawString(text, 4+x, 17+y, 4);
+      spr.drawString(text, 4+x, 17+y, FONT_LARGE);
     }
     else
     {
       // AM frequency
-      spr.drawNumber(freq, x, y, 7);
+      spr.drawNumber(freq, x, y, FONT_DIGITS);
       spr.setTextDatum(ML_DATUM);
-      spr.drawString(".000", 4+x, 17+y, 4);
+      spr.drawString(".000", 4+x, 17+y, FONT_LARGE);
     }
 
     // SSB/AM frequencies are measured in kHz
@@ -290,11 +290,11 @@ void drawScale(uint32_t freq)
         spr.drawLine(x, 169, x, 150, lineColor);
         spr.drawLine(x + 1, 169, x + 1, 150, lineColor);
         if(currentMode == FM)
-          spr.drawFloat(freq / 10.0, 1, x, 140, 2);
+          spr.drawFloat(freq / 10.0, 1, x, 140, FONT_SMALL);
         else if(freq >= 100)
-          spr.drawFloat(freq / 100.0, 3, x, 140, 2);
+          spr.drawFloat(freq / 100.0, 3, x, 140, FONT_SMALL);
         else
-          spr.drawNumber(freq * 10, x, 140, 2);
+          spr.drawNumber(freq * 10, x, 140, FONT_SMALL);
       }
       else if((freq % 5) == 0 && (freq % 10) != 0)
       {
@@ -346,7 +346,7 @@ void drawStationName(const char *name, int x, int y)
 {
   spr.setTextDatum(TC_DATUM);
   spr.setTextColor(TH.rds_text);
-  spr.drawString(name, x, y, 4);
+  spr.drawString(name, x, y, FONT_LARGE);
 }
 
 //
@@ -354,23 +354,23 @@ void drawStationName(const char *name, int x, int y)
 //
 void drawLongStationName(const char *name, int x, int y)
 {
-  int width = spr.textWidth(name, 2);
+  int width = spr.textWidth(name, FONT_SMALL);
   spr.setTextColor(TH.rds_text);
 
   if((x + width) >= 320)
   {
     spr.setTextDatum(TL_DATUM);
-    spr.drawString(name, x, y, 2);
+    spr.drawString(name, x, y, FONT_SMALL);
   }
   else if(width <= 60)
   {
     spr.setTextDatum(TC_DATUM);
-    spr.drawString(name, x + (320 - x) / 3, y, 2);
+    spr.drawString(name, x + (320 - x) / 3, y, FONT_SMALL);
   }
   else
   {
     spr.setTextDatum(TC_DATUM);
-    spr.drawString(name, x + (320 - x + width) / 4, y, 2);
+    spr.drawString(name, x + (320 - x + width) / 4, y, FONT_SMALL);
   }
 }
 

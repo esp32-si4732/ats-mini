@@ -2,8 +2,14 @@
 #define COMMON_H
 
 #include <stdint.h>
-#include <TFT_eSPI.h>
+#include "Display.h"
 #include <SI4735-fixed.h>
+
+// Shorthands for the LovyanGFX fonts used by the UI
+static constexpr const lgfx::IFont* FONT_DEFAULT = &lgfx::fonts::Font0;  // 6x8 system font
+static constexpr const lgfx::IFont* FONT_SMALL   = &lgfx::fonts::Font2;  // 16px general UI text
+static constexpr const lgfx::IFont* FONT_LARGE   = &lgfx::fonts::Font4;  // 26px values and titles
+static constexpr const lgfx::IFont* FONT_DIGITS  = &lgfx::fonts::Font7;  // 48px 7-segment digits
 
 #define RECEIVER_DESC  "ESP32-SI4732 Receiver"
 #define RECEIVER_NAME  "ATS-Mini"
@@ -51,7 +57,7 @@
 
 // Display PINs
 #define PIN_LCD_BL    15            // GPIO15   LCD backlight (PWM brightness control)
-// All other pins are defined by the TFT_eSPI library
+// All other pins are defined in the LovyanGFX configuration
 
 // Rotary Enconder PINs
 #define ENCODER_PIN_A  2            // GPIO02
@@ -70,7 +76,7 @@
 
 // Display PINs
 #define PIN_LCD_BL    38            // GPIO38   LCD backlight (PWM brightness control)
-// All other pins are defined by the TFT_eSPI library
+// All other pins are defined in the LovyanGFX configuration
 
 // Rotary Enconder PINs
 #define ENCODER_PIN_A  2            // GPIO02
@@ -159,8 +165,8 @@ typedef struct
 //
 
 extern SI4735_fixed rx;
-extern TFT_eSprite spr;
-extern TFT_eSPI tft;
+extern LGFX_Sprite spr;
+extern LGFX tft;
 
 extern bool pushAndRotate;
 extern volatile bool seekStop;

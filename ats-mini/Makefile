@@ -31,7 +31,7 @@ OPTIONS = \
 	--warnings all
 
 HEADERS = \
-	Common.h Themes.h Menu.h Storage.h tft_setup.h Rotary.h \
+	Common.h Themes.h Menu.h Storage.h Display.h Rotary.h \
 	Utils.h Button.h EIBI.h Remote.h BleMode.h TcpMode.h BlePeripheral.h \
 	BleUartPeripheral.h BleCentral.h BleHidCentral.h \
 	SI4735-fixed.h patch_init.h Splash.h

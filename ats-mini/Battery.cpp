@@ -138,7 +138,7 @@ bool drawBattery(int x, int y)
     }
 
     spr.fillRoundRect(x + 2, y + 3, level, 10, 2, color);
-    spr.drawString(voltage, x - 3, y, 2);
+    spr.drawString(voltage, x - 3, y, FONT_SMALL);
     return true;
   }
 }

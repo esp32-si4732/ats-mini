@@ -27,9 +27,9 @@ static void drawAboutCommon(uint8_t arrow)
 
   spr.setTextDatum(TL_DATUM);
   spr.setTextColor(TH.text_muted);
-  spr.drawString(RECEIVER_DESC, 0, 0, 4);
+  spr.drawString(RECEIVER_DESC, 0, 0, FONT_LARGE);
   spr.setTextColor(TH.text);
-  spr.drawString(getVersion(), 2, 25, 2);
+  spr.drawString(getVersion(), 2, 25, FONT_SMALL);
 }
 
 //
@@ -41,19 +41,19 @@ void drawAboutHelp(uint8_t arrow)
   esp_qrcode_config_t qrcode_config = ESP_QRCODE_CONFIG_DEFAULT();
   qrcode_config.display_func = displayQRCode;
   esp_qrcode_generate(&qrcode_config, MANUAL_URL);
-  spr.drawString("Scan the QR code to read", 130, 70 + 16 * -1, 2);
-  spr.drawString("the User Manual.", 130, 70 + 16 * 0, 2);
-  spr.drawString("Click the encoder button", 130, 70 + 16 * 1, 2);
-  spr.drawString("to continue.", 130, 70 + 16 * 2, 2);
+  spr.drawString("Scan the QR code to read", 130, 70 + 16 * -1, FONT_SMALL);
+  spr.drawString("the User Manual.", 130, 70 + 16 * 0, FONT_SMALL);
+  spr.drawString("Click the encoder button", 130, 70 + 16 * 1, FONT_SMALL);
+  spr.drawString("to continue.", 130, 70 + 16 * 2, FONT_SMALL);
   if(arrow)
   {
-    spr.drawString("Rotate the encoder to see", 130, 70 + 16 * 3, 2);
-    spr.drawString("the next page.", 130, 70 + 16 * 4, 2);
+    spr.drawString("Rotate the encoder to see", 130, 70 + 16 * 3, FONT_SMALL);
+    spr.drawString("the next page.", 130, 70 + 16 * 4, FONT_SMALL);
   }
   else
   {
-    spr.drawString("To see this screen again,", 130, 70 + 16 * 4, 2);
-    spr.drawString("go to Menu->Settings->About.", 130, 70 + 16 * 5, 2);
+    spr.drawString("To see this screen again,", 130, 70 + 16 * 4, FONT_SMALL);
+    spr.drawString("go to Menu->Settings->About.", 130, 70 + 16 * 5, FONT_SMALL);
   }
   spr.pushSprite(0, 0);
 }
@@ -73,7 +73,7 @@ static void drawAboutSystem(uint8_t arrow)
     ESP.getChipRevision(),
     ESP.getCpuFreqMHz()
   );
-  spr.drawString(text, 2, 70 + 16 * -1, 2);
+  spr.drawString(text, 2, 70 + 16 * -1, FONT_SMALL);
 
   sprintf(
     text,
@@ -84,7 +84,7 @@ static void drawAboutSystem(uint8_t arrow)
     (unsigned long)LittleFS.totalBytes() / 1024U,
     (unsigned long)(LittleFS.totalBytes() - LittleFS.usedBytes()) / 1024U
   );
-  spr.drawString(text, 2, 70 + 16 * 0, 2);
+  spr.drawString(text, 2, 70 + 16 * 0, FONT_SMALL);
 
   nvs_stats_t nvs_stats;
   nvs_get_stats(STORAGE_PARTITION, &nvs_stats);
@@ -95,7 +95,7 @@ static void drawAboutSystem(uint8_t arrow)
     nvs_stats.used_entries,
     nvs_stats.free_entries
   );
-  spr.drawString(text, 2, 70 + 16 * 1, 2);
+  spr.drawString(text, 2, 70 + 16 * 1, FONT_SMALL);
 
   sprintf(
     text,
@@ -103,24 +103,18 @@ static void drawAboutSystem(uint8_t arrow)
     ESP.getHeapSize()/1024U, ESP.getFreeHeap()/1024U,
     ESP.getPsramSize()/1024U, ESP.getFreePsram()/1024U
   );
-  spr.drawString(text, 2, 70 + 16 * 2, 2);
+  spr.drawString(text, 2, 70 + 16 * 2, FONT_SMALL);
 
   sprintf(
     text,
-    "Display ID: %08lX, STAT: %02X%08lX",
-#if !defined(LILYGO_SI473X)
-    tft.readcommand32(ST7789_RDDID, 1),
-    tft.readcommand8(ST7789_RDDST, 1),
-    tft.readcommand32(ST7789_RDDST, 2)
-#else
-    0, 0, 0
-#endif
+    "Display ID: %06lX",
+    (unsigned long)tft.getDisplayId()
   );
-  spr.drawString(text, 2, 70 + 16 * 3, 2);
+  spr.drawString(text, 2, 70 + 16 * 3, FONT_SMALL);
 
   char *ip = getWiFiIPAddress();
   sprintf(text, "WiFi MAC: %s%s%s", getMACAddress(), *ip ? ", IP: " : "", *ip ? ip : "");
-  spr.drawString(text, 2, 70 + 16 * 4, 2);
+  spr.drawString(text, 2, 70 + 16 * 4, FONT_SMALL);
 
   for(int i=0 ; i<8 ; i++)
   {
@@ -136,11 +130,11 @@ static void drawAboutSystem(uint8_t arrow)
 static void drawAboutAuthors(uint8_t arrow)
 {
   drawAboutCommon(arrow);
-  spr.drawString(FIRMWARE_URL, 2, 25 + 16, 2);
-  spr.drawString(AUTHORS_LINE1, 2, 70, 2);
-  spr.drawString(AUTHORS_LINE2, 2, 70 + 16, 2);
-  spr.drawString(AUTHORS_LINE3, 2, 70 + 16 * 2, 2);
-  spr.drawString(AUTHORS_LINE4, 2, 70 + 16 * 3, 2);
+  spr.drawString(FIRMWARE_URL, 2, 25 + 16, FONT_SMALL);
+  spr.drawString(AUTHORS_LINE1, 2, 70, FONT_SMALL);
+  spr.drawString(AUTHORS_LINE2, 2, 70 + 16, FONT_SMALL);
+  spr.drawString(AUTHORS_LINE3, 2, 70 + 16 * 2, FONT_SMALL);
+  spr.drawString(AUTHORS_LINE4, 2, 70 + 16 * 3, FONT_SMALL);
   spr.pushSprite(0, 0);
 }
 

@@ -194,8 +194,7 @@ bool sleepOn(int x)
     ledcWrite(PIN_LCD_BL, 0);
     spr.fillSprite(TFT_BLACK);
     spr.pushSprite(0, 0);
-    tft.writecommand(ST7789_DISPOFF);
-    tft.writecommand(ST7789_SLPIN);
+    tft.setPanelSleep(true);
 
     // Wait till the button is released to prevent immediate wakeup
     while(pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW).isPressed)
@@ -247,9 +246,7 @@ bool sleepOn(int x)
   else if((x==0) && sleep_on)
   {
     sleep_on = false;
-    tft.writecommand(ST7789_SLPOUT);
-    delay(120);
-    tft.writecommand(ST7789_DISPON);
+    tft.setPanelSleep(false);
     drawScreen();
     ledcWrite(PIN_LCD_BL, currentBrt);
     // Wait till the button is released to prevent the main loop clicks

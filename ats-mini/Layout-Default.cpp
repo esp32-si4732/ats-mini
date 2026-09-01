@@ -19,7 +19,7 @@ void drawLayoutDefault(const char *statusLine1, const char *statusLine2)
   drawWiFiIndicator(has_voltage ? WIFI_OFFSET_X : BATT_OFFSET_X - 13, WIFI_OFFSET_Y);
 
   // Set font we are going to use
-  spr.setFreeFont(&Orbitron_Light_24);
+  spr.setFont(&lgfx::fonts::Orbitron_Light_24);
 
   // Draw band and mode
   drawBandAndMode(
@@ -32,7 +32,7 @@ void drawLayoutDefault(const char *statusLine1, const char *statusLine2)
   {
     spr.setTextDatum(TR_DATUM);
     spr.setTextColor(TH.text_warn);
-    spr.drawString(TH.name, 319, BATT_OFFSET_Y + 17, 2);
+    spr.drawString(TH.name, 319, BATT_OFFSET_Y + 17, FONT_SMALL);
   }
 
   // Draw frequency, units, and optionally highlight a digit

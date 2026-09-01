@@ -63,12 +63,12 @@ static void drawSmallScale(uint32_t freq, int y)
     sprintf(lim, "%0.2f", band->minimumFreq/100.00);
   else
     sprintf(lim, "%u", band->minimumFreq);
-  spr.drawString(lim, scaleStart-27, y, 2);
+  spr.drawString(lim, scaleStart-27, y, FONT_SMALL);
   if(band->bandType==FM_BAND_TYPE)
     sprintf(lim, "%0.2f", band->maximumFreq/100.00);
   else
     sprintf(lim, "%u", band->maximumFreq);
-  spr.drawString(lim, scaleEnd+27, y, 2);
+  spr.drawString(lim, scaleEnd+27, y, FONT_SMALL);
 }
 
 //
@@ -97,10 +97,10 @@ static void drawLargeSMeter(int rssi, int strength, int x, int y)
     {
       int text_width = 0;
       int text_x = x + (i * 15) - 13;
-      if(i < 10)  text_width = spr.drawNumber(i, text_x, 20+y, 2);
-      if(i == 11) text_width = spr.drawString("+20", text_x, 20+y, 2);
-      if(i == 13) text_width = spr.drawString("+40", text_x, 20+y, 2);
-      if(i == 15) text_width = spr.drawString("+60", text_x, 20+y, 2);
+      if(i < 10)  text_width = spr.drawNumber(i, text_x, 20+y, FONT_SMALL);
+      if(i == 11) text_width = spr.drawString("+20", text_x, 20+y, FONT_SMALL);
+      if(i == 13) text_width = spr.drawString("+40", text_x, 20+y, FONT_SMALL);
+      if(i == 15) text_width = spr.drawString("+60", text_x, 20+y, FONT_SMALL);
 
       // Draw the dotted line from end of previous number to start of current number
       for(int px=last_x; px<text_x-text_width/2; px++) {
@@ -116,9 +116,9 @@ static void drawLargeSMeter(int rssi, int strength, int x, int y)
   }
 
   spr.setTextDatum(BL_DATUM);
-  spr.drawString("S", x - 10, 36 + y, 2);
+  spr.drawString("S", x - 10, 36 + y, FONT_SMALL);
   spr.setTextDatum(BR_DATUM);
-  spr.drawNumber(rssi, x - 15, 40 + y, 4);
+  spr.drawNumber(rssi, x - 15, 40 + y, FONT_LARGE);
 
   // S-Meter
   for(int i=0; i<49; i++)
@@ -134,9 +134,9 @@ static void drawLargeSNMeter(int snr, int x, int y)
 {
   spr.setTextColor(TH.scale_text);
   spr.setTextDatum(BL_DATUM);
-  spr.drawString("N", x - 10, 12 + y, 2);
+  spr.drawString("N", x - 10, 12 + y, FONT_SMALL);
   spr.setTextDatum(BR_DATUM);
-  spr.drawNumber(snr, x - 15, 16 + y, 4);
+  spr.drawNumber(snr, x - 15, 16 + y, FONT_LARGE);
 
   // SN-Meter
   int snrbars = snr * 45 / 128.0;
@@ -165,7 +165,7 @@ void drawLayoutSmeter(const char *statusLine1, const char *statusLine2)
   drawWiFiIndicator(has_voltage ? WIFI_OFFSET_X : BATT_OFFSET_X - 13, WIFI_OFFSET_Y);
 
   // Set font we are going to use
-  spr.setFreeFont(&Orbitron_Light_24);
+  spr.setFont(&lgfx::fonts::Orbitron_Light_24);
 
   // Draw band and mode
   drawBandAndMode(
@@ -178,7 +178,7 @@ void drawLayoutSmeter(const char *statusLine1, const char *statusLine2)
   {
     spr.setTextDatum(TR_DATUM);
     spr.setTextColor(TH.text_warn);
-    spr.drawString(TH.name, 319, BATT_OFFSET_Y + 17, 2);
+    spr.drawString(TH.name, 319, BATT_OFFSET_Y + 17, FONT_SMALL);
   }
 
   // Draw frequency, units, and optionally highlight a digit

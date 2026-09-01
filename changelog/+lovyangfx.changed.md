@@ -1,0 +1,1 @@
+Replaced TFT_eSPI and PNGdec with LovyanGFX for display and splash-screen rendering. The display rendering is now approximately 2.3 times faster.
