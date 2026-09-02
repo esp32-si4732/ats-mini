@@ -2,8 +2,10 @@
 #include "Themes.h"
 #include "Remote.h"
 #include "Draw.h"
+#include "Storage.h"
 #include "BleHidCentral.h"
 #include "BleMode.h"
+#include <host/ble_store.h>
 
 static BleUartPeripheral BLESerial;
 static BleHidCentral BLEHid;
@@ -64,6 +66,23 @@ void bleStop()
 void bleInit(uint8_t bleMode)
 {
   bleStop();
+
+  if (bleMode == BLE_UNPAIR_ALL)
+  {
+    // The BLE store is initialized lazily, so initialize it even when the
+    // receiver was previously in Off mode.
+    if (!BLEDevice::getInitialized())
+      BLEDevice::init(RECEIVER_NAME);
+
+    if (BLEDevice::getInitialized())
+      ble_store_clear();
+
+    bleControllerDisable();
+    bleModeIdx = BLE_OFF;
+    prefsRequestSave(SAVE_SETTINGS, true);
+    return;
+  }
+
   if (bleMode != BLE_OFF && !bleControllerEnable()) return;
 
   switch(bleMode)

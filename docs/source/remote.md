@@ -22,6 +22,7 @@ Enable `Settings -> Bluetooth` to use Bluetooth LE in one of these modes:
 
 * **Ad hoc** - uses the same remote-control protocol as USB Serial, but over BLE.
 * **HID** - lets the receiver connect to supported Bluetooth remotes and keyboards.
+* **Unpair All** - clears all saved Bluetooth bonds, then switches Bluetooth to Off.
 
 Bluetooth support is experimental and may be unstable.
 

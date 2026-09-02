@@ -309,8 +309,9 @@ int getTotalUSBModes() { return(ITEM_COUNT(usbModeDesc)); }
 //
 
 uint8_t bleModeIdx = BLE_OFF;
+static uint8_t bleModeMenuIdx = BLE_OFF;
 static const char *bleModeDesc[] =
-{ "Off", "Ad hoc", "HID" };
+{ "Off", "Ad hoc", "HID", "Unpair All" };
 
 int getTotalBleModes() { return(ITEM_COUNT(bleModeDesc)); }
 
@@ -737,7 +738,7 @@ static void doUSBMode(int16_t enc)
 
 static void doBleMode(int16_t enc)
 {
-  bleModeIdx = wrap_range(bleModeIdx, enc, 0, LAST_ITEM(bleModeDesc));
+  bleModeMenuIdx = wrap_range(bleModeMenuIdx, enc, 0, LAST_ITEM(bleModeDesc));
 }
 
 static void doWiFiMode(int16_t enc)
@@ -748,6 +749,7 @@ static void doWiFiMode(int16_t enc)
 static void clickBleMode(uint8_t mode, bool shortPress)
 {
   currentCmd = CMD_NONE;
+  bleModeIdx = mode;
   bleInit(mode);
 }
 
@@ -1032,7 +1034,10 @@ static void clickSettings(int cmd, bool shortPress)
     case MENU_SLEEPMODE:  currentCmd = CMD_SLEEPMODE;  break;
     case MENU_UTCOFFSET:  currentCmd = CMD_UTCOFFSET;  break;
     case MENU_USBMODE:    currentCmd = CMD_USBMODE;    break;
-    case MENU_BLEMODE:    currentCmd = CMD_BLEMODE;    break;
+    case MENU_BLEMODE:
+      bleModeMenuIdx = bleModeIdx;
+      currentCmd = CMD_BLEMODE;
+      break;
     case MENU_WIFIMODE:   currentCmd = CMD_WIFIMODE;   break;
     case MENU_FM_REGION:
       // Only in FM mode
@@ -1096,7 +1101,7 @@ bool clickHandler(uint16_t cmd, bool shortPress)
     case CMD_MENU:     clickMenu(menuIdx, shortPress);break;
     case CMD_SETTINGS: clickSettings(settingsIdx, shortPress);break;
     case CMD_MEMORY:   clickMemory(memoryIdx, shortPress);break;
-    case CMD_BLEMODE:  clickBleMode(bleModeIdx, shortPress);break;
+    case CMD_BLEMODE:  clickBleMode(bleModeMenuIdx, shortPress);break;
     case CMD_WIFIMODE: clickWiFiMode(wifiModeIdx, shortPress);break;
     case CMD_VOLUME:   clickVolume(shortPress);break;
     case CMD_SQUELCH:  clickSquelch(shortPress);break;
@@ -1397,19 +1402,19 @@ static void drawBleMode(int x, int y, int sx)
   for(int i=-2 ; i<3 ; i++)
   {
     if(i==0) {
-      drawZoomedMenu(bleModeDesc[abs((bleModeIdx+count+i)%count)]);
+      drawZoomedMenu(bleModeDesc[abs((bleModeMenuIdx+count+i)%count)]);
       spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
     } else {
       spr.setTextColor(TH.menu_item);
     }
 
     // Prevent repeats for short menus
-    if (count < 5 && ((bleModeIdx+i) < 0 || (bleModeIdx+i) >= count)) {
+    if (count < 5 && ((bleModeMenuIdx+i) < 0 || (bleModeMenuIdx+i) >= count)) {
       continue;
     }
 
     spr.setTextDatum(MC_DATUM);
-    spr.drawString(bleModeDesc[abs((bleModeIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
+    spr.drawString(bleModeDesc[abs((bleModeMenuIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
   }
 }
 

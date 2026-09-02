@@ -98,6 +98,7 @@
 #define BLE_OFF        0 // Bluetooth is disabled
 #define BLE_ADHOC      1 // Ad hoc BLE serial protocol
 #define BLE_HID        2 // BLE HID central
+#define BLE_UNPAIR_ALL 3 // Clear all BLE bonds, then disable Bluetooth
 
 // USB modes
 #define USB_OFF        0 // USB is disabled
