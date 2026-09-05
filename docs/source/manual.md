@@ -81,6 +81,7 @@ The menu can be invoked by clicking the encoder button and is closed automatical
 * **Sleep Mode** - Locked - lock the encoder rotation during sleep; Unlocked - allow tuning the frequency in sleep mode; CPU Sleep - the maximum power saving mode. With the display being on, default brightness, and Wi-Fi the power consumption is about 170mA, without Wi-Fi 100mA, Locked/Unlocked modes draw about 70mA, CPU sleep mode draws about 40mA.
 * **Load EiBi** - download the EiBi [schedule](#schedule) (requires Wi-Fi internet connection).
 * **USB Port** - USB serial mode: Off (default) or Ad hoc. In Ad hoc mode, the receiver accepts the [remote control](remote.md) commands over the USB serial port.
+* **TCP Port** - TCP control mode: Off (default) or Ad hoc. In Ad hoc mode, one client can use the [remote control](remote.md#tcp-over-wi-fi) commands over Wi-Fi on port 60000. Wi-Fi must be enabled separately.
 * **Bluetooth** - Bluetooth LE mode: Off (default), Ad hoc, HID, or Unpair All. Ad hoc exposes the same [remote control](remote.md) protocol over BLE. HID makes the receiver act as a BLE HID central and connect to supported Bluetooth remotes/keyboards so their buttons can control tuning and menu actions. Unpair All clears all saved Bluetooth bonds and then switches Bluetooth to Off. WARNING: it is not recommended to enable both Bluetooth and Wi-Fi at the same time (the receiver might become unstable).
 * **Wi-Fi** - Wi-Fi mode: Off (default), Access Point, Access Point + Connect, Connect, Sync Only. More details on that below.
 * **About** - Informational screens (Help, Authors, System).
@@ -91,6 +92,7 @@ The Wi-Fi mode (2.4GHz only) can be used for the following purposes (for now):
 
 * Time synchronization via NTP (Network Time Protocol) or the configuration web page.
 * Download the EiBi shortwave schedule.
+* Control the receiver over [TCP](remote.md#tcp-over-wi-fi).
 * Viewing the receiver status (date/time and UTC offset, frequency, RSSI/SNR, volume, battery voltage, etc).
 * Viewing the Memory slots with saved frequencies.
 * Manage the receiver settings.

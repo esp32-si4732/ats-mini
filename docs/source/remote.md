@@ -5,7 +5,7 @@ Remote control has two parts:
 * **Transport** - the connection used to reach the receiver.
 * **Protocol** - the set of commands or button events carried over that connection.
 
-The receiver currently supports two transports: **USB Serial** and **Bluetooth Low Energy**. It also supports two protocols: the **Ad hoc protocol** and the **Bluetooth HID protocol**.
+The receiver currently supports three transports: **USB Serial**, **TCP over Wi-Fi**, and **Bluetooth Low Energy**. It also supports two protocols: the **Ad hoc protocol** and the **Bluetooth HID protocol**.
 
 ## Transports
 
@@ -15,6 +15,22 @@ Enable `Settings -> USB Port -> Ad hoc` to use USB Serial with the ad hoc protoc
 
 Use [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) or Picocom to connect to the serial port. Alternatively, open the following web terminal in Google Chrome: <https://www.serialterminal.com/>.
 [ESP32 documentation](https://docs.espressif.com/projects/esp-idf/en/v5.0/esp32/get-started/establish-serial-connection.html#verify-serial-connection) notes that the default serial settings are 115200 8N1, though 9600 8N1 may be a bit more reliable.
+
+### TCP over Wi-Fi
+
+Enable `Settings -> TCP Port -> Ad hoc` and select `AP Only`, `AP+Connect`, or `Connect` under `Settings -> Wi-Fi`. TCP Port defaults to `Off`, and its setting is saved across restarts. Enabling TCP does not enable Wi-Fi automatically; `Off` and `Sync Only` Wi-Fi modes do not provide a persistent connection.
+
+Connect to `atsmini.local` (or the receiver's IP address) on TCP port **60000**. On Linux or macOS, use [socat](https://www.dest-unreach.org/socat/):
+
+```shell
+socat -,rawer,escape=0x1d TCP4:atsmini.local:60000
+```
+
+Keystrokes are sent immediately, without pressing Enter. Press **Ctrl+]** to exit.
+
+In PuTTY, use the **Raw** connection type with the same host and port, and set **Terminal -> Local line editing -> Force off** to send each keystroke immediately.
+
+Switching TCP Port to Off, stopping Wi-Fi, or entering CPU Sleep closes the connection. After Wi-Fi resumes, reconnect to the receiver. TCP control has no authentication or encryption and is intended for trusted networks.
 
 ### Bluetooth LE
 
@@ -76,6 +92,7 @@ On Windows this usually takes a few extra steps to expose the BLE link as a usab
 The ad hoc protocol is the main remote-control protocol. It can be used over:
 
 * **USB Serial**
+* **TCP over Wi-Fi** in `Settings -> TCP Port -> Ad hoc` mode
 * **Bluetooth LE** in `Settings -> Bluetooth -> Ad hoc` mode
 
 #### Commands

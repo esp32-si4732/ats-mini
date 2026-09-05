@@ -14,6 +14,7 @@
 #include "EIBI.h"
 #include "Remote.h"
 #include "BleMode.h"
+#include "TcpMode.h"
 #include "Splash.h"
 #include <stdlib.h>
 #include <time.h>
@@ -542,6 +543,7 @@ bool consumeAbortPending()
   }
   if(bleConsumeAbortPending(bleModeIdx)) return true;
   if(serialConsumeAbortPending(usbModeIdx)) return true;
+  if(tcpConsumeAbortPending(tcpModeIdx)) return true;
 
   // Checking isPressed without debouncing because this helper is used from
   // blocking operations that do not run the normal event loop often enough.
@@ -793,6 +795,17 @@ void loop()
   encCount = ble_direction? ble_direction : encCount;
   encCountAccel = ble_direction? ble_direction : encCountAccel;
   if(ble_event & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
+
+  // Receive and execute TCP command
+  int tcp_event = tcpLoop(tcpModeIdx);
+  needRedraw |= !!(tcp_event & REMOTE_CHANGED);
+  pb1st.isPressed |= !!(tcp_event & REMOTE_PRESSED);
+  pb1st.wasClicked |= !!(tcp_event & REMOTE_CLICK);
+  pb1st.wasShortPressed |= !!(tcp_event & REMOTE_SHORT_PRESS);
+  int tcp_direction = tcp_event >> REMOTE_DIRECTION;
+  encCount = tcp_direction? tcp_direction : encCount;
+  encCountAccel = tcp_direction? tcp_direction : encCountAccel;
+  if(tcp_event & REMOTE_PREFS) prefsRequestSave(SAVE_ALL);
 
   // Block encoder rotation when in the locked sleep mode
   if(encCount && sleepOn() && sleepModeIdx==SLEEP_LOCKED) encCount = encCountAccel = 0;

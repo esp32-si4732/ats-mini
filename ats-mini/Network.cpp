@@ -5,6 +5,7 @@
 #include "Menu.h"
 #include "Draw.h"
 #include "Splash.h"
+#include "TcpMode.h"
 
 #include <WiFi.h>
 #include <WiFiMulti.h>
@@ -139,6 +140,7 @@ char *getWiFiIPAddress()
 //
 void netStop()
 {
+  tcpStop();
   wifi_mode_t mode = WiFi.getMode();
 
   MDNS.end();

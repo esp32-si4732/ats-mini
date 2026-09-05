@@ -126,9 +126,10 @@ static const char *menu[] =
 #define MENU_SLEEPMODE    11
 #define MENU_LOADEIBI     12
 #define MENU_USBMODE      13
-#define MENU_BLEMODE      14
-#define MENU_WIFIMODE     15
-#define MENU_ABOUT        16
+#define MENU_TCPMODE      14
+#define MENU_BLEMODE      15
+#define MENU_WIFIMODE     16
+#define MENU_ABOUT        17
 
 
 int8_t settingsIdx = MENU_BRIGHTNESS;
@@ -149,6 +150,7 @@ static const char *settings[] =
   "Sleep Mode",
   "Load EiBi",
   "USB Port",
+  "TCP Port",
   "Bluetooth",
   "Wi-Fi",
   "About",
@@ -303,6 +305,14 @@ static const char *usbModeDesc[] =
 { "Off", "Ad hoc" };
 
 int getTotalUSBModes() { return(ITEM_COUNT(usbModeDesc)); }
+
+//
+// TCP Port Mode Menu
+//
+
+uint8_t tcpModeIdx = TCP_OFF;
+static const char *tcpModeDesc[] =
+{ "Off", "Ad hoc" };
 
 //
 // Bluetooth Mode Menu
@@ -736,6 +746,11 @@ static void doUSBMode(int16_t enc)
   usbModeIdx = wrap_range(usbModeIdx, enc, 0, LAST_ITEM(usbModeDesc));
 }
 
+static void doTCPMode(int16_t enc)
+{
+  tcpModeIdx = wrap_range(tcpModeIdx, enc, 0, LAST_ITEM(tcpModeDesc));
+}
+
 static void doBleMode(int16_t enc)
 {
   bleModeMenuIdx = wrap_range(bleModeMenuIdx, enc, 0, LAST_ITEM(bleModeDesc));
@@ -1034,6 +1049,7 @@ static void clickSettings(int cmd, bool shortPress)
     case MENU_SLEEPMODE:  currentCmd = CMD_SLEEPMODE;  break;
     case MENU_UTCOFFSET:  currentCmd = CMD_UTCOFFSET;  break;
     case MENU_USBMODE:    currentCmd = CMD_USBMODE;    break;
+    case MENU_TCPMODE:    currentCmd = CMD_TCPMODE;    break;
     case MENU_BLEMODE:
       bleModeMenuIdx = bleModeIdx;
       currentCmd = CMD_BLEMODE;
@@ -1079,6 +1095,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_SLEEP:      doSleep(enca);break;
     case CMD_SLEEPMODE:  doSleepMode(scrollDirection * enc);break;
     case CMD_USBMODE:    doUSBMode(scrollDirection * enc);break;
+    case CMD_TCPMODE:    doTCPMode(scrollDirection * enc);break;
     case CMD_BLEMODE:    doBleMode(scrollDirection * enc);break;
     case CMD_WIFIMODE:   doWiFiMode(scrollDirection * enc);break;
     case CMD_ZOOM:       doZoom(enc);break;
@@ -1391,6 +1408,26 @@ static void drawUSBMode(int x, int y, int sx)
 
     spr.setTextDatum(MC_DATUM);
     spr.drawString(usbModeDesc[abs((usbModeIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), 2);
+  }
+}
+
+static void drawTCPMode(int x, int y, int sx)
+{
+  drawCommon(settings[MENU_TCPMODE], x, y, sx, true);
+
+  int count = ITEM_COUNT(tcpModeDesc);
+  for(int i=0 ; i<count ; i++)
+  {
+    if(i == tcpModeIdx)
+    {
+      drawZoomedMenu(tcpModeDesc[i]);
+      spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
+    }
+    else
+      spr.setTextColor(TH.menu_item);
+
+    spr.setTextDatum(MC_DATUM);
+    spr.drawString(tcpModeDesc[i], 40+x+(sx/2), 64+y+((i-tcpModeIdx)*16), 2);
   }
 }
 
@@ -1898,6 +1935,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_SLEEP:      drawSleep(x, y, sx);      break;
     case CMD_SLEEPMODE:  drawSleepMode(x, y, sx);  break;
     case CMD_USBMODE:    drawUSBMode(x, y, sx);    break;
+    case CMD_TCPMODE:    drawTCPMode(x, y, sx);    break;
     case CMD_BLEMODE:    drawBleMode(x, y, sx);    break;
     case CMD_WIFIMODE:   drawWiFiMode(x, y, sx);   break;
     case CMD_ZOOM:       drawZoom(x, y, sx);       break;

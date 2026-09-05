@@ -104,6 +104,10 @@
 #define USB_OFF        0 // USB is disabled
 #define USB_ADHOC      1 // Ad hoc serial protocol
 
+// TCP modes
+#define TCP_OFF        0 // TCP control is disabled
+#define TCP_ADHOC      1 // Ad hoc protocol over TCP
+
 //
 // Data Types
 //
@@ -186,6 +190,7 @@ extern int8_t AmSoftMuteIdx;
 extern int8_t SsbSoftMuteIdx;
 extern uint8_t rdsModeIdx;
 extern uint8_t usbModeIdx;
+extern uint8_t tcpModeIdx;
 extern uint8_t bleModeIdx;
 extern uint8_t wifiModeIdx;
 extern uint8_t FmRegionIdx;

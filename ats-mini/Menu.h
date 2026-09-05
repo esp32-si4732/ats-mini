@@ -42,10 +42,11 @@
 #define CMD_SLEEPMODE  0x2B00 // |
 #define CMD_LOADEIBI   0x2C00 // |
 #define CMD_USBMODE    0x2D00 // |
-#define CMD_BLEMODE    0x2E00 // |
-#define CMD_WIFIMODE   0x2F00 // |
-#define CMD_DATETIME   0x3000 // |
-#define CMD_ABOUT      0x3100 //-+
+#define CMD_TCPMODE    0x2E00 // |
+#define CMD_BLEMODE    0x2F00 // |
+#define CMD_WIFIMODE   0x3000 // |
+#define CMD_DATETIME   0x3100 // |
+#define CMD_ABOUT      0x3200 //-+
 
 // UI Layouts
 #define UI_DEFAULT  0

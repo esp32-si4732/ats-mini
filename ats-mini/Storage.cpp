@@ -197,6 +197,7 @@ void prefsSave(uint32_t items)
     prefs.putUChar("UILayout",    uiLayoutIdx);    // UI Layout
     prefs.putUChar("BLEMode",     bleModeIdx);     // Bluetooth mode
     prefs.putUChar("USBMode",     usbModeIdx);     // USB mode
+    prefs.putUChar("TCPMode",     tcpModeIdx);     // TCP mode
 
     // Done with global settings
     prefs.end();
@@ -278,6 +279,7 @@ bool prefsLoad(uint32_t items)
     uiLayoutIdx    = prefs.getUChar("UILayout", uiLayoutIdx);   // UI Layout
     bleModeIdx     = prefs.getUChar("BLEMode", bleModeIdx);     // Bluetooth mode
     usbModeIdx     = prefs.getUChar("USBMode", usbModeIdx);     // USB mode
+    tcpModeIdx     = prefs.getUChar("TCPMode", TCP_OFF);        // TCP mode
 
     // Done with global settings
     prefs.end();
