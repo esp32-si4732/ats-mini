@@ -178,6 +178,7 @@ extern uint16_t currentSleep;
 extern uint8_t sleepModeIdx;
 extern bool zoomMenu;
 extern int8_t scrollDirection;
+extern bool encoderHalfStep;
 extern uint8_t utcOffsetIdx;
 extern uint8_t uiLayoutIdx;
 
@@ -205,6 +206,7 @@ extern const int CALMax;
 static inline bool isSSB() { return(currentMode>FM && currentMode<AM); }
 
 void useBand(const Band *band);
+void setEncoderHalfStep(bool enabled);
 bool updateFrequency(int newFreq, bool wrap = true);
 bool updateBFO(int newBFO, bool wrap = true);
 bool doSeek(int16_t enc);

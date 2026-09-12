@@ -67,38 +67,38 @@
    the table, the encoder outputs are 00, 01, 10, 11, and the value
    in that position is the new state to set. */
 
-#define R_START       0x0
-#ifdef HALF_STEP
 // Use the half-step state table (emits a code at 00 and 11)
-#define R_CCW_BEGIN   0x1
+#define R_START       0x0
 #define R_CW_BEGIN    0x2
-#define R_START_M     0x3
-#define R_CW_BEGIN_M  0x4
-#define R_CCW_BEGIN_M 0x5
-const unsigned char ttable[6][4] = {
+#define H_CCW_BEGIN   0x1
+#define H_START_M     0x3
+#define H_CW_BEGIN_M  0x4
+#define H_CCW_BEGIN_M 0x5
+static const unsigned char halfStepTable[7][4] = {
   // R_START (00)
-  {R_START_M, R_CW_BEGIN, R_CCW_BEGIN, R_START},
-  // R_CCW_BEGIN
-  {R_START_M | DIR_CCW, R_START, R_CCW_BEGIN, R_START},
+  {H_START_M, R_CW_BEGIN, H_CCW_BEGIN, R_START},
+  // H_CCW_BEGIN
+  {H_START_M | DIR_CCW, R_START, H_CCW_BEGIN, R_START},
   // R_CW_BEGIN
-  {R_START_M | DIR_CW, R_CW_BEGIN, R_START, R_START},
-  // R_START_M (11)
-  {R_START_M, R_CCW_BEGIN_M, R_CW_BEGIN_M, R_START},
-  // R_CW_BEGIN_M
-  {R_START_M, R_START_M, R_CW_BEGIN_M, R_START | DIR_CW},
-  // R_CCW_BEGIN_M
-  {R_START_M, R_CCW_BEGIN_M, R_START_M, R_START | DIR_CCW},
+  {H_START_M | DIR_CW, R_CW_BEGIN, R_START, R_START},
+  // H_START_M (11)
+  {H_START_M, H_CCW_BEGIN_M, H_CW_BEGIN_M, R_START},
+  // H_CW_BEGIN_M
+  {H_START_M, H_START_M, H_CW_BEGIN_M, R_START | DIR_CW},
+  // H_CCW_BEGIN_M
+  {H_START_M, H_CCW_BEGIN_M, H_START_M, R_START | DIR_CCW},
+  // Invalid in half-step mode; safely restart after a runtime mode change
+  {R_START, R_START, R_START, R_START},
 };
-#else
+
 // Use the full-step state table (emits a code at 00 only)
 #define R_CW_FINAL  0x1
-#define R_CW_BEGIN  0x2
 #define R_CW_NEXT   0x3
 #define R_CCW_BEGIN 0x4
 #define R_CCW_FINAL 0x5
 #define R_CCW_NEXT  0x6
 
-const unsigned char ttable[7][4] = {
+static const unsigned char fullStepTable[7][4] = {
   // R_START
   {R_START, R_CW_BEGIN, R_CCW_BEGIN, R_START},
   // R_CW_FINAL
@@ -114,10 +114,9 @@ const unsigned char ttable[7][4] = {
   // R_CCW_NEXT
   {R_CCW_NEXT, R_CCW_FINAL, R_CCW_BEGIN, R_START},
 };
-#endif
 
 // Constructor. Each arg is the pin number for each encoder contact
-Rotary::Rotary(char _pin1, char _pin2) {
+Rotary::Rotary(char _pin1, char _pin2, bool _halfStep) {
   // Assign variables
   pin1 = _pin1;
   pin2 = _pin2;
@@ -129,14 +128,20 @@ Rotary::Rotary(char _pin1, char _pin2) {
   digitalWrite(pin2, HIGH);
 #endif
   // Initialise state
-  state = R_START;
+  setHalfStep(_halfStep);
 }
 
 unsigned char Rotary::process() {
   // Grab state of input pins
   unsigned char pinstate = (digitalRead(pin2) << 1) | digitalRead(pin1);
   // Determine new state from the pins and state table
-  state = ttable[state & 0xf][pinstate];
+  state = table[state & 0xf][pinstate];
   // Return emit bits, ie the generated event
   return state & 0x30;
+}
+
+void Rotary::setHalfStep(bool enabled) {
+  // Decoder states differ between the two tables, so restart decoding.
+  state = R_START;
+  table = enabled? halfStepTable : fullStepTable;
 }

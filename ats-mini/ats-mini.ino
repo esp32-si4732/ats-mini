@@ -79,6 +79,11 @@ uint16_t currentSleep = DEFAULT_SLEEP;  // Display sleep timeout, range = 0 to 2
 long elapsedSleep = millis();           // Display sleep timer
 bool zoomMenu = false;                  // Display zoomed menu item
 int8_t scrollDirection = 1;             // Menu scroll direction
+#if defined(LILYGO_SI473X)
+bool encoderHalfStep = true;             // T-Embed defaults to half-step decoding
+#else
+bool encoderHalfStep = false;            // Standard hardware defaults to full-step decoding
+#endif
 
 // Background screen refresh
 uint32_t background_timer = millis();   // Background screen refresh timer.
@@ -96,7 +101,7 @@ uint8_t  snr  = 0;
 //
 // Devices
 //
-Rotary encoder  = Rotary(ENCODER_PIN_B, ENCODER_PIN_A);
+Rotary encoder  = Rotary(ENCODER_PIN_B, ENCODER_PIN_A, encoderHalfStep);
 ButtonTracker pb1 = ButtonTracker();
 TFT_eSPI tft    = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
@@ -342,6 +347,16 @@ ICACHE_RAM_ATTR void rotaryEncoder()
     // Reset the seek flag
     seekStop = true;
   }
+}
+
+void setEncoderHalfStep(bool enabled)
+{
+  noInterrupts();
+  encoder.setHalfStep(enabled);
+  encoderHalfStep = enabled;
+  encoderCount = 0;
+  encoderCountAccel = 0;
+  interrupts();
 }
 
 uint32_t consumeEncoderCounts()

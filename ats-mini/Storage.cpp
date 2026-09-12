@@ -188,6 +188,7 @@ void prefsSave(uint32_t items)
     prefs.putUChar("SleepMode",   sleepModeIdx);   // Sleep mode
     prefs.putUChar("ZoomMenu",    zoomMenu);       // TRUE: Zoom menu
     prefs.putBool("ScrollDir", scrollDirection<0); // TRUE: Reverse scroll
+    prefs.putBool("EncHalfStep", encoderHalfStep); // TRUE: Encoder half-step mode
     prefs.putUChar("UTCOffset",   utcOffsetIdx);   // UTC Offset
     prefs.putUInt("Squelch",      ((uint32_t)currentSquelch[FM]) |
                                   ((uint32_t)currentSquelch[LSB] << 8) |
@@ -266,6 +267,7 @@ bool prefsLoad(uint32_t items)
     sleepModeIdx   = prefs.getUChar("SleepMode", sleepModeIdx); // Sleep mode
     zoomMenu       = prefs.getUChar("ZoomMenu", zoomMenu);      // TRUE: Zoom menu
     scrollDirection = prefs.getBool("ScrollDir", scrollDirection<0)? -1:1; // TRUE: Reverse scroll
+    setEncoderHalfStep(prefs.getBool("EncHalfStep", encoderHalfStep)); // Encoder half-step mode
     utcOffsetIdx   = prefs.getUChar("UTCOffset", utcOffsetIdx); // UTC Offset
     uint32_t squelch = prefs.getUInt("Squelch", ((uint32_t)currentSquelch[FM]) |
                                                 ((uint32_t)currentSquelch[LSB] << 8) |

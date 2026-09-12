@@ -563,6 +563,7 @@ void webSetConfig(AsyncWebServerRequest *request)
   // Save scroll direction and menu zoom
   scrollDirection = request->hasParam("scroll", true)? -1 : 1;
   zoomMenu        = request->hasParam("zoom", true);
+  setEncoderHalfStep(request->hasParam("encoderhalfstep", true));
   prefsSave |= SAVE_SETTINGS;
 
   // Done with the preferences
@@ -918,6 +919,11 @@ const String webConfigPage()
     "<TD CLASS='LABEL'>Reverse Scrolling</TD>"
     "<TD><INPUT TYPE='CHECKBOX' NAME='scroll' VALUE='on'" +
     (scrollDirection<0? " CHECKED ":"") + "></TD>"
+  "</TR>"
+  "<TR>"
+    "<TD CLASS='LABEL'>Half-step Encoder</TD>"
+    "<TD><INPUT TYPE='CHECKBOX' NAME='encoderhalfstep' VALUE='on'" +
+    (encoderHalfStep? " CHECKED ":"") + "></TD>"
   "</TR>"
   "<TR>"
     "<TD CLASS='LABEL'>Zoomed Menu</TD>"

@@ -4,13 +4,6 @@
 #ifndef rotary_h
 #define rotary_h
 
-// Enable this to emit codes twice per step
-//#define HALF_STEP
-
-#if defined(LILYGO_SI473X)
-#define HALF_STEP
-#endif
-
 #define ENABLE_PULLUPS  // Enable weak pullups
 
 // Values returned by 'process'
@@ -21,12 +14,15 @@
 class Rotary
 {
   public:
-    Rotary(char, char);
+    Rotary(char, char, bool);
     // Process pin(s)
     unsigned char process();
+    // Emit codes at both 00 and 11 instead of at 00 only
+    void setHalfStep(bool);
   private:
     unsigned char state;
     unsigned char pin1;
     unsigned char pin2;
+    const unsigned char (*table)[4];
 };
 #endif
