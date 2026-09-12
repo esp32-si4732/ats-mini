@@ -53,7 +53,7 @@ int tcpLoop(uint8_t tcpMode)
       tcpServer.end();
       return 0;
     }
-    tcpServer.setNoDelay(true);
+    tcpServer.setNoDelay(false);
   }
 
   WiFiClient incoming = tcpServer.accept();
