@@ -445,10 +445,10 @@ ColorTheme theme[] =
     0x18C3, // smeter_icon
     0x4208, // smeter_bar
     0x18C3, // smeter_bar_plus
-    0xB594, // smeter_bar_empty
+    0xB596, // smeter_bar_empty
     0x0000, // save_icon
     0x632C, // stereo_icon
-    0x3A08, // rf_icon
+    0x4208, // rf_icon
     0x0000, // rf_icon_conn
     0x0000, // batt_voltage
     0x0000, // batt_border
@@ -479,7 +479,7 @@ ColorTheme theme[] =
     0x0000, // scale_text
     0x0000, // scale_pointer
     0x0000, // scale_line
-    0x623C, // scan_grid
+    0x632C, // scan_grid
     0x18C3, // scan_snr
     0x18C3, // scan_rssi
   },
@@ -493,10 +493,10 @@ ColorTheme theme[] =
     0xE73C, // smeter_icon
     0xBDF7, // smeter_bar
     0xE73C, // smeter_bar_plus
-    0x4A6B, // smeter_bar_empty
+    0x4A69, // smeter_bar_empty
     0xFFFF, // save_icon
     0x9CD3, // stereo_icon
-    0xC5F7, // rf_icon
+    0xBDF7, // rf_icon
     0xFFFF, // rf_icon_conn
     0xFFFF, // batt_voltage
     0xFFFF, // batt_border
@@ -527,7 +527,7 @@ ColorTheme theme[] =
     0xFFFF, // scale_text
     0xFFFF, // scale_pointer
     0xFFFF, // scale_line
-    0x9DC3, // scan_grid
+    0x9CD3, // scan_grid
     0xE73C, // scan_snr
     0xE73C, // scan_rssi
   },
