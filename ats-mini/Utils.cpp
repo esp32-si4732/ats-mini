@@ -194,7 +194,8 @@ bool sleepOn(int x)
     ledcWrite(PIN_LCD_BL, 0);
     spr.fillSprite(TFT_BLACK);
     spr.pushSprite(0, 0);
-    tft.setPanelSleep(true);
+    tft.sleep();
+    delay(120); // Allow sleep entry before a possible immediate wake.
 
     // Wait till the button is released to prevent immediate wakeup
     while(pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW).isPressed)
@@ -246,7 +247,8 @@ bool sleepOn(int x)
   else if((x==0) && sleep_on)
   {
     sleep_on = false;
-    tft.setPanelSleep(false);
+    tft.wakeup();
+    delay(120); // Let the panel stabilize before redrawing and enabling the backlight.
     drawScreen();
     ledcWrite(PIN_LCD_BL, currentBrt);
     // Wait till the button is released to prevent the main loop clicks

@@ -13,8 +13,6 @@
 #define LCD_ID_MIRRORED   0x009307
 
 static constexpr uint8_t LCD_CMD_RDDID = 0x04;
-static constexpr uint8_t LCD_CMD_DISPOFF = 0x28;
-static constexpr uint8_t LCD_CMD_DISPON = 0x29;
 
 #if !defined(LILYGO_SI473X)
 // LovyanGFX leaves the ESP32-S3 LCD_CAM peripheral in control of the data
@@ -47,28 +45,12 @@ public:
 // which the previous driver setup used because it improves the display image.
 class Panel_ST7789_ATSMini : public lgfx::Panel_ST7789
 {
-  uint32_t displayId = 0;
-
 public:
-  uint32_t getDisplayId() const { return displayId; }
+  bool highGammaDisplay = false;
 
-  bool init(bool use_reset) override
+  Panel_ST7789_ATSMini()
   {
-    // Prepare the bus and reset pins without sending the ST7789 init table.
-    if(!Panel_Device::init(use_reset)) return false;
     _nop_closing = false; // Both supported boards have a dedicated CS pin.
-
-    displayId = isReadable()
-      ? __builtin_bswap32(readCommand(LCD_CMD_RDDID, 0, 3)) >> 8
-      : 0;
-    _cfg.invert = displayId != LCD_ID_MIRRORED;
-    _cfg.rgb_order = displayId != LCD_ID_MIRRORED;
-
-    startWrite(true);
-    for(uint8_t i = 0; const auto* commands = getInitCommands(i); ++i)
-      command_list(commands);
-    endWrite();
-    return true;
   }
 
 protected:
@@ -81,8 +63,7 @@ protected:
       MAD_MX | MAD_MY,
       MAD_MV | MAD_MY,
     };
-    // Keep the mirrored panel correction when rotation is reapplied.
-    return values[rotation & 3] ^ (displayId == LCD_ID_MIRRORED ? MAD_MX : 0);
+    return values[rotation & 3];
   }
 
   const uint8_t* getInitCommands(uint8_t listno) const override
@@ -115,14 +96,26 @@ protected:
       0xFF, 0xFF,
     };
     if(listno == 0) return list0;
-    if(listno == 1 && displayId == LCD_ID_HIGH_GAMMA) return highGamma;
+    if(listno == 1 && highGammaDisplay) return highGamma;
     return nullptr;
+  }
+};
+
+class Panel_GC9307_ATSMini : public lgfx::Panel_GC9307
+{
+public:
+  void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override
+  {
+    // Use configured offsets instead of Panel_GC9307's hardcoded 34 pixels.
+    lgfx::Panel_GC9xxx::setWindow(xs, ys, xe, ye);
   }
 };
 
 class LGFX : public lgfx::LGFX_Device
 {
+  uint32_t displayId = 0;
   Panel_ST7789_ATSMini displayPanel;
+  Panel_GC9307_ATSMini gc9307Panel;
 #if defined(LILYGO_SI473X)
   lgfx::Bus_SPI bus;
 #else
@@ -183,30 +176,39 @@ public:
       config.invert = true;
       config.bus_shared = false;
       displayPanel.config(config);
+
+      auto gcConfig = gc9307Panel.config();
+      gcConfig.pin_cs = config.pin_cs;
+      gcConfig.pin_rst = config.pin_rst;
+      gcConfig.panel_width = 170;
+      gcConfig.offset_x = 35;
+      gcConfig.bus_shared = false;
+      gc9307Panel.config(gcConfig);
+      gc9307Panel.setBus(&bus);
     }
 
     setPanel(&displayPanel);
   }
 
-  uint32_t getDisplayId() const { return displayPanel.getDisplayId(); }
-
-  void writePanelCommand(uint8_t command)
+protected:
+  bool init_impl(bool use_reset, bool use_clear) override
   {
-    displayPanel.startWrite();
-    displayPanel.writeCommand(command, 1);
-    displayPanel.endWrite();
+    // Prepare the bus/reset pins without sending either panel's init table.
+    if(!displayPanel.lgfx::Panel_Device::init(use_reset)) return false;
+    displayId = displayPanel.isReadable()
+      ? __builtin_bswap32(displayPanel.readCommand(LCD_CMD_RDDID, 0, 3)) >> 8
+      : 0;
+    displayPanel.highGammaDisplay = displayId == LCD_ID_HIGH_GAMMA;
+    if(displayId == LCD_ID_MIRRORED)
+      setPanel(&gc9307Panel);
+    else
+      setPanel(&displayPanel);
+    return lgfx::LGFX_Device::init_impl(false, use_clear);
   }
 
-  void setPanelSleep(bool sleep)
-  {
-    if(sleep) writePanelCommand(LCD_CMD_DISPOFF);
-    displayPanel.setSleep(sleep);
-    if(!sleep)
-    {
-      delay(120);
-      writePanelCommand(LCD_CMD_DISPON);
-    }
-  }
+public:
+  uint32_t getDisplayId() const { return displayId; }
+
 };
 
 #endif
