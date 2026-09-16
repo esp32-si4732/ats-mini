@@ -14,11 +14,13 @@
 #define SCAN_RUN    1   // Scanner running
 #define SCAN_DONE   2   // Scanner done, valid data in scanData[]
 
-static struct
+struct ScanPoint
 {
   uint8_t rssi;
   uint8_t snr;
-} scanData[SCAN_POINTS];
+};
+
+static ScanPoint *scanData = nullptr;
 
 static uint32_t scanTime = millis();
 static uint8_t  scanStatus = SCAN_OFF;
@@ -76,7 +78,7 @@ static void scanInit(uint16_t centerFreq, uint16_t step)
   scanStartFreq = freq;
 
   // Clear scan data
-  memset(scanData, 0, sizeof(scanData));
+  memset(scanData, 0, SCAN_POINTS * sizeof(*scanData));
 }
 
 static bool scanTickTime()
@@ -138,6 +140,14 @@ static bool scanTickTime()
 //
 void scanRun(uint16_t centerFreq, uint16_t step)
 {
+  // Allocate once and retain the samples for drawing after the scan.
+  if(!scanData)
+  {
+    scanData = static_cast<ScanPoint *>(ps_malloc(SCAN_POINTS * sizeof(*scanData)));
+    if(!scanData)
+      return;
+  }
+
   // Set tuning delay
   rx.setMaxDelaySetFrequency(currentMode == FM ? TUNE_DELAY_FM : TUNE_DELAY_AM_SSB);
   // Mute the audio

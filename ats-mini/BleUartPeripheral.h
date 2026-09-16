@@ -68,7 +68,7 @@ private:
   cbuf txBuf{BLE_BUFFER_SIZE};
   volatile bool abortPending = false;
   // Flat notify payload assembled from txBuf, even when the ring wraps.
-  uint8_t txChunk[BLE_MAX_MTU - 3];
+  uint8_t txChunk[BLE_TX_PAYLOAD_CAP];
   // Bytes currently retained for notify/retry outside txBuf.
   size_t txPendingLen = 0;
   uint16_t txConnHandle = BLE_HS_CONN_HANDLE_NONE;

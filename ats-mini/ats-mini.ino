@@ -177,7 +177,9 @@ void setup()
   // Initialize flash file system
   diskInit();
 
-  if(!ESP.getPsramSize()) {
+  memories = static_cast<Memory *>(ps_calloc(MEMORY_COUNT, sizeof(*memories)));
+
+  if(!ESP.getPsramSize() || !memories) {
     ledcWrite(PIN_LCD_BL, 255);       // Default value 255 = 100%
     tft.setTextSize(2);
     tft.setTextColor(TH.text_warn, TH.bg);
