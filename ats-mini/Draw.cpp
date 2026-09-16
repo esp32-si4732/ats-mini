@@ -62,9 +62,9 @@ void drawWiFiIndicator(int x, int y)
     if(switchThemeEditor())
       color = millis()&0x2000? TH.rf_icon_conn : TH.rf_icon;
 
-    spr.drawArc(x, 15+y, 14, 13, 240, 300, color);
-    spr.drawArc(x, 15+y, 9, 8, 240, 300, color);
-    spr.drawArc(x, 15+y, 4, 3, 240, 300, color);
+    spr.fillArc(x, 15+y, 14, 13, 240, 300, color);
+    spr.fillArc(x, 15+y, 9, 8, 240, 300, color);
+    spr.fillArc(x, 15+y, 4, 3, 240, 300, color);
   }
 }
 

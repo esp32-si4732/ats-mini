@@ -1295,9 +1295,9 @@ static void drawStep(int x, int y, int sx)
 static void drawSeek(int x, int y, int sx)
 {
   drawCommon(menu[MENU_SEEK], x, y, sx);
-  spr.drawArc(40+x+(sx/2), 66+y, 30, 27, 135, 270, TH.menu_param);
+  spr.fillArc(40+x+(sx/2), 66+y, 30, 27, 135, 270, TH.menu_param);
   spr.fillTriangle(40+x+(sx/2)-5, 66+y-32, 40+x+(sx/2)+5, 66+y-27, 40+x+(sx/2)-5, 66+y-22, TH.menu_param);
-  spr.drawArc(40+x+(sx/2), 66+y, 30, 27, 315, 450, TH.menu_param);
+  spr.fillArc(40+x+(sx/2), 66+y, 30, 27, 315, 450, TH.menu_param);
   spr.fillTriangle(40+x+(sx/2)+5, 66+y+32, 40+x+(sx/2)-5, 66+y+27, 40+x+(sx/2)+5, 66+y+22, TH.menu_param);
 
   if(seekMode()==SEEK_SCHEDULE)
@@ -1317,9 +1317,9 @@ static void drawScan(int x, int y, int sx)
   spr.setTextColor(TH.scan_snr);
   spr.drawString("N", 40+x+(sx/2)+30, 66+y+30, FONT_SMALL);
 
-  spr.drawArc(40+x+(sx/2), 66+y, 30, 27, 135, 270, TH.menu_param);
+  spr.fillArc(40+x+(sx/2), 66+y, 30, 27, 135, 270, TH.menu_param);
   spr.fillTriangle(40+x+(sx/2)-5, 66+y-32, 40+x+(sx/2)+5, 66+y-27, 40+x+(sx/2)-5, 66+y-22, TH.menu_param);
-  spr.drawArc(40+x+(sx/2), 66+y, 30, 27, 315, 450, TH.menu_param);
+  spr.fillArc(40+x+(sx/2), 66+y, 30, 27, 315, 450, TH.menu_param);
   spr.fillTriangle(40+x+(sx/2)+5, 66+y+32, 40+x+(sx/2)-5, 66+y+27, 40+x+(sx/2)+5, 66+y+22, TH.menu_param);
 
   spr.drawLine(40+x+(sx/2)-17, 66+y+5, 40+x+(sx/2)-4, 66+y+5, TH.menu_param);
