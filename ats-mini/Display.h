@@ -20,8 +20,24 @@ static constexpr uint8_t LCD_CMD_RDDID = 0x04;
 // normal Panel_LCD::readCommand() path can safely sample the parallel bus.
 class Bus_Parallel8_ATSMini : public lgfx::Bus_Parallel8
 {
+  bool initialized = false;
+
 public:
   using lgfx::Bus_Parallel8::beginRead;
+
+  bool init(void) override
+  {
+    // ID detection and panel initialization share the same bus allocation.
+    if(!initialized) initialized = lgfx::Bus_Parallel8::init();
+    return initialized;
+  }
+
+  void release(void) override
+  {
+    if(!initialized) return;
+    lgfx::Bus_Parallel8::release();
+    initialized = false;
+  }
 
   void beginRead(void) override
   {
