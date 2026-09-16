@@ -4,6 +4,21 @@ The user manual is available at <https://esp32-si4732.github.io/ats-mini/manual.
 
 <!-- towncrier release notes start -->
 
+## 2.39 (2026-09-16)
+
+
+### Added
+
+- Added an Unpair All Bluetooth menu option that clears all saved BLE bonds and then switches Bluetooth off.
+- High contrast Light and Dark color themes ([discussion #366](https://github.com/esp32-si4732/ats-mini/discussions/366)).
+- TCP remote control on port 60000, enabled via Settings -> TCP Port -> Ad hoc.
+
+
+### Changed
+
+- Replaced TFT_eSPI and PNGdec with LovyanGFX for display and splash-screen rendering. The display rendering is now approximately 2.3 times faster.
+- Replaced the compile-time encoder half-step option with a persistent runtime setting on the Wi-Fi configuration page.
+
 ## 2.38 (2026-09-01)
 
 

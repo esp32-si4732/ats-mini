@@ -1,1 +1,0 @@
-TCP remote control on port 60000, enabled via Settings -> TCP Port -> Ad hoc.
