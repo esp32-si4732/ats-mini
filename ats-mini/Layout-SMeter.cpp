@@ -216,10 +216,13 @@ void drawLayoutSmeter(const char *statusLine1, const char *statusLine2)
       drawRadioText(STATUS_OFFSET_Y, STATUS_OFFSET_Y + 25);
     else
     {
+      // Preview all bar colors without replacing scan graphs or radio text.
+      int meterSnr = switchThemeEditor() ? 64 : snr;
+      int meterRssi = switchThemeEditor() ? 74 : rssi;
       // Draw SN-meter
-      drawLargeSNMeter(snr, ALT_METER_OFFSET_X, ALT_METER_OFFSET_Y);
+      drawLargeSNMeter(meterSnr, ALT_METER_OFFSET_X, ALT_METER_OFFSET_Y);
       // Draw S-meter
-      drawLargeSMeter(rssi, getInterpolatedStrength(rssi), ALT_METER_OFFSET_X, ALT_METER_OFFSET_Y);
+      drawLargeSMeter(meterRssi, getInterpolatedStrength(meterRssi), ALT_METER_OFFSET_X, ALT_METER_OFFSET_Y);
     }
   }
 }

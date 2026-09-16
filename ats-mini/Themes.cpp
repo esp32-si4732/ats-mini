@@ -439,46 +439,46 @@ ColorTheme theme[] =
   {
     "Light",
     0xFFFF, // bg
-    0x3A08, // text
+    0x0000, // text
     0x632C, // text_muted
-    0xFFFF, // text_warn
+    0x0000, // text_warn
     0x18C3, // smeter_icon
-    0x632C, // smeter_bar
+    0x4208, // smeter_bar
     0x18C3, // smeter_bar_plus
     0xB594, // smeter_bar_empty
-    0x632C, // save_icon
+    0x0000, // save_icon
     0x632C, // stereo_icon
     0x3A08, // rf_icon
-    0x632C, // rf_icon_conn
-    0x18C3, // batt_voltage
+    0x0000, // rf_icon_conn
+    0x0000, // batt_voltage
     0x0000, // batt_border
-    0x632C, // batt_full
-    0x3A08, // batt_low
+    0x4208, // batt_full
+    0x0000, // batt_low
     0xFFFF, // batt_charge
-    0x3A08, // batt_icon
-    0x3A08, // band_text
-    0x632C, // mode_text
-    0x632C, // mode_border
+    0x0000, // batt_icon
+    0x0000, // band_text
+    0x0000, // mode_text
+    0x0000, // mode_border
     0xFFFF, // box_bg
-    0x3A08, // box_border
-    0x3A08, // box_text
+    0x0000, // box_border
+    0x0000, // box_text
     0x632C, // box_off_bg
     0xFFFF, // box_off_text
     0xFFFF, // menu_bg
-    0x3A08, // menu_border
-    0x18C3, // menu_hdr
-    0x3A08, // menu_item
-    0x3A08, // menu_hl_bg
+    0x0000, // menu_border
+    0x0000, // menu_hdr
+    0x0000, // menu_item
+    0x0000, // menu_hl_bg
     0xFFFF, // menu_hl_text
-    0x3A08, // menu_param
-    0x3A08, // freq_text
-    0x632C, // funit_text
+    0x0000, // menu_param
+    0x0000, // freq_text
+    0x0000, // funit_text
     0x0000, // freq_hl
     0x632C, // freq_hl_sel
-    0x632C, // rds_text
-    0x18C3, // scale_text
+    0x0000, // rds_text
+    0x0000, // scale_text
     0x0000, // scale_pointer
-    0x632C, // scale_line
+    0x0000, // scale_line
     0x623C, // scan_grid
     0x18C3, // scan_snr
     0x18C3, // scan_rssi
@@ -487,46 +487,46 @@ ColorTheme theme[] =
   {
     "Dark",
     0x0000, // bg
-    0xC5F7, // text
+    0xFFFF, // text
     0x9CD3, // text_muted
-    0x0000, // text_warn
+    0xFFFF, // text_warn
     0xE73C, // smeter_icon
-    0x9CD3, // smeter_bar
+    0xBDF7, // smeter_bar
     0xE73C, // smeter_bar_plus
     0x4A6B, // smeter_bar_empty
-    0x9CD3, // save_icon
+    0xFFFF, // save_icon
     0x9CD3, // stereo_icon
     0xC5F7, // rf_icon
-    0x9CD3, // rf_icon_conn
-    0xE73C, // batt_voltage
+    0xFFFF, // rf_icon_conn
+    0xFFFF, // batt_voltage
     0xFFFF, // batt_border
-    0x9CD3, // batt_full
-    0xC5F7, // batt_low
+    0xBDF7, // batt_full
+    0xFFFF, // batt_low
     0x0000, // batt_charge
-    0xC5F7, // batt_icon
-    0xC5F7, // band_text
-    0x9CD3, // mode_text
-    0x9CD3, // mode_border
+    0xFFFF, // batt_icon
+    0xFFFF, // band_text
+    0xFFFF, // mode_text
+    0xFFFF, // mode_border
     0x0000, // box_bg
-    0xC5F7, // box_border
-    0xC5F7, // box_text
+    0xFFFF, // box_border
+    0xFFFF, // box_text
     0x9CD3, // box_off_bg
     0x0000, // box_off_text
     0x0000, // menu_bg
-    0xC5F7, // menu_border
-    0xE73C, // menu_hdr
-    0xC5F7, // menu_item
-    0xC5F7, // menu_hl_bg
+    0xFFFF, // menu_border
+    0xFFFF, // menu_hdr
+    0xFFFF, // menu_item
+    0xFFFF, // menu_hl_bg
     0x0000, // menu_hl_text
-    0xC5F7, // menu_param
-    0xC5F7, // freq_text
-    0x9CD3, // funit_text
+    0xFFFF, // menu_param
+    0xFFFF, // freq_text
+    0xFFFF, // funit_text
     0xFFFF, // freq_hl
     0x9CD3, // freq_hl_sel
-    0x9CD3, // rds_text
-    0xE73C, // scale_text
+    0xFFFF, // rds_text
+    0xFFFF, // scale_text
     0xFFFF, // scale_pointer
-    0x9CD3, // scale_line
+    0xFFFF, // scale_line
     0x9DC3, // scan_grid
     0xE73C, // scan_snr
     0xE73C, // scan_rssi
