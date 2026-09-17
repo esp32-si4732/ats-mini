@@ -11,8 +11,7 @@ Arduino firmware for the ATS Mini ESP32-S3/SI4732 receiver.
 - Run repository checks: `uv run prek run --all-files`.
 - Keep board settings in `ats-mini/sketch.yaml` and
   `.github/workflows/build.yml` consistent when changing them.
-- Add a Towncrier fragment (or edit a suitable one if it exists) in `changelog/` for user-visible changes;
-  see `pyproject.toml` for categories.
+- For user-visible firmware changes, edit an existing unreleased Towncrier fragment for the same feature in `changelog/`, or create one if none exists. Skip documentation changes, dependency bumps, and internal changes with no user-visible effect. See `pyproject.toml` for categories.
 - Update documentation when user-facing behavior changes. Stay brief, use the existing writing style.
 - Do not compile anything unless asked.
 - Report validation performed and any behavior needing hardware testing.
