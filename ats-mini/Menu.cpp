@@ -263,7 +263,7 @@ const UTCOffset utcOffsets[] =
   { 14 * 4, "UTC+14" },
 };
 
-int getCurrentUTCOffset() { return(utcOffsets[utcOffsetIdx].offset); }
+int8_t getCurrentUTCOffset() { return(utcOffsets[utcOffsetIdx].offset); }
 int getTotalUTCOffsets() { return(ITEM_COUNT(utcOffsets)); }
 
 //
@@ -1427,7 +1427,7 @@ static void drawTCPMode(int x, int y, int sx)
       spr.setTextColor(TH.menu_item);
 
     spr.setTextDatum(MC_DATUM);
-    spr.drawString(tcpModeDesc[i], 40+x+(sx/2), 64+y+((i-tcpModeIdx)*16), 2);
+    spr.drawString(tcpModeDesc[i], 40+x+(sx/2), 64+y+((i-tcpModeIdx)*16), FONT_SMALL);
   }
 }
 

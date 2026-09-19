@@ -118,7 +118,7 @@ const Step *getCurrentStep();
 const Bandwidth *getCurrentBandwidth();
 uint8_t getRDSMode();
 
-int getCurrentUTCOffset();
+int8_t getCurrentUTCOffset();
 int getTotalUTCOffsets();
 int getTotalFmRegions();
 int getTotalBleModes();
