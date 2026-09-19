@@ -368,6 +368,7 @@ static void webInit()
   });
 
   server.on("/memory", HTTP_ANY, [] (AsyncWebServerRequest *request) {
+    if(!webIsAuthenticated(request)) return request->requestAuthentication();
     request->send(200, "text/html", webMemoryPage());
   });
 
