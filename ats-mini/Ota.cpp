@@ -2,13 +2,21 @@
 #include "Draw.h"
 #include "Menu.h"
 #include "Ota.h"
+#include "Utils.h"
 
 #include <atomic>
+#include <memory>
+#include <HTTPClient.h>
+#include <NetworkClientSecure.h>
 #include <Update.h>
+#include <WiFi.h>
 #include <esp_app_desc.h>
 #include <esp_app_format.h>
 
+#define OTA_HTTP_TIMEOUT_SECONDS 15
+
 enum OtaVariant : uint8_t { OTA_OSPI = 1, OTA_QSPI = 2, OTA_LILYGO = 3 };
+static const char *const otaVariantNames[] = {"", "ospi", "qspi", "lilygo-t-embed"};
 
 struct OtaMetadata
 {
@@ -45,12 +53,17 @@ static_assert(VER_APP > 0 && VER_APP <= UINT16_MAX, "VER_APP must fit in the met
 // Accumulate only the image prefix, even when the transport splits its headers.
 static constexpr size_t OTA_PREFIX_SIZE = OTA_METADATA_OFFSET + sizeof(OtaMetadata);
 
+// Use the CA bundle shipped with the ESP32 core, including after redirects.
+extern const uint8_t caBundleStart[] asm("_binary_x509_crt_bundle_start");
+extern const uint8_t caBundleEnd[] asm("_binary_x509_crt_bundle_end");
+
 struct OtaState
 {
   std::atomic<bool> busy{false};
   std::atomic<OtaPhase> phase{OTA_IDLE};
   std::atomic<size_t> received{0};
   std::atomic<size_t> imageSize{0};
+  std::atomic<uint16_t> latestVersion{0};
   std::atomic<const char *> error{nullptr};
   std::atomic<bool> resultPending{false};
   std::atomic<bool> cancelRequested{false};
@@ -163,8 +176,19 @@ OtaStatus otaStatus()
   OtaPhase phase = ota.phase.load();
   switch(phase)
   {
+    case OTA_CHECK_QUEUED: return {phase, "Checking for updates..."};
+    case OTA_AVAILABLE:
+    {
+      unsigned version = ota.latestVersion.load();
+      char text[40];
+      snprintf(text, sizeof(text), "New release v%u.%02u available.", version / 100, version % 100);
+      return {phase, text};
+    }
+    case OTA_QUEUED:     return {phase, "Update requested..."};
+    case OTA_CONNECTING: return {phase, "Connecting to GitHub..."};
     case OTA_COMPLETE:
     case OTA_REBOOT_PENDING: return {phase, "DONE! Rebooting..."};
+    case OTA_CURRENT:    return {phase, "Already up to date."};
     case OTA_FAILED:
     {
       const char *error = ota.error.load();
@@ -189,14 +213,135 @@ static void otaDrawProgress()
   drawScreen("Updating Firmware", status.message.c_str());
 }
 
+bool otaRequestLatest(bool install)
+{
+  if(ota.busy.exchange(true)) return false;
+  ota.cancelRequested = false;
+  ota.error = nullptr;
+  ota.resultPending = false;
+  ota.phase = install? OTA_QUEUED : OTA_CHECK_QUEUED;
+  return true;
+}
+
+static bool otaDownloadLatest(bool install)
+{
+  ota.phase = OTA_CONNECTING;
+  otaDrawProgress();
+  if(WiFi.status() != WL_CONNECTED)
+    return otaFail("Connect Wi-Fi first.");
+  if(!clockGetDate(nullptr, nullptr, nullptr, nullptr))
+    return otaFail("Set the clock before updating.");
+
+  NetworkClientSecure client;
+  client.setCACertBundle(caBundleStart, caBundleEnd - caBundleStart);
+  client.setHandshakeTimeout(OTA_HTTP_TIMEOUT_SECONDS);
+  HTTPClient http;
+  http.setConnectTimeout(OTA_HTTP_TIMEOUT_SECONDS * 1000);
+  http.setTimeout(OTA_HTTP_TIMEOUT_SECONDS * 1000);
+  http.useHTTP10(true);
+  http.setUserAgent("ATS-Mini/" + String(getVersion(true)));
+
+  // The latest-release redirect provides the tag without downloading JSON/HTML.
+  if(!http.begin(client, FIRMWARE_URL "/releases/latest"))
+    return otaFail("Unable to connect to GitHub.");
+  int code = http.sendRequest("HEAD");
+  String location = http.getLocation();
+  http.end();
+
+  if(consumeAbortPending()) return otaFail("Update canceled.");
+
+  const String tagPrefix = FIRMWARE_URL "/releases/tag/";
+  if((code != 302 && code != 301) || !location.startsWith(tagPrefix))
+    return otaFail("Unable to find the latest release.");
+
+  String tag = location.substring(tagPrefix.length());
+  unsigned major, minor;
+  char suffix;
+  // A third conversion detects trailing characters, including prerelease suffixes.
+  if(tag.length() > 7 || sscanf(tag.c_str(), "v%u.%u%c", &major, &minor, &suffix) != 2 ||
+     major > UINT16_MAX / 100 || minor > 99 || major * 100 + minor > UINT16_MAX)
+    return otaFail("Unexpected release version.");
+  unsigned version = major * 100 + minor;
+  ota.latestVersion = version;
+  const bool newer = version > VER_APP;
+  if(!newer || !install)
+  {
+    ota.phase = newer? OTA_AVAILABLE : OTA_CURRENT;
+    ota.resultPending = true;
+    return true;
+  }
+  String url = String(FIRMWARE_URL) + "/releases/download/" + tag +
+               "/ats-mini-" + tag + "-" + otaVariantNames[otaMetadata.variant] + "-ota.bin";
+
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  if(!http.begin(client, url)) return otaFail("Unable to start firmware download.");
+  code = http.GET();
+  if(consumeAbortPending()) return otaFail("Update canceled.");
+  if(code != HTTP_CODE_OK)
+    return otaFail(code == 404? "Release has no matching OTA file." : "Firmware download failed.");
+  int total = http.getSize();
+  if(total < int(OTA_PREFIX_SIZE)) return otaFail("Invalid firmware download size.");
+  otaPrepare(total);
+
+  NetworkClient *stream = http.getStreamPtr();
+  constexpr size_t bufferSize = 1024;
+  std::unique_ptr<uint8_t, decltype(&free)> buffer(
+    static_cast<uint8_t *>(ps_malloc(bufferSize)), &free);
+  if(!buffer) return otaFail("Not enough PSRAM for update.");
+
+  uint32_t lastData = millis(), lastDraw = 0;
+  while(ota.received.load() < size_t(total))
+  {
+    if(consumeAbortPending()) return otaFail("Update canceled.");
+    int available = stream->available();
+    if(available > 0)
+    {
+      size_t count = size_t(available);
+      if(count > bufferSize) count = bufferSize;
+      size_t remaining = total - ota.received.load();
+      if(count > remaining) count = remaining;
+      int received = stream->read(buffer.get(), count);
+      if(received > 0)
+      {
+        if(!otaWrite(buffer.get(), received)) return false;
+        lastData = millis();
+      }
+    }
+    else if(!http.connected())
+      return otaFail("Firmware download interrupted.");
+    if(millis() - lastData > OTA_HTTP_TIMEOUT_SECONDS * 1000)
+      return otaFail("Firmware download timed out.");
+    if(millis() - lastDraw >= 250)
+    {
+      otaDrawProgress();
+      lastDraw = millis();
+    }
+    delay(1);
+  }
+  http.end();
+
+  if(consumeAbortPending()) return otaFail("Update canceled.");
+  if(!otaFinish()) return false;
+  ota.phase = OTA_REBOOT_PENDING;
+  return true;
+}
+
 void otaTick()
 {
-  // Display drawing runs on the main task.
+  // Display drawing and GitHub downloads run on the main task.
   // Browser uploads and page requests run on the async network task.
   OtaPhase phase = ota.phase.load();
-  if(phase == OTA_WRITING || phase == OTA_COMPLETE || phase == OTA_REBOOT_PENDING)
+  if(phase == OTA_CHECK_QUEUED || phase == OTA_QUEUED || phase == OTA_WRITING ||
+     phase == OTA_COMPLETE || phase == OTA_REBOOT_PENDING)
   {
     currentCmd = CMD_NONE;
+    if(phase == OTA_CHECK_QUEUED || phase == OTA_QUEUED)
+    {
+      // Clear stale cancellation input before starting the operation.
+      consumeAbortPending();
+      otaDownloadLatest(phase == OTA_QUEUED);
+      if(ota.phase.load() != OTA_REBOOT_PENDING) ota.busy = false;
+    }
     uint32_t lastDraw = 0;
     bool firstUploadTick = true;
     while((phase = ota.phase.load()) == OTA_WRITING || phase == OTA_COMPLETE || phase == OTA_REBOOT_PENDING)
@@ -236,7 +381,7 @@ void otaTick()
     {
       // Stop waiting if another OTA operation has started.
       phase = ota.phase.load();
-      if(phase != OTA_FAILED) break;
+      if(phase != OTA_FAILED && phase != OTA_CURRENT && phase != OTA_AVAILABLE) break;
       delay(20);
     }
     drawScreen();

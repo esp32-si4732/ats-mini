@@ -403,7 +403,12 @@ static void webInit()
     if(!webIsAuthenticated(request)) return request->requestAuthentication();
     webUpdatePage(request, otaStatus(), 200);
   });
-
+  server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if(!webIsAuthenticated(request)) return request->requestAuthentication();
+    if(!otaRequestLatest(request->hasParam("action", true) && request->getParam("action", true)->value() == "install"))
+      return webUpdatePage(request, {OTA_FAILED, "An update is already in progress."}, 409);
+    request->redirect("/update");
+  });
 
   // Start web server
   server.begin();
@@ -1032,14 +1037,22 @@ const String webConfigPage()
 // Explicit request errors leave the active operation's status unchanged.
 static void webUpdatePage(AsyncWebServerRequest *request, const OtaStatus &status, int code)
 {
-  const bool busy = status.phase == OTA_WRITING;
+  const bool busy = status.phase == OTA_CHECK_QUEUED || status.phase == OTA_QUEUED ||
+                    status.phase == OTA_CONNECTING || status.phase == OTA_WRITING;
   const bool complete = status.phase == OTA_COMPLETE || status.phase == OTA_REBOOT_PENDING;
+  const bool available = status.phase == OTA_AVAILABLE;
   const String refresh = complete? "<SCRIPT>setTimeout(()=>location.replace('/'),20000);</SCRIPT>" :
                          busy? "<SCRIPT>setTimeout(()=>location.replace('/update'),1000);</SCRIPT>" : "";
   const String page = webPage(
 "<H1>Firmware Update</H1>" + webNavigation("/update") +
 "<TABLE COLUMNS=1>"
 "<TR><TD CLASS='CENTER'>" + status.message + "</TD></TR>"
+"<TR><TH CLASS='HEADING'>"
+  "<FORM METHOD='POST' ACTION='/update'>"
+  "<BUTTON TYPE='SUBMIT' NAME='action' VALUE='" + String(available? "install" : "check") + "' STYLE='padding: 0.5em 2em;'" +
+    String(busy || complete? " DISABLED" : "") + ">" + (available? "Update" : "Check for updates") + "</BUTTON>"
+  "</FORM>"
+"</TH></TR>"
 "<TR><TD CLASS='CENTER'>"
   "<DETAILS><SUMMARY>Manual upload</SUMMARY>"
   "<FORM METHOD='POST' ACTION='/update/upload' ENCTYPE='multipart/form-data' ONSUBMIT='this.elements.size.value=this.elements.firmware.files[0].size;this.querySelector(\"button\").disabled=true;'>"

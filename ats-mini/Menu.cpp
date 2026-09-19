@@ -4,6 +4,7 @@
 #include "Utils.h"
 #include "Draw.h"
 #include "EIBI.h"
+#include "Ota.h"
 #include "BleMode.h"
 #include "Menu.h"
 
@@ -129,8 +130,12 @@ static const char *menu[] =
 #define MENU_TCPMODE      14
 #define MENU_BLEMODE      15
 #define MENU_WIFIMODE     16
-#define MENU_ABOUT        17
+#define MENU_UPDATEFW     17
+#define MENU_ABOUT        18
 
+
+static uint8_t updateFwIdx = 0;
+static const char *const updateFwActions[] = {"Check", "Update"};
 
 int8_t settingsIdx = MENU_BRIGHTNESS;
 
@@ -153,6 +158,7 @@ static const char *settings[] =
   "TCP Port",
   "Bluetooth",
   "Wi-Fi",
+  "Update FW",
   "About",
 };
 
@@ -1060,6 +1066,10 @@ static void clickSettings(int cmd, bool shortPress)
       if(currentMode==FM) currentCmd = CMD_FM_REGION;
       break;
     case MENU_ABOUT:      currentCmd = CMD_ABOUT;     break;
+    case MENU_UPDATEFW:
+      updateFwIdx = 0;
+      currentCmd = CMD_UPDATEFW;
+      break;
 
     case MENU_LOADEIBI:
       eibiLoadSchedule();
@@ -1103,6 +1113,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_UTCOFFSET:  doUTCOffset(scrollDirection * enc);break;
     case CMD_DATETIME:   doDateTime(enc);break;
     case CMD_SQUELCH:    doSquelch(enca);break;
+    case CMD_UPDATEFW:   updateFwIdx = wrap_range(updateFwIdx, scrollDirection * enc, 0, LAST_ITEM(updateFwActions));break;
     case CMD_ABOUT:      doAbout(enc);break;
     default:             return(false);
   }
@@ -1117,6 +1128,7 @@ bool clickHandler(uint16_t cmd, bool shortPress)
   {
     case CMD_MENU:     clickMenu(menuIdx, shortPress);break;
     case CMD_SETTINGS: clickSettings(settingsIdx, shortPress);break;
+    case CMD_UPDATEFW: otaRequestLatest(updateFwIdx == 1);break;
     case CMD_MEMORY:   clickMemory(memoryIdx, shortPress);break;
     case CMD_BLEMODE:  clickBleMode(bleModeMenuIdx, shortPress);break;
     case CMD_WIFIMODE: clickWiFiMode(wifiModeIdx, shortPress);break;
@@ -1452,6 +1464,25 @@ static void drawBleMode(int x, int y, int sx)
 
     spr.setTextDatum(MC_DATUM);
     spr.drawString(bleModeDesc[abs((bleModeMenuIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), FONT_SMALL);
+  }
+}
+
+static void drawUpdateFW(int x, int y, int sx)
+{
+  drawCommon(settings[MENU_UPDATEFW], x, y, sx, true);
+
+  for(int i=0 ; i<ITEM_COUNT(updateFwActions) ; i++)
+  {
+    if(i == updateFwIdx)
+    {
+      drawZoomedMenu(updateFwActions[i]);
+      spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
+    }
+    else
+      spr.setTextColor(TH.menu_item);
+
+    spr.setTextDatum(MC_DATUM);
+    spr.drawString(updateFwActions[i], 40+x+(sx/2), 64+y+((i-updateFwIdx)*16), FONT_SMALL);
   }
 }
 
@@ -1938,6 +1969,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_TCPMODE:    drawTCPMode(x, y, sx);    break;
     case CMD_BLEMODE:    drawBleMode(x, y, sx);    break;
     case CMD_WIFIMODE:   drawWiFiMode(x, y, sx);   break;
+    case CMD_UPDATEFW:   drawUpdateFW(x, y, sx);   break;
     case CMD_ZOOM:       drawZoom(x, y, sx);       break;
     case CMD_SCROLL:     drawScrollDir(x, y, sx);  break;
     case CMD_UTCOFFSET:  drawUTCOffset(x, y, sx);  break;

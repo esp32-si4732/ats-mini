@@ -84,6 +84,7 @@ The menu can be invoked by clicking the encoder button and is closed automatical
 * **TCP Port** - TCP control mode: Off (default) or Ad hoc. In Ad hoc mode, one client can use the [remote control](remote.md#tcp-over-wi-fi) commands over Wi-Fi on port 60000. Wi-Fi must be enabled separately.
 * **Bluetooth** - Bluetooth LE mode: Off (default), Ad hoc, HID, or Unpair All. Ad hoc exposes the same [remote control](remote.md) protocol over BLE. HID makes the receiver act as a BLE HID central and connect to supported Bluetooth remotes/keyboards so their buttons can control tuning and menu actions. Unpair All clears all saved Bluetooth bonds and then switches Bluetooth to Off. WARNING: it is not recommended to enable both Bluetooth and Wi-Fi at the same time (the receiver might become unstable).
 * **Wi-Fi** - Wi-Fi mode: Off (default), Access Point, Access Point + Connect, Connect, Sync Only. More details on that below.
+* **Update FW** - **Check** shows the available firmware version; **Update** installs it (requires a Wi-Fi internet connection). See [updating over Wi-Fi](flash.md#update-over-wi-fi).
 * **About** - Informational screens (Help, Authors, System).
 
 ## Wi-Fi
@@ -123,7 +124,7 @@ When on the go, you can set up a mobile Wi-Fi hotspot on your smartphone and use
 
 <!-- ### Receiver settings available via Wi-Fi only -->
 
-Firmware uploads are available through the web interface's **Update** page. See [updating over Wi-Fi](flash.md#update-over-wi-fi) for instructions.
+Firmware updates are available through **Settings → Update FW** or the web interface's **Update** page. See [updating over Wi-Fi](flash.md#update-over-wi-fi) for instructions.
 
 ## Schedule
 

@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-enum OtaPhase { OTA_IDLE, OTA_WRITING, OTA_COMPLETE, OTA_REBOOT_PENDING, OTA_FAILED };
+enum OtaPhase { OTA_IDLE, OTA_CHECK_QUEUED, OTA_QUEUED, OTA_CONNECTING, OTA_WRITING, OTA_COMPLETE, OTA_REBOOT_PENDING, OTA_FAILED, OTA_CURRENT, OTA_AVAILABLE };
 
 struct OtaStatus
 {
@@ -23,6 +23,7 @@ bool otaFinish();
 void otaEndUpload();
 OtaStatus otaStatus();
 
+bool otaRequestLatest(bool install);
 void otaTick();
 
 #endif

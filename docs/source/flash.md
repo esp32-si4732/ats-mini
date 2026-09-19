@@ -39,7 +39,12 @@ Do not omit `boot_app0.bin` when flashing separate files. For older release arch
 
 ## Update over Wi-Fi
 
-Open **Update** in the web interface. Use the same login and password as the configuration page, if configured.
+To download the latest release, connect the receiver to the internet over Wi-Fi and make sure its date and time are correct.
+
+- On the receiver, open **Settings → Update FW**. Choose **Check** to see the available version, or **Update** to install it.
+- In the web interface, open **Update**, select **Check for updates**, then press **Update**. Use the same login and password as the configuration page, if configured.
+
+The matching firmware is selected automatically. If that version is already installed, the receiver shows "Already up to date".
 
 For manual upload, expand **Manual upload** on the web page, select the `ats-mini-vVERSION-VARIANT-ota.bin` or `ats-mini.ino.bin` file for your receiver variant, then press **Upload**. This works without internet access and can reinstall the same version.
 
