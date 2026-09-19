@@ -4,6 +4,18 @@ The user manual is available at <https://esp32-si4732.github.io/ats-mini/manual.
 
 <!-- towncrier release notes start -->
 
+## 2.40 (2026-09-19)
+
+
+### Added
+
+- Check for and install firmware updates over Wi-Fi from Settings → Update FW or the web interface, with a separate expandable form for manual file uploads. Press the encoder to cancel a transfer. [#358](https://github.com/esp32-si4732/ats-mini/issues/358)
+
+
+### Changed
+
+- The web Memory page now requires the configured login and password.
+
 ## 2.39 (2026-09-16)
 
 

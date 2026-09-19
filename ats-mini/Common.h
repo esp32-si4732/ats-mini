@@ -20,7 +20,7 @@ static constexpr const lgfx::IFont* FONT_DIGITS  = &lgfx::fonts::Font7;  // 48px
 #define AUTHORS_LINE3  "Goshante, G8PTN (Dave), R9UCL (Max Arnold),"
 #define AUTHORS_LINE4  "Marat Fayzullin"
 
-#define VER_APP        239  // Firmware version
+#define VER_APP        240  // Firmware version
 #define VER_OTA          1  // OTA compatibility; bump when a full USB flash is required
 #define VER_SETTINGS    71  // Settings version
 #define VER_MEMORIES    71  // Memories version
