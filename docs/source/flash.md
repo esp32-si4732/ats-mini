@@ -37,6 +37,16 @@ So, you need to flash your receiver using **just one** of the following two ways
 
 Do not omit `boot_app0.bin` when flashing separate files. For older release archives without this file, use the merged image instead.
 
+## Update over Wi-Fi
+
+Open **Update** in the web interface. Use the same login and password as the configuration page, if configured.
+
+For manual upload, expand **Manual upload** on the web page, select the `ats-mini-vVERSION-VARIANT-ota.bin` or `ats-mini.ino.bin` file for your receiver variant, then press **Upload**. This works without internet access and can reinstall the same version.
+
+Press the encoder to cancel while firmware is transferring. Once the update is finalizing, let the receiver restart.
+
+Upload from one browser at a time; if the connection drops, reconnect and retry. If the update reports that USB flashing is required, follow the USB instructions below.
+
 ## Flash using a web browser
 
 Works on: Windows, macOS, Linux
