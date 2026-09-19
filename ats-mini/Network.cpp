@@ -68,6 +68,7 @@ static bool webParseUTCDateTime(const String &text, uint32_t *epoch);
 static const String webInputField(const String &name, const String &value, bool pass = false);
 static const String webStyleSheet();
 static const String webPage(const String &body);
+static String webNavigation(const char *activePage);
 static const String webUtcOffsetSelector();
 static const String webThemeSelector();
 static const String webRadioPage();
@@ -656,6 +657,24 @@ static const String webStyleSheet()
 ;
 }
 
+static String webNavigation(const char *activePage)
+{
+  static const struct { const char *name; const char *path; } pages[] =
+  {
+    {"Status", "/"},
+    {"Memory", "/memory"},
+    {"Config", "/config"},
+  };
+  String result = "<P ALIGN='CENTER'>";
+  for(size_t i = 0; i < sizeof(pages) / sizeof(pages[0]); i++)
+  {
+    if(i) result += "&nbsp;|&nbsp;";
+    if(!strcmp(activePage, pages[i].path)) result += pages[i].name;
+    else result += String("<A HREF='") + pages[i].path + "'>" + pages[i].name + "</A>";
+  }
+  return result + "</P>";
+}
+
 static const String webPage(const String &body)
 {
   return
@@ -753,10 +772,7 @@ static const String webRadioPage()
   }
 
   return webPage(
-"<H1>ATS-Mini Pocket Receiver</H1>"
-"<P ALIGN='CENTER'>"
-  "<A HREF='/memory'>Memory</A>&nbsp;|&nbsp;<A HREF='/config'>Config</A>"
-"</P>"
+"<H1>ATS-Mini Pocket Receiver</H1>" + webNavigation("/") +
 "<TABLE COLUMNS=2>"
 "<TR>"
   "<TD CLASS='LABEL'>IP Address</TD>"
@@ -820,10 +836,7 @@ static const String webMemoryPage()
   }
 
   return webPage(
-"<H1>ATS-Mini Pocket Receiver Memory</H1>"
-"<P ALIGN='CENTER'>"
-  "<A HREF='/'>Status</A>&nbsp;|&nbsp;<A HREF='/config'>Config</A>"
-"</P>"
+"<H1>ATS-Mini Pocket Receiver Memory</H1>" + webNavigation("/memory") +
 "<TABLE COLUMNS=2>" + items + "</TABLE>"
 );
 }
@@ -846,11 +859,7 @@ const String webConfigPage()
   String splashResolution = String(spr.width()) + "x" + String(spr.height());
 
   return webPage(
-"<H1>ATS-Mini Config</H1>"
-"<P ALIGN='CENTER'>"
-  "<A HREF='/'>Status</A>"
-  "&nbsp;|&nbsp;<A HREF='/memory'>Memory</A>"
-"</P>"
+"<H1>ATS-Mini Config</H1>" + webNavigation("/config") +
 "<FORM ACTION='/setconfig' METHOD='POST' ENCTYPE='multipart/form-data' ONSUBMIT='browserDateTime(true)'>"
   "<TABLE COLUMNS=2>"
   "<TR><TH COLSPAN=2 CLASS='HEADING'>WiFi Network 1</TH></TR>"
