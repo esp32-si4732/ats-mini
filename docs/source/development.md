@@ -117,3 +117,5 @@ Once you are happy, add the resulting colors to `Theme.cpp`.
 4. Add and commit the changes with a message like "Release X.XX", then push them to the repository
 5. Once the build is complete, download, flash and test it!
 6. Tag the release and push the tag `git tag -a vX.XX -m 'Version X.XX' && git push --follow-tags` (the tag should start with `v`!)
+
+Increase `VER_OTA` in `Common.h` when a release requires USB flashing, such as after a partition-table or bootloader change. Keep the increased value in subsequent releases so users who skip versions still receive the USB requirement. Updates between different `VER_OTA` values require USB, including downgrades.

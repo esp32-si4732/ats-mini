@@ -111,6 +111,10 @@ jobs:
           # shellcheck disable=SC2015
           ls changelog/*.md && uv run towncrier build --keep --version Unreleased || true
 
+      - name: Check OTA firmware metadata
+        run: >-
+          python -c 'with open("ats-mini/build/esp32.esp32.esp32s3/ats-mini.ino.bin","rb") as f: f.seek(288); assert f.read(4) == b"ATSM", "Missing OTA metadata at offset 288"'
+
       - name: Prepare compiled artifact
         run: |
           mkdir -p artifact/ats-mini-${{ steps.slug.outputs.slug }}-${{ matrix.board.artifact-suffix }}
