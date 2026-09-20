@@ -12,8 +12,9 @@
 #define ATS_POLL_TIME       10  // Tuning status polling interval (msecs)
 #define ATS_POLL_COUNT      20  // Give up on the tuning status after this many polls
 #define ATS_PEAK_DROP        6  // Level drop that tells two stations apart (dB)
-#define ATS_NAME_TIME    2000U  // Time given to the decoder to spell out a name (msecs)
+#define ATS_NAME_TIME   10000U  // Time given to the decoder to spell out a name (msecs)
 #define ATS_NAME_POLL       20  // Station name polling interval (msecs)
+#define ATS_RDS_SETTLE     150  // Time for the RDS decoder to lock on (msecs)
 #define ATS_NAME_LENGTH      8  // Length of an RDS station name
 
 //
@@ -42,15 +43,22 @@ static uint16_t autoStoreSpacing(const Band *band)
 //
 static bool autoStoreName(char *name, uint8_t size)
 {
+  char received[ATS_NAME_LENGTH] = {0};
   uint32_t startTime = millis();
+  uint8_t len = 0;
 
-  *name = '\0';
+  *name = 0;
+
+  // Give the decoder a moment to lock onto the data stream
+  delay(ATS_RDS_SETTLE);
 
   // Start from a clean slate, the previous station may still be in there
   rx.getRdsStatus(0, 1, 0);
   rx.RdsInit();
 
-  while((millis() - startTime) < ATS_NAME_TIME)
+  // The name arrives two characters at a time, each group carrying the
+  // position of its own pair, so collect the pieces as they turn up
+  while(len<ATS_NAME_LENGTH && (millis() - startTime) < ATS_NAME_TIME)
   {
     rx.getRdsStatus();
 
@@ -58,26 +66,31 @@ static bool autoStoreName(char *name, uint8_t size)
     {
       const char *ps = rx.getRdsStationName();
 
-      // The name comes in four pieces, wait until all of them are in
-      if(ps && strlen(ps)>=ATS_NAME_LENGTH)
-      {
-        uint8_t len = 0;
-
-        for(uint8_t i=0 ; i<ATS_NAME_LENGTH && i<size-1 ; i++)
-          name[len++] = (ps[i]>=' ' && ps[i]<='~')? ps[i] : ' ';
-
-        // Drop the padding the broadcasters add
-        while(len && name[len-1]==' ') len--;
-        name[len] = '\0';
-
-        return(len>0);
-      }
+      for(uint8_t i=0 ; ps && i<ATS_NAME_LENGTH ; i++)
+        if(ps[i] && !received[i])
+        {
+          received[i] = ps[i];
+          len++;
+        }
     }
+
+    // Do not make the user sit through the wait to stop the sweep. The
+    // flags are left alone here, the sweep is the one that acts on them.
+    if(seekStop || digitalRead(ENCODER_PUSH_BUTTON)==LOW) break;
 
     delay(ATS_NAME_POLL);
   }
 
-  return(false);
+  // Stop at the first piece that never turned up, so a name is either
+  // complete or a clean start of one, never a broken up version of it
+  for(len=0 ; len<ATS_NAME_LENGTH && len<size-1 && received[len] ; len++)
+    name[len] = (received[len]>=' ' && received[len]<='~')? received[len] : ' ';
+  name[len] = 0;
+
+  // Drop the padding the broadcasters add
+  while(len && name[len-1]==' ') name[--len] = 0;
+
+  return(*name != 0);
 }
 
 //
