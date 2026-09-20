@@ -43,6 +43,17 @@ class SI4735_fixed: public SI4735
       return getRdsVersionCode()? SI4735::getRdsText2B() : SI4735::getRdsText2A();
     }
 
+    // Get the two alternative frequency codes carried by a group 0A.
+    // Version B puts the PI code in block C instead, so it is of no use here.
+    bool getRdsAFCodes(uint8_t *af1, uint8_t *af2)
+    {
+      if(!af1 || !af2 || getRdsGroupType() != 0 || getRdsVersionCode()) return(false);
+
+      *af1 = currentRdsStatus.resp.BLOCKCH;
+      *af2 = currentRdsStatus.resp.BLOCKCL;
+      return(true);
+    }
+
     // Decode UTC time directly from the RDS data blocks.
     // SI4735::getRdsDateTime() converts it to the broadcaster's local time,
     // which cannot be converted back reliably from clock-face times alone.

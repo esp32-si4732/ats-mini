@@ -53,8 +53,8 @@ void drawLayoutDefault(const char *statusLine1, const char *statusLine2)
   // @@@ FIXME: Frequency display (above) intersects the side bar!
   drawSideBar(currentCmd, MENU_OFFSET_X, MENU_OFFSET_Y, MENU_DELTA_X);
 
-  // Draw S-meter
-  drawSMeter(getStrength(rssi), METER_OFFSET_X, METER_OFFSET_Y);
+  // Draw S-meter with the peak hold marker
+  drawSMeter(getStrength(rssi), getStrength(smeterPeak(rssi)), METER_OFFSET_X, METER_OFFSET_Y);
 
   // Indicate FM pilot detection (stereo indicator)
   drawStereoIndicator(METER_OFFSET_X, METER_OFFSET_Y, (currentMode==FM) && rx.getCurrentPilot());

@@ -40,6 +40,11 @@ static constexpr const lgfx::IFont* FONT_DIGITS  = &lgfx::fonts::Font7;  // 48px
 #define RDS_RT        0b00001000  // Radio text
 #define RDS_PT        0b00010000  // Program type
 #define RDS_RBDS      0b00100000  // Use US PTYs
+#define RDS_AF        0b01000000  // Follow alternative frequencies
+
+// FM stereo modes
+#define FM_STEREO_AUTO 0 // Let the receiver blend down to mono on weak signals
+#define FM_STEREO_MONO 1 // Force mono audio
 
 // Sleep modes
 #define SLEEP_LOCKED   0 // Lock the encoder
@@ -202,6 +207,7 @@ extern uint8_t tcpModeIdx;
 extern uint8_t bleModeIdx;
 extern uint8_t wifiModeIdx;
 extern uint8_t FmRegionIdx;
+extern uint8_t fmStereoIdx;
 
 extern int8_t agcIdx;
 extern int8_t agcNdx;
@@ -229,6 +235,27 @@ bool drawBattery(int x, int y);
 void scanRun(uint16_t centerFreq, uint16_t step);
 float scanGetRSSI(uint16_t freq);
 float scanGetSNR(uint16_t freq);
+
+// AutoStore.c
+#define ATS_BAD_MODE    -1 // Current mode cannot be swept
+#define ATS_NO_SLOTS    -2 // There are no free memory slots left
+#define ATS_KEEP_OLD  0x00 // Store into the free memory slots
+#define ATS_REPLACE   0x01 // Drop the stations of this band first
+#define ATS_CLEAR_ALL 0x02 // Drop every stored station first
+int autoStoreRun(uint8_t flags);
+
+// AltFreq.c
+void afReset();
+void afCollect();
+bool afTickTime();
+
+// MemScan.c
+bool memScanStart();
+void memScanStop();
+bool memScanRunning();
+bool memScanListening();
+uint8_t memScanSlot();
+bool memScanTickTime();
 
 // Station.c
 const char *getStationName();
