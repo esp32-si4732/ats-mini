@@ -744,9 +744,8 @@ void autoStoreAndReport(uint8_t flags)
 
 static void clickAutoStore(bool shortPress)
 {
-  if(shortPress)
-    autoStoreAndReport(autoStoreIdx==1? ATS_REPLACE : ATS_KEEP_OLD);
-
+  // Either kind of press runs the selected action, the way Update FW does
+  autoStoreAndReport(autoStoreIdx==1? ATS_REPLACE : ATS_KEEP_OLD);
   currentCmd = CMD_NONE;
 }
 
