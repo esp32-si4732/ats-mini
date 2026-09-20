@@ -236,6 +236,27 @@ void scanRun(uint16_t centerFreq, uint16_t step);
 float scanGetRSSI(uint16_t freq);
 float scanGetSNR(uint16_t freq);
 
+// AutoStore.c
+#define ATS_BAD_MODE    -1 // Current mode cannot be swept
+#define ATS_NO_SLOTS    -2 // There are no free memory slots left
+#define ATS_KEEP_OLD  0x00 // Store into the free memory slots
+#define ATS_REPLACE   0x01 // Drop the stations of this band first
+#define ATS_CLEAR_ALL 0x02 // Drop every stored station first
+int autoStoreRun(uint8_t flags);
+
+// AltFreq.c
+void afReset();
+void afCollect();
+bool afTickTime();
+
+// MemScan.c
+bool memScanStart();
+void memScanStop();
+bool memScanRunning();
+bool memScanListening();
+uint8_t memScanSlot();
+bool memScanTickTime();
+
 // Station.c
 const char *getStationName();
 const char *getRadioText();

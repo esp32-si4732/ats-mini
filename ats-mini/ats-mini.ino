@@ -983,6 +983,14 @@ void loop()
     lastRDSCheck = currentTime;
   }
 
+  // Follow the station to an alternative frequency when it fades out
+  if(afTickTime())
+  {
+    // Current frequency has changed
+    prefsRequestSave(SAVE_CUR_BAND);
+    needRedraw = true;
+  }
+
   // Periodically check schedule
   if((currentTime - lastScheduleCheck) > SCHEDULE_CHECK_TIME)
   {

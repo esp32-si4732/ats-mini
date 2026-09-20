@@ -223,6 +223,8 @@ static const RDSMode rdsMode[] =
   { RDS_PS | RDS_PI | RDS_RT | RDS_PT | RDS_RBDS, "ALL-CT (US)" },
   { RDS_PS | RDS_PI | RDS_RT | RDS_PT | RDS_CT, "ALL (EU)" },
   { RDS_PS | RDS_PI | RDS_RT | RDS_PT | RDS_CT | RDS_RBDS, "ALL (US)" },
+  { RDS_PS | RDS_PI | RDS_RT | RDS_PT | RDS_CT | RDS_AF, "ALL+AF (EU)" },
+  { RDS_PS | RDS_PI | RDS_RT | RDS_PT | RDS_CT | RDS_RBDS | RDS_AF, "ALL+AF (US)" },
 };
 
 uint8_t getRDSMode() { return(rdsMode[rdsModeIdx].mode); }
