@@ -586,6 +586,11 @@ bool doSeek(int16_t enc, int16_t enca)
       updateFrequency(rx.getFrequency(), true);
     }
   }
+  else if(seekMode() == SEEK_AUTO && enc)
+  {
+    // Rebuild the memory contents from a full sweep of the band
+    autoStoreAndReport(ATS_CLEAR_ALL);
+  }
   else if(seekMode() == SEEK_SCHEDULE && enc)
   {
     uint8_t hour, minute;
@@ -953,7 +958,7 @@ void loop()
   if((currentTime - elapsedCommand) > ELAPSED_COMMAND)
   {
     // if(getCpuFrequencyMhz()!=80) setCpuFrequencyMhz(80);
-    if(currentCmd != CMD_NONE && currentCmd != CMD_SEEK && currentCmd != CMD_SCAN && currentCmd != CMD_MEMORY)
+    if(currentCmd != CMD_NONE && currentCmd != CMD_SEEK && currentCmd != CMD_SCAN && currentCmd != CMD_MEMORY && currentCmd != CMD_MEMSCAN)
     {
       currentCmd = CMD_NONE;
       needRedraw = true;
@@ -1003,6 +1008,14 @@ void loop()
   {
     needRedraw |= ntpSyncTime();
     lastNTPCheck = currentTime;
+  }
+
+  // Tick memory scan time, hopping to the next channel as needed
+  if(memScanTickTime())
+  {
+    // Current frequency has changed
+    prefsRequestSave(SAVE_CUR_BAND);
+    needRedraw = true;
   }
 
   // Tick preferences time, saving changes when there has
