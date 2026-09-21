@@ -3,7 +3,11 @@
 
 #include "BleCentral.h"
 
-#define BLE_SCAN_INTERVAL 100
+// Milliseconds (BLEScan divides them by 0.625 to get controller units). A
+// 100 ms window every 400 ms keeps the radio scanning a quarter of the time
+// instead of all of it. A device advertising at least every 100 ms is still
+// seen within one interval; slower advertisers can take a few intervals.
+#define BLE_SCAN_INTERVAL 400
 #define BLE_SCAN_WINDOW 100
 
 struct BleHidState {
