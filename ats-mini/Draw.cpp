@@ -425,10 +425,41 @@ void drawScanGraphs(uint32_t freq)
 }
 
 //
+// Status held on screen by drawStatusFor()
+//
+static char heldStatus[40];
+static uint32_t heldStatusUntil;
+static bool heldStatusOn = false;
+
+//
+// Draw screen with a one-line status that stays up on the following redraws
+// for the given time, without blocking the main loop
+//
+void drawStatusFor(uint32_t ms, const char *statusLine)
+{
+  strlcpy(heldStatus, statusLine, sizeof(heldStatus));
+  drawScreen(heldStatus);
+  heldStatusUntil = millis() + ms;
+  heldStatusOn = true;
+}
+
+//
 // Draw screen according to given command
 //
 void drawScreen(const char *statusLine1, const char *statusLine2)
 {
+  // A new status replaces a held one. Without one, a held status is drawn
+  // until its time is up.
+  if(statusLine1 || statusLine2)
+    heldStatusOn = false;
+  else if(heldStatusOn)
+  {
+    if((int32_t)(millis() - heldStatusUntil) < 0)
+      statusLine1 = heldStatus;
+    else
+      heldStatusOn = false;
+  }
+
   if(sleepOn()) return;
 
   // Clear screen buffer
