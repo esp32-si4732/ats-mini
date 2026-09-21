@@ -7,11 +7,12 @@
 
 static RemoteState remoteSerialState;
 
-// The row buffer below is sized for the receiver's 320px-wide sprite. The
-// capture bails out rather than overflow it if that ever grows.
+// The row buffer below is sized for the receiver's 320px-wide sprite. Both
+// captures bail out rather than overflow it if that ever grows.
 #define REMOTE_MAX_SCREEN_WIDTH 320
 
-// Screenshot row buffer, sized for a hex row (4 digits per pixel plus CRLF).
+// Screenshot row buffer shared by both captures, sized for the larger hex row
+// (4 digits per pixel plus CRLF; a binary row takes 2 bytes per pixel).
 // Allocated in PSRAM on first use and kept: internal DRAM is scarce, and
 // building the rows in PSRAM costs about 1% of the capture time.
 static uint8_t *remoteRowBuf = nullptr;
@@ -151,6 +152,70 @@ static void remoteCaptureScreen(Stream* stream)
     *p++ = '\r';
     *p++ = '\n';
     stream->write((const uint8_t *)rowBuf, p - rowBuf);
+  }
+  stream->flush();
+}
+
+//
+// Capture the screen as a raw little-endian RGB565 BMP (command 'c').
+//
+// Additive, opt-in alternative to 'C': it emits ~2x fewer bytes (a binary BMP
+// instead of ASCII hex) and does no per-pixel formatting. The decoded image is
+// byte-for-byte identical to xxd-decoding the 'C' output. A leading
+// "BMP:<size>\r\n" ASCII frame lets line-oriented consumers find the binary
+// start and pre-allocate.
+//
+static void remoteCaptureScreenBinary(Stream* stream)
+{
+  uint16_t width  = spr.width();
+  uint16_t height = spr.height();
+  const uint16_t *fb = (const uint16_t *)spr.getBuffer();
+  uint8_t *bmpRow = remoteGetRowBuf();
+  if(!fb || !bmpRow || width > REMOTE_MAX_SCREEN_WIDTH) return;
+
+  uint32_t fileSize  = 14 + 40 + 12 + (uint32_t)width * height * 2;
+  uint32_t pixOffset = 14 + 40 + 12;
+  uint32_t hsz = 40, compr = 3;
+  uint32_t w = width, ht = height;
+  uint32_t rm = 0xF800, gm = 0x07E0, bm = 0x001F;
+  uint16_t planes = 1, bpp = 16;
+
+  // BMP fields are little-endian; on the little-endian ESP32 write them in
+  // native order (do NOT reuse the htonl() trick the hex 'C' path uses).
+  uint8_t h[66];
+  h[0] = 'B'; h[1] = 'M';
+  memcpy(h + 2, &fileSize, 4);
+  memset(h + 6, 0, 4);
+  memcpy(h + 10, &pixOffset, 4);
+  memcpy(h + 14, &hsz, 4);
+  memcpy(h + 18, &w, 4);
+  memcpy(h + 22, &ht, 4);
+  memcpy(h + 26, &planes, 2);
+  memcpy(h + 28, &bpp, 2);
+  memcpy(h + 30, &compr, 4);
+  memset(h + 34, 0, 20);
+  memcpy(h + 54, &rm, 4);
+  memcpy(h + 58, &gm, 4);
+  memcpy(h + 62, &bm, 4);
+
+  stream->printf("BMP:%u\r\n", (unsigned int)fileSize);
+  stream->write(h, sizeof(h));
+
+  // Pixels, bottom-up. The framebuffer stores each RGB565 word byte-swapped
+  // (LovyanGFX keeps rgb565_2Byte sprites in swap565_t form), so emit the high
+  // byte first to produce the little-endian RGB565 a BI_BITFIELDS BMP expects.
+  // These bytes equal xxd-decoding the 'C' output.
+  for(int y=height-1 ; y>=0 ; y--)
+  {
+    const uint16_t *row = fb + (uint32_t)y * width;
+    uint8_t *p = bmpRow;
+    for(int x=0 ; x<width ; x++)
+    {
+      uint16_t v = row[x];
+      *p++ = (uint8_t)(v >> 8);
+      *p++ = (uint8_t)(v & 0xFF);
+    }
+    stream->write(bmpRow, p - bmpRow);
   }
   stream->flush();
 }
@@ -531,6 +596,10 @@ int remoteDoCommand(Stream* stream, RemoteState* state, char key)
     case 'C':
       state->remoteLogOn = false;
       remoteScreenshot(stream, remoteCaptureScreen);
+      break;
+    case 'c':
+      state->remoteLogOn = false;
+      remoteScreenshot(stream, remoteCaptureScreenBinary);
       break;
     case 't':
       state->remoteLogOn = !state->remoteLogOn;
