@@ -237,16 +237,13 @@ void BleHidCentral::onScanStart()
   char statusLine[40];
   uint8_t maxAttempts = MAX_SCAN_ATTEMPTS;
 
-  drawScreen();
   if (maxAttempts)
   {
     snprintf(statusLine, sizeof(statusLine), "Scanning for BLE HID %u/%u...", scanAttempts, maxAttempts);
-    drawScreen(statusLine);
+    drawStatusFor(BLE_SCAN_STATUS_TIME, statusLine);
   }
   else
-    drawScreen("Scanning for BLE HID...");
-
-  delay(500);
+    drawStatusFor(BLE_SCAN_STATUS_TIME, "Scanning for BLE HID...");
 }
 
 bool BleHidCentral::acceptsAdvertisement(BLEAdvertisedDevice& device)

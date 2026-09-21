@@ -111,12 +111,10 @@ int bleLoop(uint8_t bleMode)
   if (bleMode != BLE_HID)
     return 0;
 
+  // BLEHid.loop() below connects synchronously, so the status stays up for
+  // the whole connection attempt
   if (BLEHid.isStarted() && !BLEHid.isConnected() && BLEHid.isConnectPending() && BLEHid.peerName())
-  {
-    drawScreen();
     drawScreen("Connecting BLE HID", BLEHid.peerName());
-    delay(500);
-  }
 
   BLEHid.loop();
   if (!BLEHid.isConnected()) return 0;
