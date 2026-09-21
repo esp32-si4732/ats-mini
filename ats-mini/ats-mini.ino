@@ -374,6 +374,7 @@ void useBand(const Band *band)
     rx.setSeekFmSNRThreshold(2); // default is 3
 
     rx.setFMDeEmphasis(fmRegions[FmRegionIdx].value);
+    applyFmStereo();
     rx.RdsInit();
     rx.setRdsConfig(1, 2, 2, 2, 2);
     rx.setGpioCtl(1, 0, 0);   // G8PTN: Enable GPIO1 as output

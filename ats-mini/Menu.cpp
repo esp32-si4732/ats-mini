@@ -119,19 +119,20 @@ static const char *menu[] =
 #define MENU_UTCOFFSET    3
 #define MENU_DATETIME     4
 #define MENU_FM_REGION    5
-#define MENU_THEME        6
-#define MENU_UI           7
-#define MENU_ZOOM         8
-#define MENU_SCROLL       9
-#define MENU_SLEEP        10
-#define MENU_SLEEPMODE    11
-#define MENU_LOADEIBI     12
-#define MENU_USBMODE      13
-#define MENU_TCPMODE      14
-#define MENU_BLEMODE      15
-#define MENU_WIFIMODE     16
-#define MENU_UPDATEFW     17
-#define MENU_ABOUT        18
+#define MENU_FMSTEREO     6
+#define MENU_THEME        7
+#define MENU_UI           8
+#define MENU_ZOOM         9
+#define MENU_SCROLL       10
+#define MENU_SLEEP        11
+#define MENU_SLEEPMODE    12
+#define MENU_LOADEIBI     13
+#define MENU_USBMODE      14
+#define MENU_TCPMODE      15
+#define MENU_BLEMODE      16
+#define MENU_WIFIMODE     17
+#define MENU_UPDATEFW     18
+#define MENU_ABOUT        19
 
 
 static uint8_t updateFwIdx = 0;
@@ -147,6 +148,7 @@ static const char *settings[] =
   "UTC Offset",
   "Date/Time",
   "FM Region",
+  "FM Stereo",
   "Theme",
   "UI Layout",
   "Zoom Menu",
@@ -181,6 +183,15 @@ int getTotalFmRegions() { return(ITEM_COUNT(fmRegions)); }
 const char *bandModeDesc[] = { "FM", "LSB", "USB", "AM" };
 
 int getTotalModes() { return(ITEM_COUNT(bandModeDesc)); }
+
+//
+// FM Stereo Menu
+//
+
+uint8_t fmStereoIdx = FM_STEREO_AUTO;
+static const char *fmStereoDesc[] = { "Auto", "Mono" };
+
+int getTotalFmStereoModes() { return(ITEM_COUNT(fmStereoDesc)); }
 
 //
 // Memory Menu
@@ -718,6 +729,31 @@ void doFmRegion(int16_t enc)
   rx.setFMDeEmphasis(fmRegions[FmRegionIdx].value);
 }
 
+//
+// Apply the stereo setting. The receiver blends down to mono on its
+// own as the signal gets worse, so forcing mono is a matter of moving
+// the blend thresholds out of reach. This has to run again after every
+// band change, because the FM tuner starts up with the defaults.
+//
+void applyFmStereo()
+{
+  if(currentMode!=FM) return;
+
+  if(fmStereoIdx==FM_STEREO_MONO)
+    rx.setFmStereoOff();
+  else
+    rx.setFmStereoOn();
+}
+
+void doFmStereo(int16_t enc)
+{
+  // Only allow for FM mode
+  if(currentMode!=FM) return;
+
+  fmStereoIdx = wrap_range(fmStereoIdx, enc, 0, LAST_ITEM(fmStereoDesc));
+  applyFmStereo();
+}
+
 void doCal(int16_t enc)
 {
   if (currentMode == USB)
@@ -1065,6 +1101,10 @@ static void clickSettings(int cmd, bool shortPress)
       // Only in FM mode
       if(currentMode==FM) currentCmd = CMD_FM_REGION;
       break;
+    case MENU_FMSTEREO:
+      // Only in FM mode
+      if(currentMode==FM) currentCmd = CMD_FMSTEREO;
+      break;
     case MENU_ABOUT:      currentCmd = CMD_ABOUT;     break;
     case MENU_UPDATEFW:
       updateFwIdx = 0;
@@ -1095,6 +1135,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_BAND:       doBand(scrollDirection * enc);break;
     case CMD_AVC:        doAvc(enc);break;
     case CMD_FM_REGION:  doFmRegion(scrollDirection * enc);break;
+    case CMD_FMSTEREO:   doFmStereo(scrollDirection * enc);break;
     case CMD_SETTINGS:   doSettings(scrollDirection * enc);break;
     case CMD_BRT:        doBrt(enca);break;
     case CMD_CAL:        doCal(enca);break;
@@ -1808,6 +1849,30 @@ static void drawFmRegion(int x, int y, int sx)
   }
 }
 
+static void drawFmStereo(int x, int y, int sx)
+{
+  drawCommon(settings[MENU_FMSTEREO], x, y, sx, true);
+
+  int count = ITEM_COUNT(fmStereoDesc);
+  for(int i=-2 ; i<3 ; i++)
+  {
+    if(i==0) {
+      drawZoomedMenu(fmStereoDesc[abs((fmStereoIdx+count+i)%count)]);
+      spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
+    } else {
+      spr.setTextColor(TH.menu_item);
+    }
+
+    // Prevent repeats for short menus
+    if (count < 5 && ((fmStereoIdx+i) < 0 || (fmStereoIdx+i) >= count)) {
+      continue;
+    }
+
+    spr.setTextDatum(MC_DATUM);
+    spr.drawString(fmStereoDesc[abs((fmStereoIdx+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), FONT_SMALL);
+  }
+}
+
 static void drawBrt(int x, int y, int sx)
 {
   drawCommon(settings[MENU_BRIGHTNESS], x, y, sx);
@@ -1960,6 +2025,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_CAL:        drawCal(x, y, sx);        break;
     case CMD_AVC:        drawAvc(x, y, sx);        break;
     case CMD_FM_REGION:  drawFmRegion(x, y, sx);   break;
+    case CMD_FMSTEREO:   drawFmStereo(x, y, sx);   break;
     case CMD_BRT:        drawBrt(x, y, sx);        break;
     case CMD_RDS:        drawRDSMode(x, y, sx);    break;
     case CMD_MEMORY:     drawMemory(x, y, sx);     break;

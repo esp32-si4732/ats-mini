@@ -43,6 +43,30 @@ class SI4735_fixed: public SI4735
       return getRdsVersionCode()? SI4735::getRdsText2B() : SI4735::getRdsText2A();
     }
 
+    // Implementing the empty SI4735::setFmStereoOff() placeholder by
+    // moving every blend threshold beyond reach, which pins the audio to mono
+    void setFmStereoOff()
+    {
+      setFmBlendRssiStereoThreshold(127);
+      setFmBLendRssiMonoThreshold(127);
+      setFmBlendSnrStereoThreshold(127);
+      setFmBLendSnrMonoThreshold(127);
+      setFmBlendMultiPathStereoThreshold(0);
+      setFmBlendMultiPathMonoThreshold(0);
+    }
+
+    // Implementing the empty SI4735::setFmStereoOn() placeholder by restoring
+    // the blend thresholds the chip starts up with, see AN332
+    void setFmStereoOn()
+    {
+      setFmBlendRssiStereoThreshold(49);
+      setFmBLendRssiMonoThreshold(30);
+      setFmBlendSnrStereoThreshold(27);
+      setFmBLendSnrMonoThreshold(14);
+      setFmBlendMultiPathStereoThreshold(20);
+      setFmBlendMultiPathMonoThreshold(60);
+    }
+
     // Decode UTC time directly from the RDS data blocks.
     // SI4735::getRdsDateTime() converts it to the broadcaster's local time,
     // which cannot be converted back reliably from clock-face times alone.

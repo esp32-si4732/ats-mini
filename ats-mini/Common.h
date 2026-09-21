@@ -41,6 +41,10 @@ static constexpr const lgfx::IFont* FONT_DIGITS  = &lgfx::fonts::Font7;  // 48px
 #define RDS_PT        0b00010000  // Program type
 #define RDS_RBDS      0b00100000  // Use US PTYs
 
+// FM stereo modes
+#define FM_STEREO_AUTO 0 // Let the receiver blend down to mono on weak signals
+#define FM_STEREO_MONO 1 // Force mono audio
+
 // Sleep modes
 #define SLEEP_LOCKED   0 // Lock the encoder
 #define SLEEP_UNLOCKED 1 // Do not lock the encoder
@@ -202,6 +206,7 @@ extern uint8_t tcpModeIdx;
 extern uint8_t bleModeIdx;
 extern uint8_t wifiModeIdx;
 extern uint8_t FmRegionIdx;
+extern uint8_t fmStereoIdx;
 
 extern int8_t agcIdx;
 extern int8_t agcNdx;
