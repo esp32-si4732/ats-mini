@@ -84,7 +84,7 @@ static void drawAltStereoIndicator(int x, int y, bool stereo = true)
   // Add an "else" statement here to draw a mono indicator
 }
 
-static void drawLargeSMeter(int rssi, int strength, int x, int y)
+static void drawLargeSMeter(int rssi, int strength, int peak, int x, int y)
 {
   // S-Meter legend
   spr.setTextDatum(TC_DATUM);
@@ -128,6 +128,10 @@ static void drawLargeSMeter(int rssi, int strength, int x, int y)
       spr.fillRect(x+(i*5), 11+y, 3, 10, TH.smeter_bar_plus);
     else
       spr.fillRect(x+(i*5), 11+y, 3, 10, TH.smeter_bar_empty);
+
+  // Mark the peak reading while it is ahead of the bar
+  if(peak>strength && peak<=49)
+    spr.fillRect(x+((peak-1)*5), 11+y, 3, 10, TH.scale_pointer);
 }
 
 static void drawLargeSNMeter(int snr, int x, int y)
@@ -221,8 +225,9 @@ void drawLayoutSmeter(const char *statusLine1, const char *statusLine2)
       int meterRssi = switchThemeEditor() ? 74 : rssi;
       // Draw SN-meter
       drawLargeSNMeter(meterSnr, ALT_METER_OFFSET_X, ALT_METER_OFFSET_Y);
-      // Draw S-meter
-      drawLargeSMeter(meterRssi, getInterpolatedStrength(meterRssi), ALT_METER_OFFSET_X, ALT_METER_OFFSET_Y);
+      // Draw S-meter with the peak hold marker
+      drawLargeSMeter(meterRssi, getInterpolatedStrength(meterRssi),
+        getInterpolatedStrength(smeterPeak(meterRssi)), ALT_METER_OFFSET_X, ALT_METER_OFFSET_Y);
     }
   }
 }
