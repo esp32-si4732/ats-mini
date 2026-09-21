@@ -7,6 +7,78 @@
 
 static RemoteState remoteSerialState;
 
+// The row buffer below is sized for the receiver's 320px-wide sprite. The
+// capture bails out rather than overflow it if that ever grows.
+#define REMOTE_MAX_SCREEN_WIDTH 320
+
+// Screenshot row buffer, sized for a hex row (4 digits per pixel plus CRLF).
+// Allocated in PSRAM on first use and kept: internal DRAM is scarce, and
+// building the rows in PSRAM costs about 1% of the capture time.
+static uint8_t *remoteRowBuf = nullptr;
+
+static uint8_t *remoteGetRowBuf()
+{
+  if(!remoteRowBuf)
+    remoteRowBuf = static_cast<uint8_t *>(ps_malloc(REMOTE_MAX_SCREEN_WIDTH * 4 + 2));
+  return remoteRowBuf;
+}
+
+//
+// Bulk output over the USB CDC (Serial), used for the screenshots.
+//
+// HWCDC throws queued bytes away when the USB SOF watchdog briefly reports the
+// cable unplugged, which now and then happens on a healthy link too: write()
+// then evicts the oldest bytes in its 256 B TX ring to make room, and flush()
+// empties the ring. The old per-pixel loop never filled the ring, so it never
+// lost anything, but a fast capture keeps it full, and 1-2% of captures lost
+// a 1-21 KB chunk. Handing write() no more than the ring has room for leaves
+// it nothing to evict, and there is no need to flush(). Topping up the ring as
+// it drains is also 7-10% faster than blocking in write() until a whole chunk
+// fits.
+//
+class UsbBulkStream : public Stream
+{
+  bool stalled = false;
+
+public:
+  int available() override { return Serial.available(); }
+  int read() override { return Serial.read(); }
+  int peek() override { return Serial.peek(); }
+  void flush() override {}
+  size_t write(uint8_t c) override { return write(&c, 1); }
+  size_t write(const uint8_t *buf, size_t size) override
+  {
+    size_t done = 0;
+    uint32_t lastProgress = millis();
+    while(!stalled && done < size)
+    {
+      int room = Serial.availableForWrite();
+      size_t n = 0;
+      if(room > 0)
+        n = Serial.write(buf + done, (size - done) < (size_t)room ? (size - done) : (size_t)room);
+      if(n)
+      {
+        done += n;
+        lastProgress = millis();
+      }
+      // Nothing drains with the cable out or the host not reading: drop the
+      // rest of the capture rather than hold up the main loop
+      else if(millis() - lastProgress > 500)
+        stalled = true;
+    }
+    return done;
+  }
+};
+
+//
+// Run a screenshot capture, through UsbBulkStream when it goes to Serial
+//
+static void remoteScreenshot(Stream* stream, void (*capture)(Stream*))
+{
+  UsbBulkStream usb;
+  capture(stream == &Serial ? &usb : stream);
+}
+
 static uint8_t char2nibble(char key)
 {
   if((key >= '0') && (key <= '9')) return(key - '0');
@@ -22,6 +94,18 @@ static void remoteCaptureScreen(Stream* stream)
 {
   uint16_t width  = spr.width();
   uint16_t height = spr.height();
+
+  // Read the sprite framebuffer directly instead of calling readPixel()+printf()
+  // 54,400 times. spr.getBuffer() returns the raw 16bpp framebuffer base. The
+  // sprite is created unrotated as 320x170 at rgb565_2Byte depth, so the row
+  // stride equals the width and pixel (x,y) is at fb[x + y*width]. LovyanGFX
+  // stores that depth as swap565_t (byte-swapped), and readPixel() swaps it
+  // back, so the stored word equals htons(spr.readPixel(x,y)): emitting it as
+  // four lowercase hex digits is byte-for-byte identical to the previous
+  // per-pixel printf("%04x", htons(...)) output.
+  const uint16_t *fb = (const uint16_t *)spr.getBuffer();
+  char *rowBuf = (char *)remoteGetRowBuf();
+  if(!fb || !rowBuf || width > REMOTE_MAX_SCREEN_WIDTH) return;
 
   // 14 bytes of BMP header
   stream->println("");
@@ -46,14 +130,27 @@ static void remoteCaptureScreen(Stream* stream)
   stream->print("e0070000"); // Green mask
   stream->println("1f000000"); // Blue mask
 
-  // Image data
+  // Image data: build each row in one buffer and emit it with a single write().
+  // The 320x170 sprite yields 1280 hex chars + CRLF per row. Keeping one rowBuf
+  // is safe because captures are single-entrant (reached only from
+  // remoteDoCommand()).
+  static const char hex[] = "0123456789abcdef";
   for(int y=height-1 ; y>=0 ; y--)
   {
+    const uint16_t *row = fb + (uint32_t)y * width;
+    char *p = rowBuf;
     for(int x=0 ; x<width ; x++)
     {
-      stream->printf("%04x", htons(spr.readPixel(x, y)));
+      uint16_t v = row[x]; // == htons(spr.readPixel(x, y))
+      *p++ = hex[(v >> 12) & 0xF];
+      *p++ = hex[(v >>  8) & 0xF];
+      *p++ = hex[(v >>  4) & 0xF];
+      *p++ = hex[ v        & 0xF];
     }
-    stream->println("");
+    // Matches the println("") the old loop ended each row with
+    *p++ = '\r';
+    *p++ = '\n';
+    stream->write((const uint8_t *)rowBuf, p - rowBuf);
   }
   stream->flush();
 }
@@ -433,7 +530,7 @@ int remoteDoCommand(Stream* stream, RemoteState* state, char key)
       break;
     case 'C':
       state->remoteLogOn = false;
-      remoteCaptureScreen(stream);
+      remoteScreenshot(stream, remoteCaptureScreen);
       break;
     case 't':
       state->remoteLogOn = !state->remoteLogOn;
