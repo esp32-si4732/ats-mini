@@ -150,7 +150,7 @@ static void drawLargeSNMeter(int snr, int x, int y)
 //
 // Draw alternative screen layout with the large S-meter.
 //
-void drawLayoutSmeter(const char *statusLine1, const char *statusLine2)
+void drawLayoutSmeter()
 {
   // Draw preferences write request icon
   drawSaveIndicator(SAVE_OFFSET_X, SAVE_OFFSET_Y);
@@ -210,7 +210,7 @@ void drawLayoutSmeter(const char *statusLine1, const char *statusLine2)
   {
     drawScanGraphs(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency);
   }
-  else if(!drawWiFiStatus(statusLine1, statusLine2, STATUS_OFFSET_X, STATUS_OFFSET_Y))
+  else if(!drawStatus(STATUS_OFFSET_X, STATUS_OFFSET_Y))
   {
     // Show radio text if present, else show S & SN meters
     if(*getRadioText() || *getProgramInfo())

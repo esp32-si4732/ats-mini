@@ -1,5 +1,6 @@
 #include "Common.h"
 #include "Draw.h"
+#include "Utils.h"
 #include "EIBI.h"
 #include "Button.h"
 
@@ -395,13 +396,14 @@ bool eibiLoadSchedule()
   if(getWiFiStatus() < 2)
     return(false);
 
-  drawScreen(eibiMessage, "Connecting...");
+  statusShow(eibiMessage, "Connecting...", 0);
+  drawScreen();
 
   // Open HTTP connection to EiBi site
   http.begin(EIBI_URL);
   if(http.GET() != HTTP_CODE_OK)
   {
-    drawScreen(eibiMessage, "Failed connecting to EiBi!");
+    statusShow(eibiMessage, "Failed connecting to EiBi!");
     http.end();
     return(false);
   }
@@ -410,7 +412,7 @@ bool eibiLoadSchedule()
   fs::File file = LittleFS.open(TEMP_PATH, "wb");
   if(!file)
   {
-    drawScreen(eibiMessage, "Failed opening local storage!");
+    statusShow(eibiMessage, "Failed opening local storage!");
     http.end();
     return(false);
   }
@@ -428,7 +430,7 @@ bool eibiLoadSchedule()
       file.close();
       http.end();
       LittleFS.remove(TEMP_PATH);
-      drawScreen(eibiMessage, "CANCELED!");
+      statusShow(eibiMessage, "CANCELED!");
       return(false);
     }
 
@@ -467,7 +469,8 @@ bool eibiLoadSchedule()
             {
               char statusMessage[64];
               sprintf(statusMessage, "... %d bytes, %d entries ...", byteCnt, lineCnt);
-              drawScreen(eibiMessage, statusMessage);
+              statusShow(eibiMessage, statusMessage, 0);
+              drawScreen();
             }
           }
         }
@@ -489,6 +492,6 @@ bool eibiLoadSchedule()
 
   // Success
   identifyFrequency(currentFrequency + currentBFO / 1000);
-  drawScreen(eibiMessage, "DONE!");
+  statusShow(eibiMessage, "DONE!");
   return(true);
 }

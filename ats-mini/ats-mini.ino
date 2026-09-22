@@ -1016,6 +1016,9 @@ void loop()
     background_timer = currentTime;
   }
 
+  // Expire status messages even when no other display content changes.
+  needRedraw |= statusTick(millis());
+
   // Redraw screen if necessary
   if(needRedraw) drawScreen();
 

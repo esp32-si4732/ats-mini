@@ -10,9 +10,6 @@
 #define BLE_SCAN_INTERVAL 400
 #define BLE_SCAN_WINDOW 100
 
-// How long the "Scanning for BLE HID" status stays on screen (ms)
-#define BLE_SCAN_STATUS_TIME 1500
-
 struct BleHidState {
   bool isPressed = false;
   int16_t rotation = 0;

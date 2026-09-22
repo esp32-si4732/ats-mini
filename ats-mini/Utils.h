@@ -27,6 +27,13 @@ int getStrength(int rssi);
 bool sleepOn(int x = 2);
 bool muteOn(uint8_t mode, int x = 2);
 
+// Main task only. Strings are copied; duration 0 keeps the status until replaced or cleared.
+// Pass nullptr for both lines to clear the status.
+void statusShow(const char *line1, const char *line2 = nullptr, uint32_t duration = 2000);
+bool statusTick(uint32_t now);
+// Display reads these buffers directly; use statusShow() to update them.
+extern char statusLines[2][96];
+
 // Wall clock functions
 const char *clockGet();
 bool clockAvailable();

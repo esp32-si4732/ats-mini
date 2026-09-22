@@ -248,7 +248,7 @@ bool identifyFrequency(uint16_t freq, bool periodic = false);
 // Network.cpp
 int8_t getWiFiStatus();
 char *getWiFiIPAddress();
-void netInit(uint8_t netMode, bool showStatus = true);
+void netInit(uint8_t netMode);
 void netStop();
 bool ntpIsAvailable();
 bool ntpSyncTime();

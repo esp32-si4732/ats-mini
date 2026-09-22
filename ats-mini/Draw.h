@@ -35,8 +35,7 @@
 void drawMessage(const char *msg);
 void drawZoomedMenu(const char *text, bool force = false);
 void drawScanGraphs(uint32_t freq);
-void drawScreen(const char *statusLine1 = 0, const char *statusLine2 = 0);
-void drawStatusFor(uint32_t ms, const char *statusLine);
+void drawScreen();
 
 void drawWiFiIndicator(int x, int y);
 void drawSaveIndicator(int x, int y);
@@ -47,12 +46,12 @@ void drawLongStationName(const char *name, int x, int y);
 void drawStationName(const char *name, int x, int y);
 void drawSMeter(int strength, int x, int y);
 void drawStereoIndicator(int x, int y, bool stereo = true);
-bool drawWiFiStatus(const char *statusLine1, const char *statusLine2, int x, int y);
+bool drawStatus(int x, int y);
 void drawRadioText(int y, int ymax);
 void drawScale(uint32_t freq);
 
-void drawLayoutDefault(const char *statusLine1, const char *statusLine2);
-void drawLayoutSmeter(const char *statusLine1, const char *statusLine2);
+void drawLayoutDefault();
+void drawLayoutSmeter();
 
 void drawAbout();
 void drawAboutHelp(uint8_t arrow);

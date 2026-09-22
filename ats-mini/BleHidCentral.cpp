@@ -11,7 +11,7 @@
 #undef private
 
 #include "BleHidCentral.h"
-#include "Draw.h"
+#include "Utils.h"
 #include <string.h>
 
 static BLEUUID hidServiceUUID((uint16_t)0x1812);
@@ -238,12 +238,11 @@ void BleHidCentral::onScanStart()
   uint8_t maxAttempts = MAX_SCAN_ATTEMPTS;
 
   if (maxAttempts)
-  {
     snprintf(statusLine, sizeof(statusLine), "Scanning for BLE HID %u/%u...", scanAttempts, maxAttempts);
-    drawStatusFor(BLE_SCAN_STATUS_TIME, statusLine);
-  }
   else
-    drawStatusFor(BLE_SCAN_STATUS_TIME, "Scanning for BLE HID...");
+    strlcpy(statusLine, "Scanning for BLE HID...", sizeof(statusLine));
+
+  statusShow(statusLine);
 }
 
 bool BleHidCentral::acceptsAdvertisement(BLEAdvertisedDevice& device)

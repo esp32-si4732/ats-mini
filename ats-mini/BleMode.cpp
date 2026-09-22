@@ -2,6 +2,7 @@
 #include "Themes.h"
 #include "Remote.h"
 #include "Draw.h"
+#include "Utils.h"
 #include "Storage.h"
 #include "BleHidCentral.h"
 #include "BleMode.h"
@@ -114,9 +115,15 @@ int bleLoop(uint8_t bleMode)
   // BLEHid.loop() below connects synchronously, so the status stays up for
   // the whole connection attempt
   if (BLEHid.isStarted() && !BLEHid.isConnected() && BLEHid.isConnectPending() && BLEHid.peerName())
-    drawScreen("Connecting BLE HID", BLEHid.peerName());
+  {
+    statusShow("Connecting BLE HID", BLEHid.peerName(), 0);
+    drawScreen();
+    BLEHid.loop();
+    statusShow(nullptr);
+  }
+  else
+    BLEHid.loop();
 
-  BLEHid.loop();
   if (!BLEHid.isConnected()) return 0;
 
   BleHidState input = BLEHid.update();
