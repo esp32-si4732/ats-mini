@@ -69,17 +69,17 @@ void drawWiFiIndicator(int x, int y)
 }
 
 //
-// Draw network status
+// Draw operation status
 //
-bool drawWiFiStatus(const char *statusLine1, const char *statusLine2, int x, int y)
+bool drawStatus(int x, int y)
 {
-  if(statusLine1 || statusLine2)
+  if(statusLines[0][0] || statusLines[1][0])
   {
-    // Draw two lines of network status
+    // Draw two lines of operation status
     spr.setTextDatum(TC_DATUM);
     spr.setTextColor(TH.rds_text);
-    if(statusLine1) spr.drawString(statusLine1, x, y, FONT_SMALL);
-    if(statusLine2) spr.drawString(statusLine2, x, y+17, FONT_SMALL);
+    spr.drawString(statusLines[0], x, y, FONT_SMALL);
+    spr.drawString(statusLines[1], x, y+17, FONT_SMALL);
     return(true);
   }
 
@@ -425,41 +425,10 @@ void drawScanGraphs(uint32_t freq)
 }
 
 //
-// Status held on screen by drawStatusFor()
-//
-static char heldStatus[40];
-static uint32_t heldStatusUntil;
-static bool heldStatusOn = false;
-
-//
-// Draw screen with a one-line status that stays up on the following redraws
-// for the given time, without blocking the main loop
-//
-void drawStatusFor(uint32_t ms, const char *statusLine)
-{
-  strlcpy(heldStatus, statusLine, sizeof(heldStatus));
-  drawScreen(heldStatus);
-  heldStatusUntil = millis() + ms;
-  heldStatusOn = true;
-}
-
-//
 // Draw screen according to given command
 //
-void drawScreen(const char *statusLine1, const char *statusLine2)
+void drawScreen()
 {
-  // A new status replaces a held one. Without one, a held status is drawn
-  // until its time is up.
-  if(statusLine1 || statusLine2)
-    heldStatusOn = false;
-  else if(heldStatusOn)
-  {
-    if((int32_t)(millis() - heldStatusUntil) < 0)
-      statusLine1 = heldStatus;
-    else
-      heldStatusOn = false;
-  }
-
   if(sleepOn()) return;
 
   // Clear screen buffer
@@ -475,10 +444,10 @@ void drawScreen(const char *statusLine1, const char *statusLine2)
   switch(uiLayoutIdx)
   {
     case UI_SMETER:
-      drawLayoutSmeter(statusLine1, statusLine2);
+      drawLayoutSmeter();
       break;
     default:
-      drawLayoutDefault(statusLine1, statusLine2);
+      drawLayoutDefault();
       break;
   }
 

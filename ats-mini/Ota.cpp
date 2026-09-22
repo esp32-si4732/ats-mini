@@ -210,7 +210,8 @@ OtaStatus otaStatus()
 static void otaDrawProgress()
 {
   OtaStatus status = otaStatus();
-  drawScreen("Updating Firmware", status.message.c_str());
+  statusShow("Updating Firmware", status.message.c_str(), 0);
+  drawScreen();
 }
 
 bool otaRequestLatest(bool install)
@@ -375,15 +376,7 @@ void otaTick()
   if(ota.resultPending.exchange(false))
   {
     currentCmd = CMD_NONE;
-    otaDrawProgress();
-    uint32_t shownAt = millis();
-    while(millis() - shownAt < 2000)
-    {
-      // Stop waiting if another OTA operation has started.
-      phase = ota.phase.load();
-      if(phase != OTA_FAILED && phase != OTA_CURRENT && phase != OTA_AVAILABLE) break;
-      delay(20);
-    }
-    drawScreen();
+    OtaStatus status = otaStatus();
+    statusShow("Updating Firmware", status.message.c_str());
   }
 }
