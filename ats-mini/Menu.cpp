@@ -119,7 +119,7 @@ static const char *menu[] =
 #define MENU_UTCOFFSET    3
 #define MENU_DATETIME     4
 #define MENU_FM_REGION    5
-#define MENU_FMSTEREO     6
+#define MENU_FM_STEREO    6
 #define MENU_THEME        7
 #define MENU_UI           8
 #define MENU_ZOOM         9
@@ -174,8 +174,6 @@ const FMRegion fmRegions[] = {
   { 0x2, "US" },
 };
 
-int getTotalFmRegions() { return(ITEM_COUNT(fmRegions)); }
-
 //
 // Mode Menu
 //
@@ -190,8 +188,6 @@ int getTotalModes() { return(ITEM_COUNT(bandModeDesc)); }
 
 uint8_t fmStereoIdx = FM_STEREO_AUTO;
 static const char *fmStereoDesc[] = { "Auto", "Mono" };
-
-int getTotalFmStereoModes() { return(ITEM_COUNT(fmStereoDesc)); }
 
 //
 // Memory Menu
@@ -321,8 +317,6 @@ uint8_t usbModeIdx = USB_OFF;
 static const char *usbModeDesc[] =
 { "Off", "Ad hoc" };
 
-int getTotalUSBModes() { return(ITEM_COUNT(usbModeDesc)); }
-
 //
 // TCP Port Mode Menu
 //
@@ -339,8 +333,6 @@ uint8_t bleModeIdx = BLE_OFF;
 static uint8_t bleModeMenuIdx = BLE_OFF;
 static const char *bleModeDesc[] =
 { "Off", "Ad hoc", "HID", "Unpair All" };
-
-int getTotalBleModes() { return(ITEM_COUNT(bleModeDesc)); }
 
 //
 // WiFi Mode Menu
@@ -1093,7 +1085,7 @@ static void clickSettings(int cmd, bool shortPress)
       break;
     case MENU_WIFIMODE:   currentCmd = CMD_WIFIMODE;   break;
     case MENU_FM_REGION:  currentCmd = CMD_FM_REGION; break;
-    case MENU_FMSTEREO:   currentCmd = CMD_FMSTEREO;  break;
+    case MENU_FM_STEREO:  currentCmd = CMD_FM_STEREO; break;
     case MENU_ABOUT:      currentCmd = CMD_ABOUT;     break;
     case MENU_UPDATEFW:
       updateFwIdx = 0;
@@ -1124,7 +1116,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_BAND:       doBand(scrollDirection * enc);break;
     case CMD_AVC:        doAvc(enc);break;
     case CMD_FM_REGION:  doFmRegion(scrollDirection * enc);break;
-    case CMD_FMSTEREO:   doFmStereo(scrollDirection * enc);break;
+    case CMD_FM_STEREO:  doFmStereo(scrollDirection * enc);break;
     case CMD_SETTINGS:   doSettings(scrollDirection * enc);break;
     case CMD_BRT:        doBrt(enca);break;
     case CMD_CAL:        doCal(enca);break;
@@ -1840,7 +1832,7 @@ static void drawFmRegion(int x, int y, int sx)
 
 static void drawFmStereo(int x, int y, int sx)
 {
-  drawCommon(settings[MENU_FMSTEREO], x, y, sx, true);
+  drawCommon(settings[MENU_FM_STEREO], x, y, sx, true);
 
   int count = ITEM_COUNT(fmStereoDesc);
   for(int i=-2 ; i<3 ; i++)
@@ -2014,7 +2006,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_CAL:        drawCal(x, y, sx);        break;
     case CMD_AVC:        drawAvc(x, y, sx);        break;
     case CMD_FM_REGION:  drawFmRegion(x, y, sx);   break;
-    case CMD_FMSTEREO:   drawFmStereo(x, y, sx);   break;
+    case CMD_FM_STEREO:  drawFmStereo(x, y, sx);   break;
     case CMD_BRT:        drawBrt(x, y, sx);        break;
     case CMD_RDS:        drawRDSMode(x, y, sx);    break;
     case CMD_MEMORY:     drawMemory(x, y, sx);     break;

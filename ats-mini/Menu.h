@@ -47,7 +47,7 @@
 #define CMD_WIFIMODE   0x3000 // |
 #define CMD_DATETIME   0x3100 // |
 #define CMD_UPDATEFW   0x3200 // |
-#define CMD_FMSTEREO   0x3300 // |
+#define CMD_FM_STEREO  0x3300 // |
 #define CMD_ABOUT      0x3400 //-+
 
 // UI Layouts
@@ -123,9 +123,6 @@ uint8_t getRDSMode();
 
 int8_t getCurrentUTCOffset();
 int getTotalUTCOffsets();
-int getTotalFmRegions();
-int getTotalFmStereoModes();
-int getTotalBleModes();
 
 void doSoftMute(int16_t enc);
 void doAgc(int16_t enc);
