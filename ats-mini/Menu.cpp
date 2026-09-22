@@ -722,11 +722,9 @@ void doAvc(int16_t enc)
 
 void doFmRegion(int16_t enc)
 {
-  // Only allow for FM mode
-  if(currentMode!=FM) return;
-
   FmRegionIdx = wrap_range(FmRegionIdx, enc, 0, LAST_ITEM(fmRegions));
-  rx.setFMDeEmphasis(fmRegions[FmRegionIdx].value);
+  if(currentMode==FM)
+    rx.setFMDeEmphasis(fmRegions[FmRegionIdx].value);
 }
 
 //
@@ -747,9 +745,6 @@ void applyFmStereo()
 
 void doFmStereo(int16_t enc)
 {
-  // Only allow for FM mode
-  if(currentMode!=FM) return;
-
   fmStereoIdx = wrap_range(fmStereoIdx, enc, 0, LAST_ITEM(fmStereoDesc));
   applyFmStereo();
 }
@@ -1097,14 +1092,8 @@ static void clickSettings(int cmd, bool shortPress)
       currentCmd = CMD_BLEMODE;
       break;
     case MENU_WIFIMODE:   currentCmd = CMD_WIFIMODE;   break;
-    case MENU_FM_REGION:
-      // Only in FM mode
-      if(currentMode==FM) currentCmd = CMD_FM_REGION;
-      break;
-    case MENU_FMSTEREO:
-      // Only in FM mode
-      if(currentMode==FM) currentCmd = CMD_FMSTEREO;
-      break;
+    case MENU_FM_REGION:  currentCmd = CMD_FM_REGION; break;
+    case MENU_FMSTEREO:   currentCmd = CMD_FMSTEREO;  break;
     case MENU_ABOUT:      currentCmd = CMD_ABOUT;     break;
     case MENU_UPDATEFW:
       updateFwIdx = 0;
