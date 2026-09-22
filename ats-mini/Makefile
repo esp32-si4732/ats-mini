@@ -39,7 +39,8 @@ HEADERS = \
 SRC = \
 	$(INO) Utils.cpp Rotary.cpp Button.cpp Draw.cpp Menu.cpp \
 	Station.cpp Battery.cpp Storage.cpp Themes.cpp Remote.cpp \
-	Network.cpp Ota.cpp Splash.cpp EIBI.cpp Scan.cpp About.cpp BleMode.cpp TcpMode.cpp \
+	Network.cpp Ota.cpp Splash.cpp EIBI.cpp Scan.cpp AutoStore.cpp \
+	About.cpp BleMode.cpp TcpMode.cpp \
 	BlePeripheral.cpp BleUartPeripheral.cpp \
 	BleCentral.cpp BleHidCentral.cpp \
 	Layout-Default.cpp Layout-SMeter.cpp

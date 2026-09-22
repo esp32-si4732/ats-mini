@@ -12,6 +12,12 @@
 // SSB patch for whole SSBRX initialization string
 #include "patch_init.h"
 
+// Signal levels that count as a station, see getSignalThresholds()
+#define MIN_RSSI_FM   12  // dBuV
+#define MIN_SNR_FM     6  // dB
+#define MIN_RSSI_AM   14  // dBuV
+#define MIN_SNR_AM     4  // dB
+
 extern ButtonTracker pb1;
 
 // Current sleep status, returned by sleepOn()
@@ -413,6 +419,26 @@ bool isMemoryInBand(const Band *band, const Memory *memory)
   if(memory->mode==FM && band->bandMode!=FM) return(false);
   if(memory->mode!=FM && band->bandMode==FM) return(false);
   return(true);
+}
+
+//
+// Get the RSSI (dBuV) and SNR (dB) levels that count as a station in
+// the current mode. These are somewhat tighter than the seek
+// thresholds, to keep plain noise out of the memory slots. A squelch
+// setting, when enabled, overrides the level it applies to.
+//
+void getSignalThresholds(uint8_t *minRssi, uint8_t *minSnr)
+{
+  *minRssi = currentMode==FM? MIN_RSSI_FM : MIN_RSSI_AM;
+  *minSnr  = currentMode==FM? MIN_SNR_FM  : MIN_SNR_AM;
+
+  if(currentSquelch[currentMode] & 0x7f)
+  {
+    if(currentSquelch[currentMode] & 0x80)
+      *minSnr = currentSquelch[currentMode] & 0x7f;
+    else
+      *minRssi = currentSquelch[currentMode] & 0x7f;
+  }
 }
 
 //

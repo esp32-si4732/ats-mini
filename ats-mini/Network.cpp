@@ -870,6 +870,25 @@ static const String webRadioPage()
 );
 }
 
+//
+// Escape the characters that would break up the markup of a page
+//
+static const String webEscape(const char *text)
+{
+  String result = "";
+
+  for( ; *text ; text++)
+    switch(*text)
+    {
+      case '&': result += "&amp;";break;
+      case '<': result += "&lt;"; break;
+      case '>': result += "&gt;"; break;
+      default:  result += *text;  break;
+    }
+
+  return(result);
+}
+
 static const String webMemoryPage()
 {
   String items = "";
@@ -884,10 +903,17 @@ static const String webMemoryPage()
       items += "&nbsp;---&nbsp;</TD></TR>";
     else
     {
+      char name[sizeof(memories[j].name) + 1] = "";
       String freq = memories[j].mode == FM?
         String(memories[j].freq / 1000000.0) + "MHz "
       : String(memories[j].freq / 1000.0) + "kHz ";
-      items += freq + bandModeDesc[memories[j].mode] + "</TD></TR>";
+
+      // The stored name is not necessarily terminated
+      strncpy(name, memories[j].name, sizeof(name) - 1);
+
+      items += freq + bandModeDesc[memories[j].mode];
+      if(*name) items += " " + webEscape(name);
+      items += "</TD></TR>";
     }
   }
 
