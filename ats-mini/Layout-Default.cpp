@@ -56,8 +56,9 @@ void drawLayoutDefault(const char *statusLine1, const char *statusLine2)
   // Draw S-meter with the peak hold marker
   drawSMeter(getStrength(rssi), getStrength(smeterPeak(rssi)), METER_OFFSET_X, METER_OFFSET_Y);
 
-  // Indicate FM pilot detection (stereo indicator)
-  drawStereoIndicator(METER_OFFSET_X, METER_OFFSET_Y, (currentMode==FM) && rx.getCurrentPilot());
+  // Indicate FM pilot detection, unless the audio is pinned to mono
+  drawStereoIndicator(METER_OFFSET_X, METER_OFFSET_Y,
+    (currentMode==FM) && (fmStereoIdx!=FM_STEREO_MONO) && rx.getCurrentPilot());
 
   if(currentCmd == CMD_SCAN)
   {

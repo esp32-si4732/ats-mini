@@ -46,6 +46,10 @@ static constexpr const lgfx::IFont* FONT_DIGITS  = &lgfx::fonts::Font7;  // 48px
 #define FM_STEREO_AUTO 0 // Let the receiver blend down to mono on weak signals
 #define FM_STEREO_MONO 1 // Force mono audio
 
+// FM stereo modes
+#define FM_STEREO_AUTO 0 // Let the receiver blend down to mono on weak signals
+#define FM_STEREO_MONO 1 // Force mono audio
+
 // Sleep modes
 #define SLEEP_LOCKED   0 // Lock the encoder
 #define SLEEP_UNLOCKED 1 // Do not lock the encoder

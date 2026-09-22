@@ -178,8 +178,6 @@ const FMRegion fmRegions[] = {
   { 0x2, "US" },
 };
 
-int getTotalFmRegions() { return(ITEM_COUNT(fmRegions)); }
-
 //
 // FM Stereo Menu
 //
@@ -208,6 +206,13 @@ static const char *const autoStoreActions[] = { "Add New", "Replace" };
 const char *bandModeDesc[] = { "FM", "LSB", "USB", "AM" };
 
 int getTotalModes() { return(ITEM_COUNT(bandModeDesc)); }
+
+//
+// FM Stereo Menu
+//
+
+uint8_t fmStereoIdx = FM_STEREO_AUTO;
+static const char *fmStereoDesc[] = { "Auto", "Mono" };
 
 //
 // Memory Menu
@@ -339,8 +344,6 @@ uint8_t usbModeIdx = USB_OFF;
 static const char *usbModeDesc[] =
 { "Off", "Ad hoc" };
 
-int getTotalUSBModes() { return(ITEM_COUNT(usbModeDesc)); }
-
 //
 // TCP Port Mode Menu
 //
@@ -357,8 +360,6 @@ uint8_t bleModeIdx = BLE_OFF;
 static uint8_t bleModeMenuIdx = BLE_OFF;
 static const char *bleModeDesc[] =
 { "Off", "Ad hoc", "HID", "Unpair All" };
-
-int getTotalBleModes() { return(ITEM_COUNT(bleModeDesc)); }
 
 //
 // WiFi Mode Menu
@@ -786,11 +787,31 @@ void doAvc(int16_t enc)
 
 void doFmRegion(int16_t enc)
 {
-  // Only allow for FM mode
+  FmRegionIdx = wrap_range(FmRegionIdx, enc, 0, LAST_ITEM(fmRegions));
+  if(currentMode==FM)
+    rx.setFMDeEmphasis(fmRegions[FmRegionIdx].value);
+}
+
+//
+// Apply the stereo setting. The receiver blends down to mono on its
+// own as the signal gets worse, so forcing mono is a matter of moving
+// the blend thresholds out of reach. This has to run again after every
+// band change, because the FM tuner starts up with the defaults.
+//
+void applyFmStereo()
+{
   if(currentMode!=FM) return;
 
-  FmRegionIdx = wrap_range(FmRegionIdx, enc, 0, LAST_ITEM(fmRegions));
-  rx.setFMDeEmphasis(fmRegions[FmRegionIdx].value);
+  if(fmStereoIdx==FM_STEREO_MONO)
+    rx.setFmStereoOff();
+  else
+    rx.setFmStereoOn();
+}
+
+void doFmStereo(int16_t enc)
+{
+  fmStereoIdx = wrap_range(fmStereoIdx, enc, 0, LAST_ITEM(fmStereoDesc));
+  applyFmStereo();
 }
 
 //
