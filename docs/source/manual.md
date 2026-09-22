@@ -73,7 +73,7 @@ The menu can be invoked by clicking the encoder button and is closed automatical
 * **UTC Offset** - Affects the displayed date and time. Please note that automatic DST transitions are not supported; the offset needs to be adjusted manually.
 * **Date/Time** - Set the UTC date and time with the encoder. Click to select the next field, or short press to set the clock and close the menu. A timeout closes the menu without changing the clock.
 * **FM Region** - FM de-emphasis time constant by region (50µs for EU/JP/AU and 70µs for the US).
-* **FM Stereo** - **Auto** lets the receiver blend down to mono on its own as the signal gets worse, **Mono** forces mono audio, trading the stereo image for less hiss on a weak station. The stereo indicator follows the setting.
+* **FM Stereo** - **Auto** lets the receiver blend down to mono on its own as the signal gets worse, **Mono** forces mono audio, trading the stereo image for less hiss on a weak station.
 * **Theme** - Color theme.
 * **UI Layout** - Alternative UI layouts. For now there is just one alternative UI with large S-meter and S/N-meter.
 * **Zoom Menu** - Display the currently selected menu item using a larger font (accessibility option).
