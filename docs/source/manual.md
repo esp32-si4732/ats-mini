@@ -100,7 +100,7 @@ The Wi-Fi mode (2.4GHz only) can be used for the following purposes (for now):
 * Viewing the receiver status (date/time and UTC offset, frequency, RSSI/SNR, volume, battery voltage, etc).
 * Viewing the Memory slots with saved frequencies.
 * Manage the receiver settings.
-* Upload or delete an optional splash image shown when the receiver starts.
+* Upload or delete an optional [splash image](_static/splash-outdoor.png) shown when the receiver starts.
 
 There are a couple of modes:
 
