@@ -37,10 +37,8 @@ static const int   apChannel = 10;      // WiFi channel number (1..13)
 static const bool  apHideMe  = false;   // TRUE: disable SSID broadcast
 static const int   apClients = 3;       // Maximum simultaneous connected clients
 
-static uint16_t ajaxInterval = 2500;
-
 static bool itIsTimeToWiFi = false; // TRUE: Need to connect to WiFi
-static uint32_t connectTime = millis();
+static uint32_t connectTime = 0;
 
 // Settings
 String loginUsername = "";
@@ -109,7 +107,6 @@ void netTickTime()
   if(itIsTimeToWiFi && ((millis() - connectTime) > CONNECT_TIME))
   {
     netInit(wifiModeIdx);
-    connectTime = millis();
     itIsTimeToWiFi = false;
   }
 }
@@ -297,7 +294,6 @@ static bool wifiInitAP()
   WiFi.softAP(apSSID, apPWD, apChannel, apHideMe, apClients);
   WiFi.softAPConfig(ip, gateway, subnet);
 
-  ajaxInterval = 2500;
   return(true);
 }
 
@@ -306,8 +302,6 @@ static bool wifiInitAP()
 //
 static bool wifiConnect()
 {
-  String status = "Connecting to WiFi network...";
-
   // Clean credentials
   wifiMulti.APlistClean();
 
@@ -334,7 +328,7 @@ static bool wifiConnect()
   // Done with preferences
   prefs.end();
 
-  statusShow(status.c_str(), nullptr, 0);
+  statusShow("Connecting to WiFi network...", nullptr, 0);
   drawScreen();
 
   consumeAbortPending();
@@ -354,19 +348,7 @@ static bool wifiConnect()
       delay(1000);
   }
 
-  // If failed connecting to WiFi network...
-  if (wifiStatus != WL_CONNECTED)
-  {
-    // WiFi connection failed
-    // Done
-    return(false);
-  }
-  else
-  {
-    // WiFi connection succeeded
-    ajaxInterval = 1000;
-    return(true);
-  }
+  return(wifiStatus == WL_CONNECTED);
 }
 
 //

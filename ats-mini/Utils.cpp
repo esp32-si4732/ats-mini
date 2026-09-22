@@ -34,15 +34,16 @@ void statusShow(const char *line1, const char *line2, uint32_t duration)
   strlcpy(statusLines[0], line1? line1 : "", sizeof(statusLines[0]));
   strlcpy(statusLines[1], line2? line2 : "", sizeof(statusLines[1]));
   statusStarted = millis();
-  statusDuration = duration;
+  statusDuration = (statusLines[0][0] || statusLines[1][0])? duration : 0;
   statusDirty = true;
 }
 
 bool statusTick(uint32_t now)
 {
-  if((statusLines[0][0] || statusLines[1][0]) && statusDuration && (uint32_t)(now - statusStarted) >= statusDuration)
+  if(statusDuration && (uint32_t)(now - statusStarted) >= statusDuration)
   {
     statusLines[0][0] = statusLines[1][0] = '\0';
+    statusDuration = 0;
     statusDirty = true;
   }
 
