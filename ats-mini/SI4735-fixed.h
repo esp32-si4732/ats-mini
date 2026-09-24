@@ -17,6 +17,32 @@ class SI4735_fixed: public SI4735
       SI4735::setAM(fromFreq, toFreq, initialFreq, step);
     }
 
+    // AM patch loading without SSB-specific properties. A null content
+    // pointer restores stock AM when setAM() would otherwise skip power-up.
+    void loadAMPatch(const uint8_t *content, uint16_t size)
+    {
+      if(content)
+      {
+        queryLibraryId();
+        setPowerUp(ctsIntEnable, 0, 1, currentClockType, AM_CURRENT_MODE, currentAudioMode);
+        radioPowerUp();
+        delay(50);
+        downloadPatch(content, size);
+        delay(25);
+      }
+      else
+      {
+        powerDown();
+        setPowerUp(ctsIntEnable, 0, 0, currentClockType, AM_CURRENT_MODE, currentAudioMode);
+        radioPowerUp();
+      }
+      setAvcAmMaxGain(currentAvcAmMaxGain);
+      setVolume(volume);
+      currentSsbStatus = 0;
+      currentFrequencyParams.arg.USBLSB = 0;
+      lastMode = AM_CURRENT_MODE;
+    }
+
     // Fixing SI4735::getRdsPI() bug where it only returns BLOCKAL
     uint16_t getRdsPI(void)
     {

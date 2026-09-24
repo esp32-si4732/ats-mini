@@ -7,6 +7,7 @@
 #include "Ota.h"
 #include "BleMode.h"
 #include "Menu.h"
+#include "Patches.h"
 
 #include <time.h>
 
@@ -120,19 +121,20 @@ static const char *menu[] =
 #define MENU_DATETIME     4
 #define MENU_FM_REGION    5
 #define MENU_FM_STEREO    6
-#define MENU_THEME        7
-#define MENU_UI           8
-#define MENU_ZOOM         9
-#define MENU_SCROLL       10
-#define MENU_SLEEP        11
-#define MENU_SLEEPMODE    12
-#define MENU_LOADEIBI     13
-#define MENU_USBMODE      14
-#define MENU_TCPMODE      15
-#define MENU_BLEMODE      16
-#define MENU_WIFIMODE     17
-#define MENU_UPDATEFW     18
-#define MENU_ABOUT        19
+#define MENU_DSP_PATCHES  7
+#define MENU_THEME        8
+#define MENU_UI           9
+#define MENU_ZOOM         10
+#define MENU_SCROLL       11
+#define MENU_SLEEP        12
+#define MENU_SLEEPMODE    13
+#define MENU_LOADEIBI     14
+#define MENU_USBMODE      15
+#define MENU_TCPMODE      16
+#define MENU_BLEMODE      17
+#define MENU_WIFIMODE     18
+#define MENU_UPDATEFW     19
+#define MENU_ABOUT        20
 
 
 static uint8_t updateFwIdx = 0;
@@ -149,6 +151,7 @@ static const char *settings[] =
   "Date/Time",
   "FM Region",
   "FM Stereo",
+  "DSP Patches",
   "Theme",
   "UI Layout",
   "Zoom Menu",
@@ -188,6 +191,8 @@ int getTotalModes() { return(ITEM_COUNT(bandModeDesc)); }
 
 uint8_t fmStereoIdx = FM_STEREO_AUTO;
 static const char *fmStereoDesc[] = { "Auto", "Mono" };
+
+uint8_t dspPatchesIdx = DSP_PATCHES_DEFAULT;
 
 //
 // Memory Menu
@@ -741,6 +746,28 @@ void doFmStereo(int16_t enc)
   applyFmStereo();
 }
 
+static uint8_t dspPatchSlots(uint8_t slots[PATCH_SET_COUNT + 1], uint8_t &selected)
+{
+  uint8_t count = 1;
+  slots[0] = DSP_PATCHES_DEFAULT;
+  selected = 0;
+  for(uint8_t slot = 1; slot <= PATCH_SET_COUNT; slot++)
+    if(patchesModes(slot))
+    {
+      if(slot == dspPatchesIdx) selected = count;
+      slots[count++] = slot;
+    }
+  return count;
+}
+
+static void doDspPatches(int16_t enc)
+{
+  uint8_t slots[PATCH_SET_COUNT + 1], selected;
+  uint8_t count = dspPatchSlots(slots, selected);
+  if(!patchesSelect(slots[wrap_range(selected, enc, 0, count - 1)]))
+    statusShow("Patch request busy", "Try again when finished");
+}
+
 void doCal(int16_t enc)
 {
   if (currentMode == USB)
@@ -1086,6 +1113,7 @@ static void clickSettings(int cmd, bool shortPress)
     case MENU_WIFIMODE:   currentCmd = CMD_WIFIMODE;   break;
     case MENU_FM_REGION:  currentCmd = CMD_FM_REGION; break;
     case MENU_FM_STEREO:  currentCmd = CMD_FM_STEREO; break;
+    case MENU_DSP_PATCHES: currentCmd = CMD_DSP_PATCHES; break;
     case MENU_ABOUT:      currentCmd = CMD_ABOUT;     break;
     case MENU_UPDATEFW:
       updateFwIdx = 0;
@@ -1117,6 +1145,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_AVC:        doAvc(enc);break;
     case CMD_FM_REGION:  doFmRegion(scrollDirection * enc);break;
     case CMD_FM_STEREO:  doFmStereo(scrollDirection * enc);break;
+    case CMD_DSP_PATCHES: doDspPatches(scrollDirection * enc);break;
     case CMD_SETTINGS:   doSettings(scrollDirection * enc);break;
     case CMD_BRT:        doBrt(enca);break;
     case CMD_CAL:        doCal(enca);break;
@@ -1171,7 +1200,7 @@ bool clickHandler(uint16_t cmd, bool shortPress)
 // Selecting given band
 //
 
-void selectBand(uint8_t idx, bool drawLoadingSSB)
+void selectBand(uint8_t idx, bool drawLoadingPatch)
 {
   // Silence click on some hardware versions
   // https://github.com/esp32-si4732/ats-mini/discussions/103
@@ -1181,11 +1210,8 @@ void selectBand(uint8_t idx, bool drawLoadingSSB)
   bandIdx = min(idx, LAST_ITEM(bands));
   currentMode = bands[bandIdx].bandMode;
 
-  // Load SSB patch as needed
-  if(isSSB())
-    loadSSB(getCurrentBandwidth()->idx, drawLoadingSSB);
-  else
-    unloadSSB();
+  // Load the selected DSP patch as needed
+  loadDSPPatch(getCurrentBandwidth()->idx, drawLoadingPatch);
 
   // Switch radio to the selected band
   useBand(&bands[bandIdx]);
@@ -1854,6 +1880,27 @@ static void drawFmStereo(int x, int y, int sx)
   }
 }
 
+static void drawDspPatches(int x, int y, int sx)
+{
+  drawCommon(settings[MENU_DSP_PATCHES], x, y, sx, true);
+  uint8_t slots[PATCH_SET_COUNT + 1], selected;
+  uint8_t count = dspPatchSlots(slots, selected);
+  for(int i = -2; i < 3; i++)
+  {
+    int item = selected + i;
+    if(item < 0 || item >= count) continue;
+    uint8_t slot = slots[item];
+    if(i == 0)
+    {
+      drawZoomedMenu(patchSetNames[slot]);
+      spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
+    }
+    else spr.setTextColor(TH.menu_item);
+    spr.setTextDatum(MC_DATUM);
+    spr.drawString(patchSetNames[slot], 40+x+(sx/2), 64+y+(i*16), FONT_SMALL);
+  }
+}
+
 static void drawBrt(int x, int y, int sx)
 {
   drawCommon(settings[MENU_BRIGHTNESS], x, y, sx);
@@ -2007,6 +2054,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_AVC:        drawAvc(x, y, sx);        break;
     case CMD_FM_REGION:  drawFmRegion(x, y, sx);   break;
     case CMD_FM_STEREO:  drawFmStereo(x, y, sx);   break;
+    case CMD_DSP_PATCHES: drawDspPatches(x, y, sx); break;
     case CMD_BRT:        drawBrt(x, y, sx);        break;
     case CMD_RDS:        drawRDSMode(x, y, sx);    break;
     case CMD_MEMORY:     drawMemory(x, y, sx);     break;

@@ -9,16 +9,10 @@
 #include <sys/time.h>
 #include <time.h>
 
-// SSB patch for whole SSBRX initialization string
-#include "patch_init.h"
-
 extern ButtonTracker pb1;
 
 // Current sleep status, returned by sleepOn()
 static bool sleep_on = false;
-
-// Current SSB patch status
-static bool ssbLoaded = false;
 
 // Time
 static bool clockHasBeenSet = false;
@@ -92,25 +86,6 @@ const char *getMACAddress()
     );
   }
   return(macString);
-}
-
-//
-// Load SSB patch into SI4735
-//
-void loadSSB(uint8_t bandwidth, bool draw)
-{
-  if(!ssbLoaded)
-  {
-    if(draw) drawMessage("Loading SSB");
-    rx.loadPatch(ssb_patch_content, sizeof(ssb_patch_content), bandwidth);
-    ssbLoaded = true;
-  }
-}
-
-void unloadSSB()
-{
-  // Just mark SSB patch as unloaded
-  ssbLoaded = false;
 }
 
 //

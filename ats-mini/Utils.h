@@ -10,10 +10,6 @@
 
 #define CLOCK_MIN_YEAR 2026
 
-// SSB patch functions
-void loadSSB(uint8_t bandwidth, bool draw = true);
-void unloadSSB();
-
 // Get firmware version
 const char *getVersion(bool shorter = false);
 
