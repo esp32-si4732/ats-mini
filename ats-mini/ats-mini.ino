@@ -152,7 +152,7 @@ void setup()
   tft.fillScreen(TH.bg);
   spr.setPsram(true);
   spr.setColorDepth(16);
-  spr.createSprite(320, 170);
+  spr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
   spr.setTextDatum(MC_DATUM);
   spr.setFont(&lgfx::fonts::Orbitron_Light_24);
   spr.setTextColor(TH.text, TH.bg);

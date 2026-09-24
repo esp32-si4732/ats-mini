@@ -161,14 +161,7 @@ In SSB mode, the "Display" frequency (Hz) = (currentFrequency x 1000) + currentB
 
 #### Making screenshots
 
-The screenshot function is intended for interface and theme designers, as well as for the documentation writers. There are two commands, both capturing the same 320×170 image; they differ only in how the pixels are encoded on the wire:
-
-| Command      | Encoding       | Size on the wire | Notes                                     |
-|--------------|----------------|------------------|-------------------------------------------|
-| <kbd>C</kbd> | ASCII hex BMP  | ~218 KB          | Terminal-safe, widest tool support        |
-| <kbd>c</kbd> | Raw binary BMP | ~108 KB          | About half of `C`; a standard `.bmp` file |
-
-##### `C` — hex BMP
+The screenshot function is intended for interface and theme designers, as well as for the documentation writers. The `C` command dumps the screen to the remote console as a BMP image in HEX format. To convert it to an image file, you need to convert the HEX string to binary format.
 
 A quick one-liner for macOS and Linux over the **USB Serial** transport (change the `/dev/cu.usbmodem14401` serial port name as needed):
 
@@ -176,29 +169,25 @@ A quick one-liner for macOS and Linux over the **USB Serial** transport (change 
 echo -n C | socat -T5 stdio /dev/cu.usbmodem14401,echo=0,raw | xxd -r -p > /tmp/screenshot.bmp
 ```
 
-The `-T5` idle timeout makes `socat` exit a few seconds after the transfer finishes, instead of waiting until you press Ctrl-C. `xxd -r -p` ignores whitespace, so the carriage returns between rows are harmless.
+The `-T5` option makes `socat` exit after five seconds without data.
 
-The `C` output format is stable and may be relied upon by tools:
-
-* A leading CRLF, then a single 132-hex-character header line (a 66-byte little-endian BMP header: 14-byte file header + 40-byte `BITMAPINFOHEADER` + 12-byte `BI_BITFIELDS` masks).
-* 170 rows of exactly 1280 lowercase hex characters (320 px × 4), bottom-up, each terminated by CRLF.
-* Geometry 320×170, 16 bpp RGB565, masks R = `0xF800`, G = `0x07E0`, B = `0x001F`.
-
-##### `c` — binary BMP
-
-`c` writes the same image as a raw little-endian BMP, preceded by an ASCII frame `BMP:<size>\r\n` so a reader can find the start of the binary and pre-allocate. The decoded file is byte-for-byte identical to `xxd`-decoding the `C` output, in half the bytes:
+The `c` command sends a BMP file directly, using about half as much data:
 
 ```shell
-echo -n c | socat -T5 stdio /dev/cu.usbmodem14401,echo=0,raw \
-  | python3 -c "import sys; d = sys.stdin.buffer.read(); sys.stdout.buffer.write(d.split(b'\r\n', 1)[1])" \
-  > /tmp/screenshot.bmp
+echo -n c | socat -T5 stdio /dev/cu.usbmodem14401,echo=0,raw > /tmp/screenshot.bmp
 ```
 
-The `BMP:<size>\r\n` frame is variable-length (the size has a varying number of digits), so the reader must discard everything up to and including the first `\r\n` rather than skip a fixed number of bytes; the snippet above splits on the first `\r\n` and writes the remaining bytes verbatim.
+Over **TCP**, enable the TCP Ad hoc transport as described above, then use either command (replace `atsmini.local` with the receiver's IP address if needed):
 
-```{note}
-Screenshots over Bluetooth LE work but are slow because the link runs at roughly 2 KB/s; prefer the `c` binary format, or use the USB Serial connection. The raw `socat` one-liners above are written for the USB Serial transport.
+```shell
+# Hex screenshot
+echo -n C | socat -t 120 -T5 stdio TCP4:atsmini.local:60000,connect-timeout=5 | xxd -r -p > /tmp/screenshot.bmp
+
+# Binary screenshot
+echo -n c | socat -t 120 -T5 stdio TCP4:atsmini.local:60000,connect-timeout=5 > /tmp/screenshot.bmp
 ```
+
+The `-t 120` option allows up to two minutes to receive the screenshot after the command input ends; `-T5` exits sooner after five seconds without data.
 
 ### Bluetooth HID protocol
 
