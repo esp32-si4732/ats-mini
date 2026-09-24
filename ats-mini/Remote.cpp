@@ -7,79 +7,6 @@
 
 static RemoteState remoteSerialState;
 
-// The row buffer below is sized for the receiver's 320px-wide sprite. Both
-// captures bail out rather than overflow it if that ever grows.
-#define REMOTE_MAX_SCREEN_WIDTH 320
-
-// Screenshot row buffer shared by both captures, sized for the larger hex row
-// (4 digits per pixel plus CRLF; a binary row takes 2 bytes per pixel).
-// Allocated in PSRAM on first use and kept: internal DRAM is scarce, and
-// building the rows in PSRAM costs about 1% of the capture time.
-static uint8_t *remoteRowBuf = nullptr;
-
-static uint8_t *remoteGetRowBuf()
-{
-  if(!remoteRowBuf)
-    remoteRowBuf = static_cast<uint8_t *>(ps_malloc(REMOTE_MAX_SCREEN_WIDTH * 4 + 2));
-  return remoteRowBuf;
-}
-
-//
-// Bulk output over the USB CDC (Serial), used for the screenshots.
-//
-// HWCDC throws queued bytes away when the USB SOF watchdog briefly reports the
-// cable unplugged, which now and then happens on a healthy link too: write()
-// then evicts the oldest bytes in its 256 B TX ring to make room, and flush()
-// empties the ring. The old per-pixel loop never filled the ring, so it never
-// lost anything, but a fast capture keeps it full, and 1-2% of captures lost
-// a 1-21 KB chunk. Handing write() no more than the ring has room for leaves
-// it nothing to evict, and there is no need to flush(). Topping up the ring as
-// it drains is also 7-10% faster than blocking in write() until a whole chunk
-// fits.
-//
-class UsbBulkStream : public Stream
-{
-  bool stalled = false;
-
-public:
-  int available() override { return Serial.available(); }
-  int read() override { return Serial.read(); }
-  int peek() override { return Serial.peek(); }
-  void flush() override {}
-  size_t write(uint8_t c) override { return write(&c, 1); }
-  size_t write(const uint8_t *buf, size_t size) override
-  {
-    size_t done = 0;
-    uint32_t lastProgress = millis();
-    while(!stalled && done < size)
-    {
-      int room = Serial.availableForWrite();
-      size_t n = 0;
-      if(room > 0)
-        n = Serial.write(buf + done, (size - done) < (size_t)room ? (size - done) : (size_t)room);
-      if(n)
-      {
-        done += n;
-        lastProgress = millis();
-      }
-      // Nothing drains with the cable out or the host not reading: drop the
-      // rest of the capture rather than hold up the main loop
-      else if(millis() - lastProgress > 500)
-        stalled = true;
-    }
-    return done;
-  }
-};
-
-//
-// Run a screenshot capture, through UsbBulkStream when it goes to Serial
-//
-static void remoteScreenshot(Stream* stream, void (*capture)(Stream*))
-{
-  UsbBulkStream usb;
-  capture(stream == &Serial ? &usb : stream);
-}
-
 static uint8_t char2nibble(char key)
 {
   if((key >= '0') && (key <= '9')) return(key - '0');
@@ -88,136 +15,103 @@ static uint8_t char2nibble(char key)
   return(0);
 }
 
-//
-// Capture current screen image to the remote
-//
-static void remoteCaptureScreen(Stream* stream)
+static bool remoteWriteScreenshot(Stream* stream, const uint8_t* data, size_t size)
 {
-  uint16_t width  = spr.width();
-  uint16_t height = spr.height();
+  if(stream != &Serial) return stream->write(data, size) == size;
 
-  // Read the sprite framebuffer directly instead of calling readPixel()+printf()
-  // 54,400 times. spr.getBuffer() returns the raw 16bpp framebuffer base. The
-  // sprite is created unrotated as 320x170 at rgb565_2Byte depth, so the row
-  // stride equals the width and pixel (x,y) is at fb[x + y*width]. LovyanGFX
-  // stores that depth as swap565_t (byte-swapped), and readPixel() swaps it
-  // back, so the stored word equals htons(spr.readPixel(x,y)): emitting it as
-  // four lowercase hex digits is byte-for-byte identical to the previous
-  // per-pixel printf("%04x", htons(...)) output.
-  const uint16_t *fb = (const uint16_t *)spr.getBuffer();
-  char *rowBuf = (char *)remoteGetRowBuf();
-  if(!fb || !rowBuf || width > REMOTE_MAX_SCREEN_WIDTH) return;
-
-  // 14 bytes of BMP header
-  stream->println("");
-  stream->print("424d"); // BM
-  // Image size
-  stream->printf("%08x", (unsigned int)htonl(14 + 40 + 12 + width * height * 2));
-  stream->print("00000000");
-  // Offset to image data
-  stream->printf("%08x", (unsigned int)htonl(14 + 40 + 12));
-  // Image header
-  stream->print("28000000"); // Header size
-  stream->printf("%08x", (unsigned int)htonl(width));
-  stream->printf("%08x", (unsigned int)htonl(height));
-  stream->print("01001000"); // 1 plane, 16 bpp
-  stream->print("03000000"); // Compression
-  stream->print("00000000"); // Compressed image size
-  stream->print("00000000"); // X res
-  stream->print("00000000"); // Y res
-  stream->print("00000000"); // Color map
-  stream->print("00000000"); // Colors
-  stream->print("00f80000"); // Red mask
-  stream->print("e0070000"); // Green mask
-  stream->println("1f000000"); // Blue mask
-
-  // Image data: build each row in one buffer and emit it with a single write().
-  // The 320x170 sprite yields 1280 hex chars + CRLF per row. Keeping one rowBuf
-  // is safe because captures are single-entrant (reached only from
-  // remoteDoCommand()).
-  static const char hex[] = "0123456789abcdef";
-  for(int y=height-1 ; y>=0 ; y--)
+  // HWCDC can discard queued bytes on a false disconnect. Only enqueue data
+  // that fits; screenshot output has no competing Serial writer.
+  uint32_t lastProgress = millis();
+  while(size)
   {
-    const uint16_t *row = fb + (uint32_t)y * width;
-    char *p = rowBuf;
-    for(int x=0 ; x<width ; x++)
+    if(millis() - lastProgress >= stream->getTimeout()) return false;
+    int space = Serial.availableForWrite();
+    if(space <= 0)
     {
-      uint16_t v = row[x]; // == htons(spr.readPixel(x, y))
-      *p++ = hex[(v >> 12) & 0xF];
-      *p++ = hex[(v >>  8) & 0xF];
-      *p++ = hex[(v >>  4) & 0xF];
-      *p++ = hex[ v        & 0xF];
+      yield();
+      continue;
     }
-    // Matches the println("") the old loop ended each row with
-    *p++ = '\r';
-    *p++ = '\n';
-    stream->write((const uint8_t *)rowBuf, p - rowBuf);
+    size_t chunk = size < (size_t)space ? size : (size_t)space;
+    size_t written = Serial.write(data, chunk);
+    if(!written) return false;
+    lastProgress = millis();
+    data += written;
+    size -= written;
   }
-  stream->flush();
+  return true;
 }
 
+static constexpr uint32_t BMP_FILE_SIZE = 66 + (uint32_t)DISPLAY_WIDTH * DISPLAY_HEIGHT * 2;
+
+// BMP dimensions match the display sprite; all fields are little-endian.
+static const uint8_t bmpHeader[] = {
+  'B', 'M',
+  (uint8_t)BMP_FILE_SIZE, (uint8_t)(BMP_FILE_SIZE >> 8),
+  (uint8_t)(BMP_FILE_SIZE >> 16), (uint8_t)(BMP_FILE_SIZE >> 24),
+  0, 0, 0, 0, 66, 0, 0, 0,
+  40, 0, 0, 0,                         // BITMAPINFOHEADER size
+  (uint8_t)DISPLAY_WIDTH, (uint8_t)(DISPLAY_WIDTH >> 8), 0, 0,
+  (uint8_t)DISPLAY_HEIGHT, (uint8_t)(DISPLAY_HEIGHT >> 8), 0, 0,
+  1, 0, 16, 0, 3, 0, 0, 0,            // One plane, RGB565 bitfields
+  0, 0, 0, 0, 0, 0, 0, 0,             // Image size and X resolution
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Y resolution and palette
+  0, 0xF8, 0, 0, 0xE0, 0x07, 0, 0, 0x1F, 0, 0, 0 // RGB masks
+};
+
 //
-// Capture the screen as a raw little-endian RGB565 BMP (command 'c').
+// Send the screen as a hex ('C') or binary ('c') RGB565 BMP.
 //
-// Additive, opt-in alternative to 'C': it emits ~2x fewer bytes (a binary BMP
-// instead of ASCII hex) and does no per-pixel formatting. The decoded image is
-// byte-for-byte identical to xxd-decoding the 'C' output. A leading
-// "BMP:<size>\r\n" ASCII frame lets line-oriented consumers find the binary
-// start and pre-allocate.
-//
-static void remoteCaptureScreenBinary(Stream* stream)
+static void remoteCaptureScreen(Stream* stream, bool binary)
 {
   uint16_t width  = spr.width();
   uint16_t height = spr.height();
   const uint16_t *fb = (const uint16_t *)spr.getBuffer();
-  uint8_t *bmpRow = remoteGetRowBuf();
-  if(!fb || !bmpRow || width > REMOTE_MAX_SCREEN_WIDTH) return;
+  uint8_t buf[256];
+  if(!fb) return;
 
-  uint32_t fileSize  = 14 + 40 + 12 + (uint32_t)width * height * 2;
-  uint32_t pixOffset = 14 + 40 + 12;
-  uint32_t hsz = 40, compr = 3;
-  uint32_t w = width, ht = height;
-  uint32_t rm = 0xF800, gm = 0x07E0, bm = 0x001F;
-  uint16_t planes = 1, bpp = 16;
+  // Keep chunks full across the header and rows. All output is added in pairs.
+  uint8_t *p = buf;
+  auto appendPair = [&](uint8_t first, uint8_t second) {
+    *p++ = first;
+    *p++ = second;
+    if(p == buf + sizeof(buf))
+    {
+      if(!remoteWriteScreenshot(stream, buf, sizeof(buf))) return false;
+      p = buf;
+    }
+    return true;
+  };
+  auto appendHexByte = [&](uint8_t byte) {
+    static const char hex[] = "0123456789abcdef";
+    return appendPair(hex[byte >> 4], hex[byte & 0xF]);
+  };
+  auto appendBmpPair = [&](uint8_t first, uint8_t second) {
+    return binary ? appendPair(first, second)
+                  : appendHexByte(first) && appendHexByte(second);
+  };
 
-  // BMP fields are little-endian; on the little-endian ESP32 write them in
-  // native order (do NOT reuse the htonl() trick the hex 'C' path uses).
-  uint8_t h[66];
-  h[0] = 'B'; h[1] = 'M';
-  memcpy(h + 2, &fileSize, 4);
-  memset(h + 6, 0, 4);
-  memcpy(h + 10, &pixOffset, 4);
-  memcpy(h + 14, &hsz, 4);
-  memcpy(h + 18, &w, 4);
-  memcpy(h + 22, &ht, 4);
-  memcpy(h + 26, &planes, 2);
-  memcpy(h + 28, &bpp, 2);
-  memcpy(h + 30, &compr, 4);
-  memset(h + 34, 0, 20);
-  memcpy(h + 54, &rm, 4);
-  memcpy(h + 58, &gm, 4);
-  memcpy(h + 62, &bm, 4);
+  if(!binary && !appendPair('\r', '\n')) return;
+  for(size_t i=0 ; i<sizeof(bmpHeader) ; i+=2)
+  {
+    if(!appendBmpPair(bmpHeader[i], bmpHeader[i + 1])) return;
+  }
+  if(!binary && !appendPair('\r', '\n')) return;
 
-  stream->printf("BMP:%u\r\n", (unsigned int)fileSize);
-  stream->write(h, sizeof(h));
-
-  // Pixels, bottom-up. The framebuffer stores each RGB565 word byte-swapped
-  // (LovyanGFX keeps rgb565_2Byte sprites in swap565_t form), so emit the high
-  // byte first to produce the little-endian RGB565 a BI_BITFIELDS BMP expects.
-  // These bytes equal xxd-decoding the 'C' output.
+  // Send rows bottom-up. The unrotated sprite stores contiguous rows of
+  // byte-swapped RGB565 words; emit the high byte first for BMP pixel data.
   for(int y=height-1 ; y>=0 ; y--)
   {
     const uint16_t *row = fb + (uint32_t)y * width;
-    uint8_t *p = bmpRow;
     for(int x=0 ; x<width ; x++)
     {
       uint16_t v = row[x];
-      *p++ = (uint8_t)(v >> 8);
-      *p++ = (uint8_t)(v & 0xFF);
+      if(!appendBmpPair(v >> 8, v & 0xFF)) return;
     }
-    stream->write(bmpRow, p - bmpRow);
+    if(!binary && !appendPair('\r', '\n')) return;
   }
-  stream->flush();
+  if(p != buf && !remoteWriteScreenshot(stream, buf, p - buf)) return;
+  // HWCDC flush() can discard pending output on a false disconnect.
+  if(stream != &Serial) stream->flush();
 }
 
 char remoteReadChar(Stream* stream)
@@ -594,12 +488,9 @@ int remoteDoCommand(Stream* stream, RemoteState* state, char key)
       event |= REMOTE_PREFS;
       break;
     case 'C':
-      state->remoteLogOn = false;
-      remoteScreenshot(stream, remoteCaptureScreen);
-      break;
     case 'c':
       state->remoteLogOn = false;
-      remoteScreenshot(stream, remoteCaptureScreenBinary);
+      remoteCaptureScreen(stream, key == 'c');
       break;
     case 't':
       state->remoteLogOn = !state->remoteLogOn;

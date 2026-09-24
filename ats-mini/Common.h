@@ -5,6 +5,9 @@
 #include "Display.h"
 #include <SI4735-fixed.h>
 
+static constexpr uint16_t DISPLAY_WIDTH  = 320;
+static constexpr uint16_t DISPLAY_HEIGHT = 170;
+
 // Shorthands for the LovyanGFX fonts used by the UI
 static constexpr const lgfx::IFont* FONT_DEFAULT = &lgfx::fonts::Font0;  // 6x8 system font
 static constexpr const lgfx::IFont* FONT_SMALL   = &lgfx::fonts::Font2;  // 16px general UI text
