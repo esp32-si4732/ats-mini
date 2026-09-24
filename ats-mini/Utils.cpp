@@ -9,16 +9,18 @@
 #include <sys/time.h>
 #include <time.h>
 
-// SSB patch for whole SSBRX initialization string
+// Default SSB and experimental continuous-tuning patches
 #include "patch_init.h"
+#include "patch_ssb_continuous.h"
+#include "patch_am_continuous.h"
 
 extern ButtonTracker pb1;
 
 // Current sleep status, returned by sleepOn()
 static bool sleep_on = false;
 
-// Current SSB patch status
-static bool ssbLoaded = false;
+// Current DSP patch status
+static const uint8_t *loadedPatch = nullptr;
 
 // Time
 static bool clockHasBeenSet = false;
@@ -95,22 +97,49 @@ const char *getMACAddress()
 }
 
 //
-// Load SSB patch into SI4735
+// Select and load the DSP patch before useBand() configures the receiver.
 //
-void loadSSB(uint8_t bandwidth, bool draw)
+void loadDSPPatch(uint8_t bandwidth, bool draw)
 {
-  if(!ssbLoaded)
+  if(currentMode == FM)
   {
-    if(draw) drawMessage("Loading SSB");
-    rx.loadPatch(ssb_patch_content, sizeof(ssb_patch_content), bandwidth);
-    ssbLoaded = true;
+    // useBand() powers up FM and discards any loaded patch.
+    loadedPatch = nullptr;
+    return;
   }
-}
 
-void unloadSSB()
-{
-  // Just mark SSB patch as unloaded
-  ssbLoaded = false;
+  const uint8_t *content = nullptr;
+  uint16_t size = 0;
+  bool experimental = dspPatchesIdx == DSP_PATCHES_EXPERIMENTAL;
+
+  if(isSSB())
+  {
+    content = experimental? ssb_continuous_content : ssb_patch_content;
+    size = experimental? sizeof(ssb_continuous_content) : sizeof(ssb_patch_content);
+  }
+  else if(experimental)
+  {
+    content = am_continuous_content;
+    size = sizeof(am_continuous_content);
+  }
+
+  if(content == loadedPatch) return;
+
+  if(content)
+  {
+    if(draw) drawMessage(isSSB()? "Loading SSB" : "Loading AM");
+    if(isSSB())
+      rx.loadPatch(content, size, bandwidth);
+    else
+      rx.loadAMPatch(content, size);
+  }
+  else if(loadedPatch == am_continuous_content)
+  {
+    // setAM() skips power-up when already in AM, so remove its patch here.
+    rx.loadAMPatch(nullptr, 0);
+  }
+  // Switching from SSB to stock AM powers down the receiver in useBand().
+  loadedPatch = content;
 }
 
 //

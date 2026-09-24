@@ -3,6 +3,29 @@
 class SI4735_fixed: public SI4735
 {
   public:
+    // Load an AM patch without sending SSB properties, or restore stock AM.
+    void loadAMPatch(const uint8_t *content, uint16_t size)
+    {
+      if(content)
+      {
+        queryLibraryId();
+        patchPowerUp();
+        delay(50);
+        downloadPatch(content, size);
+        delay(25);
+      }
+      else
+        powerDown();
+
+      setPowerUp(ctsIntEnable, 0, 0, currentClockType, AM_CURRENT_MODE, currentAudioMode);
+      radioPowerUp();
+      setAvcAmMaxGain(currentAvcAmMaxGain);
+      setVolume(volume);
+      currentSsbStatus = 0;
+      // Prevent setAM() from powering down and discarding the patch.
+      lastMode = AM_CURRENT_MODE;
+    }
+
     // Fixing SI4735::getRdsPI() bug where it only returns BLOCKAL
     uint16_t getRdsPI(void)
     {

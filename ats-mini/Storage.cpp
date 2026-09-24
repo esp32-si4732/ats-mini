@@ -196,6 +196,7 @@ void prefsSave(uint32_t items)
                                   ((uint32_t)currentSquelch[AM] << 24)); // Squelch
     prefs.putUChar("FmRegion",    FmRegionIdx);    // FM region
     prefs.putUChar("FmStereo",    fmStereoIdx);    // FM stereo mode
+    prefs.putUChar("DSPPatches",  dspPatchesIdx);  // DSP patches
     prefs.putUChar("UILayout",    uiLayoutIdx);    // UI Layout
     prefs.putUChar("BLEMode",     bleModeIdx);     // Bluetooth mode
     prefs.putUChar("USBMode",     usbModeIdx);     // USB mode
@@ -280,6 +281,8 @@ bool prefsLoad(uint32_t items)
     currentSquelch[AM]  = (squelch >> 24) & 0xff;
     FmRegionIdx    = prefs.getUChar("FmRegion", FmRegionIdx);   // FM region
     fmStereoIdx    = prefs.getUChar("FmStereo", fmStereoIdx);   // FM stereo mode
+    dspPatchesIdx  = prefs.getUChar("DSPPatches", DSP_PATCHES_DEFAULT) == DSP_PATCHES_EXPERIMENTAL?
+      DSP_PATCHES_EXPERIMENTAL : DSP_PATCHES_DEFAULT;
     uiLayoutIdx    = prefs.getUChar("UILayout", uiLayoutIdx);   // UI Layout
     bleModeIdx     = prefs.getUChar("BLEMode", bleModeIdx);     // Bluetooth mode
     usbModeIdx     = prefs.getUChar("USBMode", usbModeIdx);     // USB mode
