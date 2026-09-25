@@ -63,8 +63,6 @@ static const uint8_t bmpHeader[] = {
 //
 static void remoteCaptureScreen(Stream* stream, bool binary)
 {
-  uint16_t width  = spr.width();
-  uint16_t height = spr.height();
   const uint16_t *fb = (const uint16_t *)spr.getBuffer();
   uint8_t buf[256];
   if(!fb) return;
@@ -99,10 +97,10 @@ static void remoteCaptureScreen(Stream* stream, bool binary)
 
   // Send rows bottom-up. The unrotated sprite stores contiguous rows of
   // byte-swapped RGB565 words; emit the high byte first for BMP pixel data.
-  for(int y=height-1 ; y>=0 ; y--)
+  for(int y=DISPLAY_HEIGHT-1 ; y>=0 ; y--)
   {
-    const uint16_t *row = fb + (uint32_t)y * width;
-    for(int x=0 ; x<width ; x++)
+    const uint16_t *row = fb + (uint32_t)y * DISPLAY_WIDTH;
+    for(int x=0 ; x<DISPLAY_WIDTH ; x++)
     {
       uint16_t v = row[x];
       if(!appendBmpPair(v >> 8, v & 0xFF)) return;
