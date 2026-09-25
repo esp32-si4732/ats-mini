@@ -94,6 +94,7 @@ uint16_t getRdsPiCode()
 
 void clearStationInfo()
 {
+  afReset();
   bufStationName[0] = '\0';
   bufProgramInfo[0] = '\0';
   bufRadioText[0]   = '\0'; // Multiline!
@@ -221,6 +222,8 @@ bool checkRds()
     needRedraw |= (mode & RDS_PI) && showRdsPiCode(rx.getRdsPI());
     needRedraw |= (mode & RDS_CT) && showRdsTime();
     needRedraw |= (mode & RDS_PT) && showRdsProgramType(rx.getRdsProgramTypeX(), !!(mode & RDS_RBDS));
+
+    if(mode & RDS_AF) afCollect();
   }
 
   // Return TRUE if any RDS information changes

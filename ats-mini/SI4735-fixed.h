@@ -43,28 +43,15 @@ class SI4735_fixed: public SI4735
       return getRdsVersionCode()? SI4735::getRdsText2B() : SI4735::getRdsText2A();
     }
 
-    // Implementing the empty SI4735::setFmStereoOff() placeholder by
-    // moving every blend threshold beyond reach, which pins the audio to mono
-    void setFmStereoOff()
+    // Get the two alternative frequency codes carried by a group 0A.
+    // Version B puts the PI code in block C instead, so it is of no use here.
+    bool getRdsAFCodes(uint8_t *af1, uint8_t *af2)
     {
-      setFmBlendRssiStereoThreshold(127);
-      setFmBLendRssiMonoThreshold(127);
-      setFmBlendSnrStereoThreshold(127);
-      setFmBLendSnrMonoThreshold(127);
-      setFmBlendMultiPathStereoThreshold(0);
-      setFmBlendMultiPathMonoThreshold(0);
-    }
+      if(!af1 || !af2 || getRdsGroupType() != 0 || getRdsVersionCode()) return(false);
 
-    // Implementing the empty SI4735::setFmStereoOn() placeholder by restoring
-    // the blend thresholds the chip starts up with, see AN332
-    void setFmStereoOn()
-    {
-      setFmBlendRssiStereoThreshold(49);
-      setFmBLendRssiMonoThreshold(30);
-      setFmBlendSnrStereoThreshold(27);
-      setFmBLendSnrMonoThreshold(14);
-      setFmBlendMultiPathStereoThreshold(20);
-      setFmBlendMultiPathMonoThreshold(60);
+      *af1 = currentRdsStatus.resp.BLOCKCH;
+      *af2 = currentRdsStatus.resp.BLOCKCL;
+      return(true);
     }
 
     // Decode UTC time directly from the RDS data blocks.

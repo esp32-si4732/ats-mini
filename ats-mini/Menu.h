@@ -27,7 +27,9 @@
 #define CMD_MEMORY     0x1900 // |
 #define CMD_SEEK       0x1A00 // |
 #define CMD_SCAN       0x1B00 // |
-#define CMD_SQUELCH    0x1C00 //-+
+#define CMD_SQUELCH    0x1C00 // |
+#define CMD_MEMSCAN    0x1D00 // |
+#define CMD_AUTOSTORE  0x1E00 //-+
 #define CMD_SETTINGS   0x2000 //-SETTINGS MODE starts here
 #define CMD_BRT        0x2100 // |
 #define CMD_CAL        0x2200 // |
@@ -47,7 +49,7 @@
 #define CMD_WIFIMODE   0x3000 // |
 #define CMD_DATETIME   0x3100 // |
 #define CMD_UPDATEFW   0x3200 // |
-#define CMD_FM_STEREO  0x3300 // |
+#define CMD_FMSTEREO   0x3300 // |
 #define CMD_ABOUT      0x3400 //-+
 
 // UI Layouts
@@ -57,6 +59,8 @@
 // Seek modes
 #define SEEK_DEFAULT  0
 #define SEEK_SCHEDULE 1
+#define SEEK_AUTO     2
+#define SEEK_MODES    3
 
 //
 // Data Types
@@ -110,7 +114,9 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca);
 void doSelectDigit(int16_t enc);
 bool clickHandler(uint16_t cmd, bool shortPress);
 void selectBand(uint8_t idx, bool drawLoadingSSB = true);
+bool tuneToMemory(const Memory *memory);
 void applyFmStereo();
+void autoStoreAndReport(uint8_t flags);
 int getTotalBands();
 int getTotalModes();
 int getTotalMemories();
@@ -123,6 +129,9 @@ uint8_t getRDSMode();
 
 int8_t getCurrentUTCOffset();
 int getTotalUTCOffsets();
+int getTotalFmRegions();
+int getTotalFmStereoModes();
+int getTotalBleModes();
 
 void doSoftMute(int16_t enc);
 void doAgc(int16_t enc);
