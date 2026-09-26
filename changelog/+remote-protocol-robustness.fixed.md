@@ -1,0 +1,1 @@
+Fix several USB/Bluetooth remote-control issues: a Bluetooth LE disconnect in the middle of a command no longer spins the main loop until the watchdog reboots the device; `$` memory dumps now stream one slot per tick instead of freezing the UI over Bluetooth; and error replies no longer echo leftover input bytes.
