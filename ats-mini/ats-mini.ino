@@ -64,6 +64,7 @@ int8_t SsbAgcIdx = 0;                   // Default SSB AGCON  : Range = 0 to 1, 
 // AVC index per mode (AM/SSB)
 int8_t AmAvcIdx = 48;                   // Default AM  = 48 (as per AN332), range = 12 to 90 in steps of 2
 int8_t SsbAvcIdx = 48;                  // Default SSB = 48, range = 12 to 90 in steps of 2
+bool ssbAvcHold = false;                // Temporary; cleared when the band/mode is reinitialized
 
 // SoftMute index per mode (AM/SSB)
 int8_t AmSoftMuteIdx = 4;               // Default AM  = 4, range = 0 to 32
@@ -360,6 +361,7 @@ void useBand(const Band *band)
   currentFrequency = band->currentFreq;
   currentMode = band->bandMode;
   currentBFO = 0;
+  ssbAvcHold = false;
 
   if(band->bandMode==FM)
   {
@@ -395,7 +397,7 @@ void useBand(const Band *band)
     {
       // Configure SI4732 for SSB (SI4732 step not used, set to 0)
       rx.setSSB(band->minimumFreq, band->maximumFreq, band->currentFreq, 0, currentMode);
-      // G8PTN: Always enabled
+      // Start with automatic AVC after band/mode initialization
       rx.setSSBAutomaticVolumeControl(1);
       // G8PTN: Commented out
       //rx.setSsbSoftMuteMaxAttenuation(softMuteMaxAttIdx);

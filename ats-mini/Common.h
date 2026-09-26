@@ -201,6 +201,7 @@ extern int8_t AmAgcIdx;
 extern int8_t SsbAgcIdx;
 extern int8_t AmAvcIdx;
 extern int8_t SsbAvcIdx;
+extern bool ssbAvcHold;
 extern int8_t AmSoftMuteIdx;
 extern int8_t SsbSoftMuteIdx;
 extern uint8_t rdsModeIdx;

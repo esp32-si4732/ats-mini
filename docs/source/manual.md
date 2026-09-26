@@ -61,7 +61,7 @@ The menu can be invoked by clicking the encoder button and is closed automatical
 * **Squelch** - mute the speaker when the selected RSSI (dBuV) or SNR (dB) level is lower than the defined threshold. The setting is saved separately for each mode (FM, LSB, USB, AM). When Off, short press the encoder button to switch between RSSI and SNR. When enabled, short press turns squelch Off. Unlikely to work in SSB mode.
 * **Bandwidth** - Selects the bandwidth of the channel filter.
 * **AGC/ATTN** - Automatic Gain Control (on/off) or Attenuation level. The attenuator is not applicable to SSB mode.
-* **AVC** - Sets the maximum gain for automatic volume control (not applicable to FM mode).
+* **AVC** - Sets the maximum gain for automatic volume control (not applicable to FM mode). In LSB/USB, short press toggles Hold to disable AVC and hold the current gain. Rotate to resume automatic AVC and adjust the maximum gain. Hold is temporary and clears on band/mode reinitialization or restart; the displayed maximum gain is not a measurement of held gain.
 * **SoftMute** - Sets softmute max attenuation (only applicable to AM/SSB).
 * **Settings** - Settings submenu.
 

@@ -704,12 +704,27 @@ void doAvc(int16_t enc)
   if(isSSB())
   {
     SsbAvcIdx = newAvcIdx;
+    if(enc && ssbAvcHold)
+    {
+      ssbAvcHold = false;
+      rx.setSSBAutomaticVolumeControl(1);
+    }
   }
   else
   {
     AmAvcIdx = newAvcIdx;
   }
   rx.setAvcAmMaxGain(newAvcIdx);
+}
+
+static void clickAvc(bool shortPress)
+{
+  if(shortPress && isSSB())
+  {
+    ssbAvcHold = !ssbAvcHold;
+    rx.setSSBAutomaticVolumeControl(!ssbAvcHold);
+  }
+  else currentCmd = CMD_NONE;
 }
 
 void doFmRegion(int16_t enc)
@@ -1155,6 +1170,7 @@ bool clickHandler(uint16_t cmd, bool shortPress)
     case CMD_BLEMODE:  clickBleMode(bleModeMenuIdx, shortPress);break;
     case CMD_WIFIMODE: clickWiFiMode(wifiModeIdx, shortPress);break;
     case CMD_VOLUME:   clickVolume(shortPress);break;
+    case CMD_AVC:      clickAvc(shortPress);break;
     case CMD_SQUELCH:  clickSquelch(shortPress);break;
     case CMD_SEEK:     clickSeek(shortPress);break;
     case CMD_SCAN:     clickScan(shortPress);break;
@@ -1795,6 +1811,11 @@ static void drawAvc(int x, int y, int sx)
   spr.setTextDatum(MC_DATUM);
 
   spr.setTextColor(TH.menu_param);
+  if(isSSB() && ssbAvcHold)
+  {
+    spr.drawString("Hold", 40+x+(sx/2), 60+y, FONT_LARGE);
+    return;
+  }
   spr.drawString("Max Gain", 40+x+(sx/2), 32+y, FONT_SMALL);
 
   // Only show AVC for AM and SSB modes
@@ -1952,6 +1973,8 @@ static void drawInfo(int x, int y, int sx)
 
     if(currentMode==FM)
       sprintf(text, "n/a");
+    else if(isSSB() && ssbAvcHold)
+      sprintf(text, "Hold");
     else if(isSSB())
       sprintf(text, "%2.2ddB", SsbAvcIdx);
     else
