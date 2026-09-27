@@ -83,12 +83,14 @@ Band *getCurrentBand() { return(&bands[bandIdx]); }
 #define MENU_SEEK         4
 #define MENU_SCAN         5
 #define MENU_MEMORY       6
-#define MENU_SQUELCH      7
-#define MENU_BW           8
-#define MENU_AGC_ATT      9
-#define MENU_AVC         10
-#define MENU_SOFTMUTE    11
-#define MENU_SETTINGS    12
+#define MENU_MEMSCAN      7
+#define MENU_AUTOSTORE    8
+#define MENU_SQUELCH      9
+#define MENU_BW          10
+#define MENU_AGC_ATT     11
+#define MENU_AVC         12
+#define MENU_SOFTMUTE    13
+#define MENU_SETTINGS    14
 
 int8_t menuIdx = MENU_VOLUME;
 
@@ -101,6 +103,8 @@ static const char *menu[] =
   "Seek",
   "Scan",
   "Memory",
+  "Mem Scan",
+  "Auto Store",
   "Squelch",
   "Bandwidth",
   "AGC/ATTN",
@@ -119,7 +123,7 @@ static const char *menu[] =
 #define MENU_UTCOFFSET    3
 #define MENU_DATETIME     4
 #define MENU_FM_REGION    5
-#define MENU_FM_STEREO    6
+#define MENU_FMSTEREO     6
 #define MENU_THEME        7
 #define MENU_UI           8
 #define MENU_ZOOM         9
@@ -175,6 +179,27 @@ const FMRegion fmRegions[] = {
 };
 
 //
+// FM Stereo Menu
+//
+
+// Blend thresholds in dBuV, defaults taken from AN332
+#define BLEND_RSSI_STEREO   49
+#define BLEND_RSSI_MONO     30
+#define BLEND_RSSI_NEVER   127
+
+uint8_t fmStereoIdx = FM_STEREO_AUTO;
+static const char *fmStereoDesc[] = { "Auto", "Mono" };
+
+int getTotalFmStereoModes() { return(ITEM_COUNT(fmStereoDesc)); }
+
+//
+// Auto Store Menu
+//
+
+static uint8_t autoStoreIdx = 0;
+static const char *const autoStoreActions[] = { "Add New", "Replace" };
+
+//
 // Mode Menu
 //
 
@@ -214,6 +239,8 @@ static const RDSMode rdsMode[] =
   { RDS_PS | RDS_PI | RDS_RT | RDS_PT | RDS_RBDS, "ALL-CT (US)" },
   { RDS_PS | RDS_PI | RDS_RT | RDS_PT | RDS_CT, "ALL (EU)" },
   { RDS_PS | RDS_PI | RDS_RT | RDS_PT | RDS_CT | RDS_RBDS, "ALL (US)" },
+  { RDS_PS | RDS_PI | RDS_RT | RDS_PT | RDS_CT | RDS_AF, "ALL+AF (EU)" },
+  { RDS_PS | RDS_PI | RDS_RT | RDS_PT | RDS_CT | RDS_RBDS | RDS_AF, "ALL+AF (US)" },
 };
 
 uint8_t getRDSMode() { return(rdsMode[rdsModeIdx].mode); }
@@ -525,11 +552,21 @@ uint8_t seekMode(bool toggle)
 {
   static uint8_t mode = SEEK_DEFAULT;
 
-  mode = toggle ? (mode == SEEK_DEFAULT ? SEEK_SCHEDULE : SEEK_DEFAULT) : mode;
+  if(toggle) mode = (mode + 1) % SEEK_MODES;
 
-  // Use normal seek on FM or if there is no schedule loaded
-  if(currentMode == FM || !eibiAvailable() || !clockAvailable())
-    return(SEEK_DEFAULT);
+  // The schedule needs shortwave, a loaded schedule and a clock
+  if(mode==SEEK_SCHEDULE && (currentMode==FM || !eibiAvailable() || !clockAvailable()))
+  {
+    if(!toggle) return(SEEK_DEFAULT);
+    mode = SEEK_AUTO;
+  }
+
+  // There is no band plan to sweep in SSB
+  if(mode==SEEK_AUTO && isSSB())
+  {
+    if(!toggle) return(SEEK_DEFAULT);
+    mode = SEEK_DEFAULT;
+  }
 
   return(mode);
 }
@@ -684,6 +721,42 @@ static void clickScan(bool shortPress)
   else currentCmd = CMD_NONE;
 }
 
+void autoStoreAndReport(uint8_t flags)
+{
+  char text[16];
+
+  // Clear stale parameters
+  clearStationInfo();
+  rssi = snr = 0;
+  drawScreen();
+
+  int stored = autoStoreRun(flags);
+
+  switch(stored)
+  {
+    case ATS_BAD_MODE: sprintf(text, "FM/AM only"); break;
+    case ATS_NO_SLOTS: sprintf(text, "Mem Full"); break;
+    default:           sprintf(text, "Stored %d", stored); break;
+  }
+
+  drawMessage(text);
+  delay(2000);
+}
+
+static void clickAutoStore(bool shortPress)
+{
+  // Either kind of press runs the selected action, the way Update FW does
+  autoStoreAndReport(autoStoreIdx==1? ATS_REPLACE : ATS_KEEP_OLD);
+  currentCmd = CMD_NONE;
+}
+
+static void clickMemScan(bool shortPress)
+{
+  // Any click parks the scanner on the current channel
+  memScanStop();
+  currentCmd = CMD_NONE;
+}
+
 static void doTheme(int16_t enc)
 {
   themeIdx = wrap_range(themeIdx, enc, 0, getTotalThemes() - 1);
@@ -737,6 +810,37 @@ void applyFmStereo()
 
 void doFmStereo(int16_t enc)
 {
+  fmStereoIdx = wrap_range(fmStereoIdx, enc, 0, LAST_ITEM(fmStereoDesc));
+  applyFmStereo();
+}
+
+//
+// Apply the stereo setting. The receiver blends down to mono on its
+// own as the signal gets worse, so forcing mono is a matter of moving
+// the blend thresholds out of reach. This has to run again after every
+// band change, because the FM tuner starts up with the defaults.
+//
+void applyFmStereo()
+{
+  if(currentMode!=FM) return;
+
+  if(fmStereoIdx==FM_STEREO_MONO)
+  {
+    rx.setFmBlendRssiStereoThreshold(BLEND_RSSI_NEVER);
+    rx.setFmBLendRssiMonoThreshold(BLEND_RSSI_NEVER);
+  }
+  else
+  {
+    rx.setFmBlendRssiStereoThreshold(BLEND_RSSI_STEREO);
+    rx.setFmBLendRssiMonoThreshold(BLEND_RSSI_MONO);
+  }
+}
+
+void doFmStereo(int16_t enc)
+{
+  // Only allow for FM mode
+  if(currentMode!=FM) return;
+
   fmStereoIdx = wrap_range(fmStereoIdx, enc, 0, LAST_ITEM(fmStereoDesc));
   applyFmStereo();
 }
@@ -1046,6 +1150,23 @@ static void clickMenu(int cmd, bool shortPress)
       currentCmd = CMD_SCAN;
       clickScan(true);
       break;
+
+    case MENU_MEMSCAN:
+      // There has to be something to scan first
+      if(memScanStart())
+        currentCmd = CMD_MEMSCAN;
+      else
+      {
+        drawMessage("No Memory");
+        delay(1000);
+      }
+      break;
+
+    case MENU_AUTOSTORE:
+      // Start on the action that leaves the stored stations alone
+      autoStoreIdx = 0;
+      currentCmd = CMD_AUTOSTORE;
+      break;
   }
 }
 
@@ -1084,8 +1205,14 @@ static void clickSettings(int cmd, bool shortPress)
       currentCmd = CMD_BLEMODE;
       break;
     case MENU_WIFIMODE:   currentCmd = CMD_WIFIMODE;   break;
-    case MENU_FM_REGION:  currentCmd = CMD_FM_REGION; break;
-    case MENU_FM_STEREO:  currentCmd = CMD_FM_STEREO; break;
+    case MENU_FM_REGION:
+      // Only in FM mode
+      if(currentMode==FM) currentCmd = CMD_FM_REGION;
+      break;
+    case MENU_FMSTEREO:
+      // Only in FM mode
+      if(currentMode==FM) currentCmd = CMD_FMSTEREO;
+      break;
     case MENU_ABOUT:      currentCmd = CMD_ABOUT;     break;
     case MENU_UPDATEFW:
       updateFwIdx = 0;
@@ -1116,7 +1243,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_BAND:       doBand(scrollDirection * enc);break;
     case CMD_AVC:        doAvc(enc);break;
     case CMD_FM_REGION:  doFmRegion(scrollDirection * enc);break;
-    case CMD_FM_STEREO:  doFmStereo(scrollDirection * enc);break;
+    case CMD_FMSTEREO:   doFmStereo(scrollDirection * enc);break;
     case CMD_SETTINGS:   doSettings(scrollDirection * enc);break;
     case CMD_BRT:        doBrt(enca);break;
     case CMD_CAL:        doCal(enca);break;
@@ -1135,6 +1262,9 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_UTCOFFSET:  doUTCOffset(scrollDirection * enc);break;
     case CMD_DATETIME:   doDateTime(enc);break;
     case CMD_SQUELCH:    doSquelch(enca);break;
+    case CMD_AUTOSTORE:  autoStoreIdx = wrap_range(autoStoreIdx, scrollDirection * enc, 0, LAST_ITEM(autoStoreActions));break;
+    // Taking over the tuning cancels the memory scan
+    case CMD_MEMSCAN:    memScanStop();currentCmd = CMD_NONE;break;
     case CMD_UPDATEFW:   updateFwIdx = wrap_range(updateFwIdx, scrollDirection * enc, 0, LAST_ITEM(updateFwActions));break;
     case CMD_ABOUT:      doAbout(enc);break;
     default:             return(false);
@@ -1158,6 +1288,8 @@ bool clickHandler(uint16_t cmd, bool shortPress)
     case CMD_SQUELCH:  clickSquelch(shortPress);break;
     case CMD_SEEK:     clickSeek(shortPress);break;
     case CMD_SCAN:     clickScan(shortPress);break;
+    case CMD_MEMSCAN:  clickMemScan(shortPress);break;
+    case CMD_AUTOSTORE:clickAutoStore(shortPress);break;
     case CMD_FREQ:     return(clickFreq(shortPress));
     case CMD_DATETIME: clickDateTime(shortPress);break;
     default:           return(false);
@@ -1339,6 +1471,12 @@ static void drawSeek(int x, int y, int sx)
     spr.drawCircle(40+x+(sx/2), 66+y, 10, TH.menu_param);
     spr.drawLine(40+x+(sx/2), 66+y, 40+x+(sx/2), 66+y-7, TH.menu_param);
     spr.drawLine(40+x+(sx/2), 66+y, 40+x+(sx/2)+4, 66+y+4, TH.menu_param);
+  }
+  else if(seekMode()==SEEK_AUTO)
+  {
+    spr.setTextDatum(MC_DATUM);
+    spr.setTextColor(TH.menu_param);
+    spr.drawString("Auto", 40+x+(sx/2), 66+y, FONT_SMALL);
   }
 }
 
@@ -1674,6 +1812,8 @@ static void drawMemory(int x, int y, int sx)
 
     if(!memories[j].freq)
       text = "- - -";
+    else if(memories[j].name[0])
+      text = memories[j].name;
     else if(memories[j].mode==FM)
       sprintf(buf, "%3.2f %s", memories[j].freq / 1000000.0, bandModeDesc[memories[j].mode]);
     else
@@ -1688,6 +1828,53 @@ static void drawMemory(int x, int y, int sx)
 
     spr.setTextDatum(MC_DATUM);
     spr.drawString(text, 40+x+(sx/2), 64+y+(i*16), FONT_SMALL);
+  }
+}
+
+static void drawMemScan(int x, int y, int sx)
+{
+  const Memory *memory = &memories[memScanSlot()];
+  char text[16];
+
+  sprintf(text, "Mem %2.2d", memScanSlot() + 1);
+  drawCommon(text, x, y, sx);
+  drawZoomedMenu(text);
+
+  spr.setTextDatum(MC_DATUM);
+  spr.setTextColor(TH.menu_param);
+
+  if(!memory->freq)
+    sprintf(text, "- - -");
+  else if(memory->mode==FM)
+    sprintf(text, "%3.2f", memory->freq / 1000000.0);
+  else
+    sprintf(text, "%lu", memory->freq / 1000);
+
+  spr.drawString(text, 40+x+(sx/2), 50+y, FONT_LARGE);
+  spr.drawString(bandModeDesc[memory->mode], 40+x+(sx/2), 76+y, FONT_SMALL);
+
+  if(!memScanRunning())
+    spr.drawString("Done", 40+x+(sx/2), 96+y, FONT_SMALL);
+  else
+    spr.drawString(memScanListening()? "Holding" : "Seeking", 40+x+(sx/2), 96+y, FONT_SMALL);
+}
+
+static void drawAutoStore(int x, int y, int sx)
+{
+  drawCommon(menu[MENU_AUTOSTORE], x, y, sx, true);
+
+  for(int i=0 ; i<ITEM_COUNT(autoStoreActions) ; i++)
+  {
+    if(i == autoStoreIdx)
+    {
+      drawZoomedMenu(autoStoreActions[i]);
+      spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
+    }
+    else
+      spr.setTextColor(TH.menu_item);
+
+    spr.setTextDatum(MC_DATUM);
+    spr.drawString(autoStoreActions[i], 40+x+(sx/2), 64+y+((i-autoStoreIdx)*16), FONT_SMALL);
   }
 }
 
@@ -1832,7 +2019,7 @@ static void drawFmRegion(int x, int y, int sx)
 
 static void drawFmStereo(int x, int y, int sx)
 {
-  drawCommon(settings[MENU_FM_STEREO], x, y, sx, true);
+  drawCommon(settings[MENU_FMSTEREO], x, y, sx, true);
 
   int count = ITEM_COUNT(fmStereoDesc);
   for(int i=-2 ; i<3 ; i++)
@@ -2006,10 +2193,12 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_CAL:        drawCal(x, y, sx);        break;
     case CMD_AVC:        drawAvc(x, y, sx);        break;
     case CMD_FM_REGION:  drawFmRegion(x, y, sx);   break;
-    case CMD_FM_STEREO:  drawFmStereo(x, y, sx);   break;
+    case CMD_FMSTEREO:   drawFmStereo(x, y, sx);   break;
     case CMD_BRT:        drawBrt(x, y, sx);        break;
     case CMD_RDS:        drawRDSMode(x, y, sx);    break;
     case CMD_MEMORY:     drawMemory(x, y, sx);     break;
+    case CMD_MEMSCAN:    drawMemScan(x, y, sx);    break;
+    case CMD_AUTOSTORE:  drawAutoStore(x, y, sx);  break;
     case CMD_SLEEP:      drawSleep(x, y, sx);      break;
     case CMD_SLEEPMODE:  drawSleepMode(x, y, sx);  break;
     case CMD_USBMODE:    drawUSBMode(x, y, sx);    break;

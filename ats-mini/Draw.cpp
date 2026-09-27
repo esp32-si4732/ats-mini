@@ -6,6 +6,9 @@
 #include "BleMode.h"
 #include "Draw.h"
 
+#define PEAK_HOLD_TIME  1500  // Time the S-meter peak marker stays put (msecs)
+#define PEAK_DECAY_TIME   50  // Time for the peak marker to fall by 1dB (msecs)
+
 //
 // Draw preferences write indicator
 //
@@ -310,9 +313,35 @@ void drawScale(uint32_t freq)
 }
 
 //
+// Follow the peak of the RSSI readings. The peak is held for a moment
+// and then slides back down to the current reading, which keeps the
+// marker legible while tuning across a band.
+//
+uint8_t smeterPeak(uint8_t rssi)
+{
+  static uint32_t peakTime = 0;
+  static uint8_t peak = 0;
+
+  uint32_t currentTime = millis();
+
+  if(rssi>=peak)
+  {
+    peak = rssi;
+    peakTime = currentTime;
+  }
+  else while(((currentTime - peakTime) > PEAK_HOLD_TIME) && (peak > rssi))
+  {
+    peak--;
+    peakTime += PEAK_DECAY_TIME;
+  }
+
+  return(peak);
+}
+
+//
 // Draw S-meter
 //
-void drawSMeter(int strength, int x, int y)
+void drawSMeter(int strength, int peak, int x, int y)
 {
   spr.drawTriangle(x + 1, y + 1, x + 11, y + 1, x + 6, y + 6, TH.smeter_icon);
   spr.drawLine(x + 6, y + 1, x + 6, y + 14, TH.smeter_icon);
@@ -324,6 +353,10 @@ void drawSMeter(int strength, int x, int y)
     else
       spr.fillRect(15+x + (i*4), 2+y, 2, 12, TH.smeter_bar_plus);
   }
+
+  // Mark the peak reading while it is ahead of the bar
+  if(peak>strength && peak<=17)
+    spr.fillRect(15+x + ((peak-1)*4), 2+y, 2, 12, TH.scale_pointer);
 }
 
 //

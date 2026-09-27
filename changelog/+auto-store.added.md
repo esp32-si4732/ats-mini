@@ -1,0 +1,1 @@
+Auto Store sweeps the current band and stores every station it finds into the memory slots. Add New fills the free slots, Replace drops the stations of the current band first. Stations are named after their RDS name when one is received.

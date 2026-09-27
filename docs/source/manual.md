@@ -4,7 +4,7 @@
 
 ![](_static/screenshot-main.png)
 
-* **RSSI meter** (top left corner), also serves as a mono/stereo indicator in FM mode (one/two rows).
+* **RSSI meter** (top left corner), also serves as a mono/stereo indicator in FM mode (one/two rows). The single mark ahead of the bar is the peak hold, which stays for a moment and then slides back down.
 * **Settings save icon** (right after the RSSI meter). The settings are saved to non-volatile memory after 10 seconds of inactivity.
 * **Bluetooth icon** (right after the save icon). Different colors indicate the connection status.
 * **Wi-Fi icon** (top right area near the battery). Different colors indicate the connection status.
@@ -24,7 +24,7 @@ The differences are:
 * **Stereo indicator** is on the right side of the band and mode (VHF & FM).
 * **Tuning scale** (right under the station name). Numbers on the left & right sides are the band limits.
 * **S/N Meter** (in dB). The range is 0...127 and the visual indicator linearly displays this range.
-* **RSSI & S-Meter** (the number is in dBµV, the meter is in S-points). Please note that the RSSI range is also 0...127 (no negative values) and according to [these tables](https://dl4zao.de/_downloads/Dezibel.pdf) any values below S4 on HF (rssi < 4) and below S7 on VHF (rssi < 2) are bogus. Thus it is very far from being precise, and also depends on the antenna impedance.
+* **RSSI & S-Meter** (the number is in dBµV, the meter is in S-points). The single mark ahead of the bar is the peak hold. Please note that the RSSI range is also 0...127 (no negative values) and according to [these tables](https://dl4zao.de/_downloads/Dezibel.pdf) any values below S4 on HF (rssi < 4) and below S7 on VHF (rssi < 2) are bogus. Thus it is very far from being precise, and also depends on the antenna impedance.
 
 Both meters can be replaced with additional RDS fields (RT, PTY) when extended RDS is enabled, or RSSI/SNR graphs in Scan mode.
 
@@ -55,9 +55,11 @@ The menu can be invoked by clicking the encoder button and is closed automatical
 * **Band** - List of [Bands](#bands-table).
 * **Volume** - 0 (silent) ... 63 (max). The headphone volume level can be low (compared to the built-in speaker) due to limitation of the initial hardware design. Use short press to mute/unmute.
 * **Step** - Tuning step (not every step is available on every band and mode).
-* **Seek** - Seek up or down on AM/FM, normal tuning on LSB/USB (hardware seek function is not supported by SI4732 on SSB). Rotate or click the encoder to stop the seek. Use short press to switch between the seek and [schedule](#schedule) modes. Use press and rotate for manual fine tuning.
+* **Seek** - Seek up or down on AM/FM, normal tuning on LSB/USB (hardware seek function is not supported by SI4732 on SSB). Rotate or click the encoder to stop the seek. Use short press to switch between the seek, [schedule](#schedule) and auto modes. Use press and rotate for manual fine tuning. In the auto mode (marked "Auto" in the panel), rotating the encoder erases every memory slot and fills it again by sweeping the current band from end to end, so the memory ends up being a list of the stations that are on the air right now.
 * **Scan** - Scan a frequency range and plot the RSSI (S) and SNR (N) graphs (unfortunately, these metrics are almost meaningless in SSB modes due to SI4732 patch limitations). Both graphs are normalized to 0.0 - 1.0 range. While the Scan mode is active, short press the encoder for 0.5 seconds to rescan. To abort a running scan process click or rotate the encoder.
-* **Memory** - 99 slots to store favorite frequencies. Short press (>0.5 sec) on an empty slot to store the current frequency, short press to erase a slot, switch between stored slots by rotating the encoder, click to exit the menu. It is also possible to edit the memory slots via [remote control](remote.md) or via the [web based tool](memory.md) in Google Chrome.
+* **Memory** - 99 slots to store favorite frequencies. A slot filled by a band sweep is listed by its RDS station name, when one was received, and by frequency otherwise. Short press (>0.5 sec) on an empty slot to store the current frequency, short press to erase a slot, switch between stored slots by rotating the encoder, click to exit the menu. It is also possible to edit the memory slots via [remote control](remote.md) or via the [web based tool](memory.md) in Google Chrome.
+* **Mem Scan** - Hop through the occupied memory slots, passing over the quiet ones and staying on an active channel as long as it carries a signal. Click the encoder to stop on the current channel, rotate it to stop and take over the tuning. Set a Squelch level to keep the skipped channels silent.
+* **Auto Store** - Sweep the current band and store the stations found into the memory slots. **Add New** keeps what is already stored and fills the free slots, **Replace** drops the stations of the current band first. Only works on FM and AM, as SSB has no carrier to measure. The sweep can be cut short with a click, and a full sweep of a wide band like ALL takes several minutes.
 * **Squelch** - mute the speaker when the selected RSSI (dBuV) or SNR (dB) level is lower than the defined threshold. The setting is saved separately for each mode (FM, LSB, USB, AM). When Off, short press the encoder button to switch between RSSI and SNR. When enabled, short press turns squelch Off. Unlikely to work in SSB mode.
 * **Bandwidth** - Selects the bandwidth of the channel filter.
 * **AGC/ATTN** - Automatic Gain Control (on/off) or Attenuation level. The attenuator is not applicable to SSB mode.
@@ -69,7 +71,7 @@ The menu can be invoked by clicking the encoder button and is closed automatical
 
 * **Brightness** - Display brightness level (10...255). The minimal one draws about 80mA of the battery power, the default one about 100mA, the max level about 120mA.
 * **Calibration** - SSB calibration offset (-2000...2000, per mode/band).
-* **RDS** - Radio Data System options: PS - radio station name, CT - date and time, RT - text, PTY - genre, ALL (EU/US) - everything. RDS CT should contain UTC date and time, but some stations incorrectly transmit local or completely bogus values. The clock is synchronized from RDS only once. To synchronize it again, disable and re-enable RDS CT or switch the receiver off and on.
+* **RDS** - Radio Data System options: PS - radio station name, CT - date and time, RT - text, PTY - genre, ALL (EU/US) - everything, ALL+AF (EU/US) - everything plus alternative frequencies. With AF enabled, the receiver collects the alternative frequencies the station broadcasts and, once the reception starts to fade, moves to the one that carries the same PI code with a clearly better signal. RDS CT should contain UTC date and time, but some stations incorrectly transmit local or completely bogus values. The clock is synchronized from RDS only once. To synchronize it again, disable and re-enable RDS CT or switch the receiver off and on.
 * **UTC Offset** - Affects the displayed date and time. Please note that automatic DST transitions are not supported; the offset needs to be adjusted manually.
 * **Date/Time** - Set the UTC date and time with the encoder. Click to select the next field, or short press to set the clock and close the menu. A timeout closes the menu without changing the clock.
 * **FM Region** - FM de-emphasis time constant by region (50µs for EU/JP/AU and 70µs for the US).

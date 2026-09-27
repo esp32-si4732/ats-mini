@@ -23,6 +23,9 @@ const char *getMACAddress();
 // Convert RSSI to signal strength
 int getStrength(int rssi);
 
+// Get the signal levels that count as a station in the current mode
+void getSignalThresholds(uint8_t *minRssi, uint8_t *minSnr);
+
 // Set, reset, toggle, or query switches
 bool sleepOn(int x = 2);
 bool muteOn(uint8_t mode, int x = 2);
