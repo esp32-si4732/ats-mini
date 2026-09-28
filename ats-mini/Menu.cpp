@@ -83,12 +83,13 @@ Band *getCurrentBand() { return(&bands[bandIdx]); }
 #define MENU_SEEK         4
 #define MENU_SCAN         5
 #define MENU_MEMORY       6
-#define MENU_SQUELCH      7
-#define MENU_BW           8
-#define MENU_AGC_ATT      9
-#define MENU_AVC         10
-#define MENU_SOFTMUTE    11
-#define MENU_SETTINGS    12
+#define MENU_AUTOSTORE    7
+#define MENU_SQUELCH      8
+#define MENU_BW           9
+#define MENU_AGC_ATT     10
+#define MENU_AVC         11
+#define MENU_SOFTMUTE    12
+#define MENU_SETTINGS    13
 
 int8_t menuIdx = MENU_VOLUME;
 
@@ -101,6 +102,7 @@ static const char *menu[] =
   "Seek",
   "Scan",
   "Memory",
+  "Auto Store",
   "Squelch",
   "Bandwidth",
   "AGC/ATTN",
@@ -173,6 +175,13 @@ const FMRegion fmRegions[] = {
   // 75uS de-emphasis
   { 0x2, "US" },
 };
+
+//
+// Auto Store Menu
+//
+
+static uint8_t autoStoreIdx = 0;
+static const char *const autoStoreActions[] = { "Add New", "Replace" };
 
 //
 // Mode Menu
@@ -684,6 +693,31 @@ static void clickScan(bool shortPress)
   else currentCmd = CMD_NONE;
 }
 
+static void clickAutoStore(bool shortPress)
+{
+  char text[16];
+  int stored;
+
+  // Clear stale parameters
+  clearStationInfo();
+  rssi = snr = 0;
+  drawScreen();
+
+  // Either kind of press runs the selected action, the way Update FW does
+  stored = autoStoreRun(autoStoreIdx==1? ATS_REPLACE : ATS_KEEP_OLD);
+
+  switch(stored)
+  {
+    case ATS_BAD_MODE: sprintf(text, "FM/AM only"); break;
+    case ATS_NO_SLOTS: sprintf(text, "Mem Full"); break;
+    default:           sprintf(text, "Stored %d", stored); break;
+  }
+
+  drawMessage(text);
+  delay(2000);
+  currentCmd = CMD_NONE;
+}
+
 static void doTheme(int16_t enc)
 {
   themeIdx = wrap_range(themeIdx, enc, 0, getTotalThemes() - 1);
@@ -1046,6 +1080,12 @@ static void clickMenu(int cmd, bool shortPress)
       currentCmd = CMD_SCAN;
       clickScan(true);
       break;
+
+    case MENU_AUTOSTORE:
+      // Start on the action that leaves the stored stations alone
+      autoStoreIdx = 0;
+      currentCmd = CMD_AUTOSTORE;
+      break;
   }
 }
 
@@ -1135,6 +1175,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_UTCOFFSET:  doUTCOffset(scrollDirection * enc);break;
     case CMD_DATETIME:   doDateTime(enc);break;
     case CMD_SQUELCH:    doSquelch(enca);break;
+    case CMD_AUTOSTORE:  autoStoreIdx = wrap_range(autoStoreIdx, scrollDirection * enc, 0, LAST_ITEM(autoStoreActions));break;
     case CMD_UPDATEFW:   updateFwIdx = wrap_range(updateFwIdx, scrollDirection * enc, 0, LAST_ITEM(updateFwActions));break;
     case CMD_ABOUT:      doAbout(enc);break;
     default:             return(false);
@@ -1158,6 +1199,7 @@ bool clickHandler(uint16_t cmd, bool shortPress)
     case CMD_SQUELCH:  clickSquelch(shortPress);break;
     case CMD_SEEK:     clickSeek(shortPress);break;
     case CMD_SCAN:     clickScan(shortPress);break;
+    case CMD_AUTOSTORE:clickAutoStore(shortPress);break;
     case CMD_FREQ:     return(clickFreq(shortPress));
     case CMD_DATETIME: clickDateTime(shortPress);break;
     default:           return(false);
@@ -1674,6 +1716,8 @@ static void drawMemory(int x, int y, int sx)
 
     if(!memories[j].freq)
       text = "- - -";
+    else if(memories[j].name[0])
+      text = memories[j].name;
     else if(memories[j].mode==FM)
       sprintf(buf, "%3.2f %s", memories[j].freq / 1000000.0, bandModeDesc[memories[j].mode]);
     else
@@ -1688,6 +1732,25 @@ static void drawMemory(int x, int y, int sx)
 
     spr.setTextDatum(MC_DATUM);
     spr.drawString(text, 40+x+(sx/2), 64+y+(i*16), FONT_SMALL);
+  }
+}
+
+static void drawAutoStore(int x, int y, int sx)
+{
+  drawCommon(menu[MENU_AUTOSTORE], x, y, sx, true);
+
+  for(int i=0 ; i<ITEM_COUNT(autoStoreActions) ; i++)
+  {
+    if(i == autoStoreIdx)
+    {
+      drawZoomedMenu(autoStoreActions[i]);
+      spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
+    }
+    else
+      spr.setTextColor(TH.menu_item);
+
+    spr.setTextDatum(MC_DATUM);
+    spr.drawString(autoStoreActions[i], 40+x+(sx/2), 64+y+((i-autoStoreIdx)*16), FONT_SMALL);
   }
 }
 
@@ -2010,6 +2073,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_BRT:        drawBrt(x, y, sx);        break;
     case CMD_RDS:        drawRDSMode(x, y, sx);    break;
     case CMD_MEMORY:     drawMemory(x, y, sx);     break;
+    case CMD_AUTOSTORE:  drawAutoStore(x, y, sx);  break;
     case CMD_SLEEP:      drawSleep(x, y, sx);      break;
     case CMD_SLEEPMODE:  drawSleepMode(x, y, sx);  break;
     case CMD_USBMODE:    drawUSBMode(x, y, sx);    break;
