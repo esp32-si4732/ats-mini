@@ -60,7 +60,7 @@ void prefsInvalidate()
 
 struct SavedBand
 {
-  uint8_t bandMode;       // Band mode (FM, AM, LSB, or USB)
+  uint8_t bandMode;       // Band mode (FM, LSB, USB, AM, SAML, or SAMU)
   uint16_t currentFreq;   // Current frequency
   int8_t currentStepIdx;  // Current frequency step
   int8_t bandwidthIdx;    // Index of the table bandwidthFM, bandwidthAM or bandwidthSSB;
@@ -104,7 +104,9 @@ bool prefsLoadBand(uint8_t idx, bool openPrefs)
   sprintf(name, "Band-%d", idx);
 
   // Read preference
-  bool result = !!prefs.getBytes(name, &value, sizeof(value));
+  bool result = prefs.getBytes(name, &value, sizeof(value)) == sizeof(value)
+                && value.bandMode < getTotalModes()
+                && (value.bandMode == FM) == (bands[idx].bandMode == FM);
   if(result)
   {
     bands[idx].currentFreq    = value.currentFreq;    // Frequency
@@ -150,7 +152,10 @@ bool prefsLoadMemory(uint8_t idx, bool openPrefs)
   sprintf(name, "Memory-%d", idx);
 
   // Write a preference
-  bool result = !!prefs.getBytes(name, &memories[idx], sizeof(memories[idx]));
+  bool result = prefs.getBytes(name, &memories[idx], sizeof(memories[idx])) == sizeof(memories[idx])
+                && memories[idx].mode < getTotalModes()
+                && memories[idx].band < getTotalBands();
+  if(!result) memories[idx].freq = 0;
 
   // Done with memory preferences
   if(openPrefs) prefs.end();
@@ -178,10 +183,13 @@ void prefsSave(uint32_t items)
     prefs.putUChar("FmAGC",       FmAgcIdx);       // FM AGC/ATTN
     prefs.putUChar("AmAGC",       AmAgcIdx);       // AM AGC/ATTN
     prefs.putUChar("SsbAGC",      SsbAgcIdx);      // SSB AGC/ATTN
+    prefs.putUChar("SamAGC",      SamAgcIdx);      // SAM AGC/ATTN
     prefs.putUChar("AmAVC",       AmAvcIdx);       // AM AVC
     prefs.putUChar("SsbAVC",      SsbAvcIdx);      // SSB AVC
+    prefs.putUChar("SamAVC",      SamAvcIdx);      // SAM AVC
     prefs.putUChar("AmSoftMute",  AmSoftMuteIdx);  // AM soft mute
     prefs.putUChar("SsbSoftMute", SsbSoftMuteIdx); // SSB soft mute
+    prefs.putUChar("SamSoftMute", SamSoftMuteIdx); // SAM soft mute
     prefs.putUShort("Sleep",      currentSleep);   // Sleep delay
     prefs.putUChar("Theme",       themeIdx);       // Color theme
     prefs.putUChar("RDSMode",     rdsModeIdx);     // RDS mode
@@ -195,6 +203,8 @@ void prefsSave(uint32_t items)
                                   ((uint32_t)currentSquelch[USB] << 16) |
                                   ((uint32_t)currentSquelch[AM] << 24)); // Squelch
     prefs.putUChar("FmRegion",    FmRegionIdx);    // FM region
+    prefs.putUChar("SamlSquelch", currentSquelch[SAML]);
+    prefs.putUChar("SamuSquelch", currentSquelch[SAMU]);
     prefs.putUChar("FmStereo",    fmStereoIdx);    // FM stereo mode
     prefs.putUChar("DSPPatchset", dspPatchesIdx);  // DSP patches
     prefs.putUChar("UILayout",    uiLayoutIdx);    // UI Layout
@@ -259,10 +269,13 @@ bool prefsLoad(uint32_t items)
     FmAgcIdx       = prefs.getUChar("FmAGC", FmAgcIdx);         // FM AGC/ATTN
     AmAgcIdx       = prefs.getUChar("AmAGC", AmAgcIdx);         // AM AGC/ATTN
     SsbAgcIdx      = prefs.getUChar("SsbAGC", SsbAgcIdx);       // SSB AGC/ATTN
+    SamAgcIdx      = prefs.getUChar("SamAGC", SamAgcIdx);       // SAM AGC/ATTN
     AmAvcIdx       = prefs.getUChar("AmAVC", AmAvcIdx);         // AM AVC
     SsbAvcIdx      = prefs.getUChar("SsbAVC", SsbAvcIdx);       // SSB AVC
+    SamAvcIdx      = prefs.getUChar("SamAVC", SamAvcIdx);       // SAM AVC
     AmSoftMuteIdx  = prefs.getUChar("AmSoftMute", AmSoftMuteIdx);   // AM soft mute
     SsbSoftMuteIdx = prefs.getUChar("SsbSoftMute", SsbSoftMuteIdx); // SSB soft mute
+    SamSoftMuteIdx = prefs.getUChar("SamSoftMute", SamSoftMuteIdx); // SAM soft mute
     currentSleep   = prefs.getUShort("Sleep", currentSleep);    // Sleep delay
     themeIdx       = prefs.getUChar("Theme", themeIdx);         // Color theme
     rdsModeIdx     = prefs.getUChar("RDSMode", rdsModeIdx);     // RDS mode
@@ -279,6 +292,8 @@ bool prefsLoad(uint32_t items)
     currentSquelch[LSB] = (squelch >> 8) & 0xff;
     currentSquelch[USB] = (squelch >> 16) & 0xff;
     currentSquelch[AM]  = (squelch >> 24) & 0xff;
+    currentSquelch[SAML] = prefs.getUChar("SamlSquelch", currentSquelch[SAML]);
+    currentSquelch[SAMU] = prefs.getUChar("SamuSquelch", currentSquelch[SAMU]);
     FmRegionIdx    = prefs.getUChar("FmRegion", FmRegionIdx);   // FM region
     fmStereoIdx    = prefs.getUChar("FmStereo", fmStereoIdx);   // FM stereo mode
     dspPatchesIdx  = prefs.getUChar("DSPPatchset", DSP_PATCHES_DEFAULT); // Uploaded patch set

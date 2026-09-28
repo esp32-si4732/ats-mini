@@ -51,24 +51,24 @@ Controls are implemented through the encoder knob:
 
 The menu can be invoked by clicking the encoder button and is closed automatically after a couple of seconds.
 
-* **Mode** - FM (only available on the VHF band); LSB, USB, AM (available on other bands). The receiver doesn't support the NFM mode (on any band, including the CB) due to limitations of the SI4732 chip.
+* **Mode** - FM (only available on the VHF band); LSB, USB, AM, SAML, SAMU (available on other bands). SAML/SAMU receive AM using the lower/upper sideband with carrier tracking; try either to reduce interference from nearby stations. The receiver doesn't support the NFM mode (on any band, including the CB) due to limitations of the SI4732 chip.
 * **Band** - List of [Bands](#bands-table).
 * **Volume** - 0 (silent) ... 63 (max). The headphone volume level can be low (compared to the built-in speaker) due to limitation of the initial hardware design. Use short press to mute/unmute.
 * **Step** - Tuning step (not every step is available on every band and mode).
-* **Seek** - Seek up or down on AM/FM, normal tuning on LSB/USB (hardware seek function is not supported by SI4732 on SSB). Rotate or click the encoder to stop the seek. Use short press to switch between the seek and [schedule](#schedule) modes. Use press and rotate for manual fine tuning.
-* **Scan** - Scan a frequency range and plot the RSSI (S) and SNR (N) graphs (unfortunately, these metrics are almost meaningless in SSB modes due to SI4732 patch limitations). Both graphs are normalized to 0.0 - 1.0 range. While the Scan mode is active, short press the encoder for 0.5 seconds to rescan. To abort a running scan process click or rotate the encoder.
+* **Seek** - Seek up or down on AM/FM, normal tuning on LSB/USB/SAML/SAMU (hardware seek function is not supported by SI4732 on SSB). Rotate or click the encoder to stop the seek. Use short press to switch between the seek and [schedule](#schedule) modes. Use press and rotate for manual fine tuning.
+* **Scan** - Scan a frequency range and plot the RSSI (S) and SNR (N) graphs (unfortunately, these metrics are almost meaningless in LSB/USB/SAML/SAMU). Both graphs are normalized to 0.0 - 1.0 range. While the Scan mode is active, short press the encoder for 0.5 seconds to rescan. To abort a running scan process click or rotate the encoder.
 * **Memory** - 99 slots to store favorite frequencies. Short press (>0.5 sec) on an empty slot to store the current frequency, short press to erase a slot, switch between stored slots by rotating the encoder, click to exit the menu. It is also possible to edit the memory slots via [remote control](remote.md) or via the [web based tool](memory.md) in Google Chrome.
-* **Squelch** - mute the speaker when the selected RSSI (dBuV) or SNR (dB) level is lower than the defined threshold. The setting is saved separately for each mode (FM, LSB, USB, AM). When Off, short press the encoder button to switch between RSSI and SNR. When enabled, short press turns squelch Off. Unlikely to work in SSB mode.
+* **Squelch** - mute the speaker when the selected RSSI (dBuV) or SNR (dB) level is lower than the defined threshold. The setting is saved separately for each mode (FM, LSB, USB, AM, SAML, SAMU). When Off, short press the encoder button to switch between RSSI and SNR. When enabled, short press turns squelch Off. Unlikely to work in LSB/USB/SAML/SAMU.
 * **Bandwidth** - Selects the bandwidth of the channel filter.
-* **AGC/ATTN** - Automatic Gain Control (on/off) or Attenuation level. The attenuator is not applicable to SSB mode.
+* **AGC/ATTN** - Automatic Gain Control (on/off) or Attenuation level. The attenuator is not applicable to LSB/USB/SAML/SAMU.
 * **AVC** - Sets the maximum gain for automatic volume control (not applicable to FM mode). In LSB/USB, short press toggles Hold to disable AVC and hold the current gain. Rotate to resume automatic AVC and adjust the maximum gain. Hold is temporary and clears on band/mode reinitialization or restart; the displayed maximum gain is not a measurement of held gain.
-* **SoftMute** - Sets softmute max attenuation (only applicable to AM/SSB).
+* **SoftMute** - Sets softmute max attenuation (only applicable to AM/SSB/SAM).
 * **Settings** - Settings submenu.
 
 ## Settings menu
 
 * **Brightness** - Display brightness level (10...255). The minimal one draws about 80mA of the battery power, the default one about 100mA, the max level about 120mA.
-* **Calibration** - SSB calibration offset (-2000...2000, per mode/band).
+* **Calibration** - SSB calibration offset (-2000...2000, per mode/band). SAML shares LSB calibration; SAMU shares USB calibration.
 * **RDS** - Radio Data System options: PS - radio station name, CT - date and time, RT - text, PTY - genre, ALL (EU/US) - everything. RDS CT should contain UTC date and time, but some stations incorrectly transmit local or completely bogus values. The clock is synchronized from RDS only once. To synchronize it again, disable and re-enable RDS CT or switch the receiver off and on.
 * **UTC Offset** - Affects the displayed date and time. Please note that automatic DST transitions are not supported; the offset needs to be adjusted manually.
 * **Date/Time** - Set the UTC date and time with the encoder. Click to select the next field, or short press to set the clock and close the menu. A timeout closes the menu without changing the clock.

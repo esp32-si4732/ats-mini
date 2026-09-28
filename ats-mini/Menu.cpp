@@ -181,7 +181,7 @@ const FMRegion fmRegions[] = {
 // Mode Menu
 //
 
-const char *bandModeDesc[] = { "FM", "LSB", "USB", "AM" };
+const char *bandModeDesc[] = { "FM", "LSB", "USB", "AM", "SAML", "SAMU" };
 
 int getTotalModes() { return(ITEM_COUNT(bandModeDesc)); }
 
@@ -387,15 +387,17 @@ static const Step amSteps[] =
   { 1000, "1M",   10 },
 };
 
-static const Step *steps[4] = { fmSteps, ssbSteps, ssbSteps, amSteps };
-static const uint8_t defaultStepIdx[4] = { 2, 5, 5, 1 };
+static const Step *steps[] = { fmSteps, ssbSteps, ssbSteps, amSteps, ssbSteps, ssbSteps };
+static const uint8_t defaultStepIdx[] = { 2, 5, 5, 1, 5, 5 };
 
 static int getLastStep(int mode)
 {
   switch(mode)
   {
     case FM:  return(LAST_ITEM(fmSteps));
-    case LSB: return(LAST_ITEM(ssbSteps));
+    case SAML:
+    case SAMU:
+    case LSB:
     case USB: return(LAST_ITEM(ssbSteps));
     case AM:  return(LAST_ITEM(amSteps));
   }
@@ -477,19 +479,21 @@ static const Bandwidth amBandwidths[] =
   { 0, "6.0k" }
 };
 
-static const Bandwidth *bandwidths[4] =
+static const Bandwidth *bandwidths[] =
 {
-  fmBandwidths, ssbBandwidths, ssbBandwidths, amBandwidths
+  fmBandwidths, ssbBandwidths, ssbBandwidths, amBandwidths, ssbBandwidths, ssbBandwidths
 };
 
-static const uint8_t defaultBwIdx[4] = { 0, 4, 4, 4 };
+static const uint8_t defaultBwIdx[] = { 0, 4, 4, 4, 4, 4 };
 
 static int getLastBandwidth(int mode)
 {
   switch(mode)
   {
     case FM:  return(LAST_ITEM(fmBandwidths));
-    case LSB: return(LAST_ITEM(ssbBandwidths));
+    case SAML:
+    case SAMU:
+    case LSB:
     case USB: return(LAST_ITEM(ssbBandwidths));
     case AM:  return(LAST_ITEM(amBandwidths));
   }
@@ -514,6 +518,8 @@ static void setBandwidth()
     case AM:
       rx.setBandwidth(idx, 1);
       break;
+    case SAML:
+    case SAMU:
     case LSB:
     case USB:
       // Set Audio
@@ -704,27 +710,20 @@ void doAvc(int16_t enc)
   // Only allow for AM and SSB modes
   if(currentMode==FM) return;
 
-  // wrap_range expects to wrap a range of incremental numbers. avc instead is a range of all even numbers
-  int8_t newAvcIdx = wrap_range((isSSB() ? SsbAvcIdx : AmAvcIdx) / 2, enc, 12 / 2, 90 / 2) * 2;
-  if(isSSB())
+  int8_t &avcIdx = isSyncMode(currentMode) ? SamAvcIdx : isSSB() ? SsbAvcIdx : AmAvcIdx;
+  // AVC changes in steps of 2 dB.
+  avcIdx = wrap_range(avcIdx / 2, enc, 12 / 2, 90 / 2) * 2;
+  if(isSSB() && enc && ssbAvcHold)
   {
-    SsbAvcIdx = newAvcIdx;
-    if(enc && ssbAvcHold)
-    {
-      ssbAvcHold = false;
-      rx.setSSBAutomaticVolumeControl(1);
-    }
+    ssbAvcHold = false;
+    rx.setSSBAutomaticVolumeControl(1);
   }
-  else
-  {
-    AmAvcIdx = newAvcIdx;
-  }
-  rx.setAvcAmMaxGain(newAvcIdx);
+  rx.setAvcAmMaxGain(avcIdx);
 }
 
 static void clickAvc(bool shortPress)
 {
-  if(shortPress && isSSB())
+  if(shortPress && isSSB() && !isSyncMode(currentMode))
   {
     ssbAvcHold = !ssbAvcHold;
     rx.setSSBAutomaticVolumeControl(!ssbAvcHold);
@@ -785,9 +784,9 @@ static void doDspPatches(int16_t enc)
 
 void doCal(int16_t enc)
 {
-  if (currentMode == USB)
+  if (currentMode == USB || currentMode == SAMU)
     bands[bandIdx].usbCal = clamp_range(bands[bandIdx].usbCal, 10*enc, -MAX_CAL, MAX_CAL);
-  else if (currentMode == LSB)
+  else if (currentMode == LSB || currentMode == SAML)
     bands[bandIdx].lsbCal = clamp_range(bands[bandIdx].lsbCal, 10*enc, -MAX_CAL, MAX_CAL);
   // else: no calibration change for other modes
 
@@ -955,6 +954,8 @@ void doAgc(int16_t enc)
 {
   if(currentMode==FM)
     agcIdx = FmAgcIdx = wrap_range(FmAgcIdx, enc, 0, 27);
+  else if(isSyncMode(currentMode))
+    agcIdx = SamAgcIdx = wrap_range(SamAgcIdx, enc, 0, 1);
   else if(isSSB())
     agcIdx = SsbAgcIdx = wrap_range(SsbAgcIdx, enc, 0, 1);
   else
@@ -981,19 +982,21 @@ void doMode(int16_t enc)
   // Cannot change away from FM mode
   if(currentMode==FM) return;
 
-  // Change AM/LSB/USB modes, do not allow FM mode
+  // Cycle non-FM modes, including synchronous AM
   do
     currentMode = wrap_range(currentMode, enc, 0, LAST_ITEM(bandModeDesc));
   while(currentMode==FM);
 
-  // Save current band settings
-  bands[bandIdx].currentFreq = currentFrequency + currentBFO / 1000;
+  // Preserve the tuned frequency, including sub-kHz offsets in SSB modes.
+  uint32_t freqHz = freqToHz(currentFrequency, currentMode) + currentBFO;
+  bands[bandIdx].currentFreq = freqHz / 1000;
   bands[bandIdx].currentStepIdx = defaultStepIdx[currentMode];
   bands[bandIdx].bandwidthIdx = defaultBwIdx[currentMode];
   bands[bandIdx].bandMode = currentMode;
 
   // Enable the new band
   selectBand(bandIdx);
+  if(isSSB()) updateBFO(bfoFromHz(freqHz));
 }
 
 void doSquelch(int16_t enc)
@@ -1008,7 +1011,9 @@ void doSoftMute(int16_t enc)
   // Nothing to do if FM mode
   if(currentMode==FM) return;
 
-  if(isSSB())
+  if(isSyncMode(currentMode))
+    softMuteMaxAttIdx = SamSoftMuteIdx = wrap_range(SamSoftMuteIdx, enc, 0, 32);
+  else if(isSSB())
     softMuteMaxAttIdx = SsbSoftMuteIdx = wrap_range(SsbSoftMuteIdx, enc, 0, 32);
   else
     softMuteMaxAttIdx = AmSoftMuteIdx = wrap_range(AmSoftMuteIdx, enc, 0, 32);
@@ -1331,11 +1336,12 @@ static void drawMode(int x, int y, int sx)
 {
   drawCommon(menu[MENU_MODE], x, y, sx, true);
 
-  int count = ITEM_COUNT(bandModeDesc);
+  int count = ITEM_COUNT(bandModeDesc) - 1;
   for(int i=-2 ; i<3 ; i++)
   {
+    int mode = currentMode == FM ? FM : 1 + (currentMode - 1 + count + i) % count;
     if(i==0) {
-      drawZoomedMenu(bandModeDesc[abs((currentMode+count+i)%count)]);
+      drawZoomedMenu(bandModeDesc[mode]);
       spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
     } else {
       spr.setTextColor(TH.menu_item);
@@ -1343,7 +1349,7 @@ static void drawMode(int x, int y, int sx)
 
     spr.setTextDatum(MC_DATUM);
     if((currentMode!=FM) || (i==0))
-     spr.drawString(bandModeDesc[abs((currentMode+count+i)%count)], 40+x+(sx/2), 64+y+(i*16), FONT_SMALL);
+     spr.drawString(bandModeDesc[mode], 40+x+(sx/2), 64+y+(i*16), FONT_SMALL);
   }
 }
 
@@ -1814,12 +1820,12 @@ static void drawCal(int x, int y, int sx)
   spr.setTextDatum(MC_DATUM);
 
   spr.setTextColor(TH.menu_param);
-  if (currentMode == USB)
+  if (currentMode == USB || currentMode == SAMU)
   {
     spr.drawString("USB", 40+x+(sx/2), 35+y, FONT_SMALL);
     spr.drawNumber(getCurrentBand()->usbCal, 40+x+(sx/2), 65+y, FONT_LARGE);
   }
-  else if (currentMode == LSB)
+  else if (currentMode == LSB || currentMode == SAML)
   {
     spr.drawString("LSB", 40+x+(sx/2), 35+y, FONT_SMALL);
     spr.drawNumber(getCurrentBand()->lsbCal, 40+x+(sx/2), 65+y, FONT_LARGE);
@@ -1847,7 +1853,7 @@ static void drawAvc(int x, int y, int sx)
   // Only show AVC for AM and SSB modes
   if(currentMode!=FM)
   {
-    int currentAvc = isSSB()? SsbAvcIdx : AmAvcIdx;
+    int currentAvc = isSyncMode(currentMode) ? SamAvcIdx : isSSB() ? SsbAvcIdx : AmAvcIdx;
     spr.drawNumber(currentAvc, 40+x+(sx/2), 60+y, FONT_LARGE);
     spr.drawString("dB", 40+x+(sx/2), 90+y, FONT_LARGE);
   }
@@ -2022,6 +2028,8 @@ static void drawInfo(int x, int y, int sx)
       sprintf(text, "n/a");
     else if(isSSB() && ssbAvcHold)
       sprintf(text, "Hold");
+    else if(isSyncMode(currentMode))
+      sprintf(text, "%2.2ddB", SamAvcIdx);
     else if(isSSB())
       sprintf(text, "%2.2ddB", SsbAvcIdx);
     else

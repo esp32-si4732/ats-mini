@@ -410,6 +410,7 @@ uint16_t bfoFromHz(uint32_t freq)
 //
 bool isMemoryInBand(const Band *band, const Memory *memory)
 {
+  if(memory->mode >= getTotalModes()) return(false);
   uint16_t freq = freqFromHz(memory->freq, memory->mode);
   if(freq<band->minimumFreq) return(false);
   if(freq>band->maximumFreq) return(false);

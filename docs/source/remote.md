@@ -125,7 +125,7 @@ The ad hoc protocol is the main remote-control protocol. It can be used over:
 | <kbd>C</kbd> | Screenshot          | Capture a screenshot and print it as a BMP image in HEX format                                   |
 | <kbd>c</kbd> | Screenshot (binary) | Capture a screenshot as a raw little-endian RGB565 BMP (about half the bytes of `C`)             |
 | <kbd>$</kbd> | Show Memory Slots   | Show memory slots in a format suitable for restoring them after the reset                        |
-| <kbd>#</kbd> | Set Memory Slot     | Example `#01,VHF,107900000,FM` (slot, band, frequency, mode). Set freq to 0 to clear a slot.     |
+| <kbd>#</kbd> | Set Memory Slot     | Example `#01,VHF,107900000,FM` (slot, band, frequency, mode). Modes: FM, LSB, USB, AM, SAML, SAMU. Set freq to 0 to clear a slot. |
 | <kbd>F</kbd> | Set Frequency       | Example `F107900000`. Frequency is in Hz and must stay within the current band. In SSB modes, sub-kHz digits set the BFO. |
 | <kbd>T</kbd> | Theme Editor        | Toggle the [theme editor](development.md#theme-editor) on and off                                |
 | <kbd>@</kbd> | Get Theme           | Print the current color theme                                                                    |
@@ -146,7 +146,7 @@ The following comma separated information is sent out when the monitor (log) mod
 | 3        | currentBFO       | BFO               | SSB = Hz                                           |
 | 4        | bandCal          | BFO               | SSB = Hz                                           |
 | 5        | bandName         | Band              | See the [bands table](manual.md#bands-table)       |
-| 6        | currentMode      | Mode              | FM/LSB/USB/AM                                      |
+| 6        | currentMode      | Mode              | FM/LSB/USB/AM/SAML/SAMU                                      |
 | 7        | currentStepIdx   | Step              |                                                    |
 | 8        | bandwidthIdx     | Bandwidth         |                                                    |
 | 9        | agcIdx           | AGC/Attn          |                                                    |
@@ -157,7 +157,7 @@ The following comma separated information is sent out when the monitor (log) mod
 | 14       | remoteVoltage    | ADC average value | Voltage = Value x 1.702 / 1000                     |
 | 15       | remoteSeqnum     | Sequence number   | 0 to 255 repeating sequence                        |
 
-In SSB mode, the "Display" frequency (Hz) = (currentFrequency x 1000) + currentBFO
+In SSB and synchronous AM modes, the "Display" frequency (Hz) = (currentFrequency x 1000) + currentBFO
 
 #### Making screenshots
 

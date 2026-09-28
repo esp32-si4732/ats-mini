@@ -248,8 +248,8 @@ static bool remoteSetMemory(Stream* stream)
   if (remoteReadChar(stream) != ',')
     return remoteShowError(stream, "Expected ','");
 
-  char mode[4];
-  remoteReadString(stream, mode, 4);
+  char mode[5];
+  remoteReadString(stream, mode, sizeof(mode));
   if (!expectNewline(stream))
     return remoteShowError(stream, "Expected newline");
   stream->println();
@@ -361,8 +361,8 @@ void remotePrintStatus(Stream* stream, RemoteState* state)
                 VER_APP,
                 currentFrequency,
                 currentBFO,
-                ((currentMode == USB) ? getCurrentBand()->usbCal :
-                 (currentMode == LSB) ? getCurrentBand()->lsbCal : 0),
+                ((currentMode == USB || currentMode == SAMU) ? getCurrentBand()->usbCal :
+                 (currentMode == LSB || currentMode == SAML) ? getCurrentBand()->lsbCal : 0),
                 getCurrentBand()->bandName,
                 bandModeDesc[currentMode],
                 getCurrentStep()->desc,

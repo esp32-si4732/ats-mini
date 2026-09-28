@@ -19,6 +19,7 @@ static bool patchBusy = false;
 static int pendingSelection = -1;
 static uint8_t loadedSlot = 255;
 static uint8_t loadedMode = 255;
+static bool loadedSync = false;
 
 struct PatchLock
 {
@@ -248,7 +249,9 @@ void loadDSPPatch(uint8_t bandwidth, bool draw)
   uint8_t mode = isSSB()? PATCH_SSB : PATCH_AM;
   uint8_t slot = dspPatchesIdx;
   if(slot > PATCH_SET_COUNT || (slot && !LittleFS.exists(patchPath(slot, mode)))) slot = 0;
-  if(mode == loadedMode && slot == loadedSlot) return;
+  bool sync = isSyncMode(currentMode);
+  // Reload the SSB patch when switching synchronous detection on or off.
+  if(mode == loadedMode && slot == loadedSlot && sync == loadedSync) return;
 
   uint8_t *content = nullptr;
   size_t size = 0;
@@ -289,4 +292,5 @@ void loadDSPPatch(uint8_t bandwidth, bool draw)
   free(content);
   loadedSlot = slot;
   loadedMode = mode;
+  loadedSync = sync;
 }

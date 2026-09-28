@@ -57,23 +57,26 @@ volatile int16_t encoderCount = 0;
 volatile int16_t encoderCountAccel = 0;
 uint16_t currentFrequency;
 
-// AGC/ATTN index per mode (FM/AM/SSB)
+// AGC/ATTN index per mode (FM/AM/SSB/SAM)
 int8_t FmAgcIdx = 0;                    // Default FM  AGGON  : Range = 0 to 37, 0 = AGCON, 1 - 27 = ATTN 0 to 26
 int8_t AmAgcIdx = 0;                    // Default AM  AGCON  : Range = 0 to 37, 0 = AGCON, 1 - 37 = ATTN 0 to 36
 int8_t SsbAgcIdx = 0;                   // Default SSB AGCON  : Range = 0 to 1,  0 = AGCON,      1 = ATTN 0
+int8_t SamAgcIdx = 0;                 // SAM AGC/ATTN (0 = AGC on, 1 = off)
 
-// AVC index per mode (AM/SSB)
+// AVC index per mode (AM/SSB/SAM)
 int8_t AmAvcIdx = 48;                   // Default AM  = 48 (as per AN332), range = 12 to 90 in steps of 2
 int8_t SsbAvcIdx = 48;                  // Default SSB = 48, range = 12 to 90 in steps of 2
 bool ssbAvcHold = false;                // Temporary; cleared when the band/mode is reinitialized
+int8_t SamAvcIdx = 48;                // SAM AVC, range 12 to 90 in steps of 2
 
-// SoftMute index per mode (AM/SSB)
+// SoftMute index per mode (AM/SSB/SAM)
 int8_t AmSoftMuteIdx = 4;               // Default AM  = 4, range = 0 to 32
 int8_t SsbSoftMuteIdx = 4;              // Default SSB = 4, range = 0 to 32
+int8_t SamSoftMuteIdx = 4;            // SAM soft mute, range 0 to 32
 
 // Menu options
 uint8_t volume = DEFAULT_VOLUME;        // Volume, range = 0 (muted) - 63
-uint8_t currentSquelch[4] = {0};        // Squelch per mode: lower 7 bits = threshold, high bit selects SNR (1) vs RSSI (0)
+uint8_t currentSquelch[6] = {0};        // Squelch per mode: lower 7 bits = threshold, high bit selects SNR (1) vs RSSI (0)
 uint8_t FmRegionIdx = 0;                // FM Region
 
 uint16_t currentBrt = 130;              // Display brightness, range = 10 to 255 in steps of 5
@@ -400,15 +403,15 @@ void useBand(const Band *band)
     else
     {
       // Configure SI4732 for SSB (SI4732 step not used, set to 0)
-      rx.setSSB(band->minimumFreq, band->maximumFreq, band->currentFreq, 0, currentMode);
-      // Initialize SSB with automatic AVC and AFC disabled
-      rx.setSSBConfig(getCurrentBandwidth()->idx, 1, 0, 1, 0, 1);
+      rx.setSSB(band->minimumFreq, band->maximumFreq, band->currentFreq, 0, currentMode == SAML ? LSB : currentMode == SAMU ? USB : currentMode);
+      // Initialize automatic AVC and enable AFC only for synchronous AM
+      rx.setSSBConfig(getCurrentBandwidth()->idx, 1, isSyncMode(currentMode) ? 3 : 0, 1, 0, isSyncMode(currentMode) ? 0 : 1);
       // G8PTN: Commented out
       //rx.setSsbSoftMuteMaxAttenuation(softMuteMaxAttIdx);
       // To move frequency forward, need to move the BFO backwards
-      if (currentMode == USB)
+      if (currentMode == USB || currentMode == SAMU)
         rx.setSSBBfo(-(currentBFO + band->usbCal));
-      else if (currentMode == LSB)
+      else if (currentMode == LSB || currentMode == SAML)
         rx.setSSBBfo(-(currentBFO + band->lsbCal));
       else
         rx.setSSBBfo(-currentBFO);  // No calibration if not USB/LSB
@@ -492,9 +495,9 @@ bool updateBFO(int newBFO, bool wrap)
   currentBFO = newBFO;
 
   // To move frequency forward, need to move the BFO backwards
-  if (currentMode == USB)
+  if (currentMode == USB || currentMode == SAMU)
     rx.setSSBBfo(-(currentBFO + band->usbCal));
-  else if (currentMode == LSB)
+  else if (currentMode == LSB || currentMode == SAML)
     rx.setSSBBfo(-(currentBFO + band->lsbCal));
   else
     rx.setSSBBfo(-currentBFO);  // No calibration if not USB/LSB

@@ -35,6 +35,8 @@ static constexpr const lgfx::IFont* FONT_DIGITS  = &lgfx::fonts::Font7;  // 48px
 #define LSB           1
 #define USB           2
 #define AM            3
+#define SAML          4
+#define SAMU          5
 
 // RDS Modes
 #define RDS_PS        0b00000001  // Station name
@@ -133,7 +135,7 @@ typedef struct
 {
   const char *bandName;   // Band description
   uint8_t bandType;       // Band type (FM, MW, or SW)
-  uint8_t bandMode;       // Band mode (FM, AM, LSB, or USB)
+  uint8_t bandMode;       // Band mode (FM, LSB, USB, AM, SAML, or SAMU)
   uint16_t minimumFreq;   // Minimum frequency of the band
   uint16_t maximumFreq;   // Maximum frequency of the band
   uint16_t currentFreq;   // Default frequency or current frequency
@@ -202,11 +204,14 @@ extern uint8_t uiLayoutIdx;
 extern int8_t FmAgcIdx;
 extern int8_t AmAgcIdx;
 extern int8_t SsbAgcIdx;
+extern int8_t SamAgcIdx;
 extern int8_t AmAvcIdx;
 extern int8_t SsbAvcIdx;
 extern bool ssbAvcHold;
+extern int8_t SamAvcIdx;
 extern int8_t AmSoftMuteIdx;
 extern int8_t SsbSoftMuteIdx;
+extern int8_t SamSoftMuteIdx;
 extern uint8_t rdsModeIdx;
 extern uint8_t usbModeIdx;
 extern uint8_t tcpModeIdx;
@@ -223,7 +228,9 @@ extern uint8_t disableAgc;
 
 extern const int CALMax;
 
-static inline bool isSSB() { return(currentMode>FM && currentMode<AM); }
+// Synchronous AM uses the SSB patch.
+static inline bool isSyncMode(uint8_t mode) { return(mode == SAML || mode == SAMU); }
+static inline bool isSSB() { return(currentMode==LSB || currentMode==USB || isSyncMode(currentMode)); }
 
 void useBand(const Band *band);
 void setEncoderHalfStep(bool enabled);
