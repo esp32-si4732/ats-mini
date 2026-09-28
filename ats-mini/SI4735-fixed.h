@@ -3,6 +3,20 @@
 class SI4735_fixed: public SI4735
 {
   public:
+    // Clear stale SSB sideband bits before the first FM tune
+    void setFM(uint16_t fromFreq, uint16_t toFreq, uint16_t initialFreq, uint16_t step)
+    {
+      currentFrequencyParams.arg.USBLSB = 0;
+      SI4735::setFM(fromFreq, toFreq, initialFreq, step);
+    }
+
+    // Clear stale SSB sideband bits before the first AM tune
+    void setAM(uint16_t fromFreq, uint16_t toFreq, uint16_t initialFreq, uint16_t step)
+    {
+      currentFrequencyParams.arg.USBLSB = 0;
+      SI4735::setAM(fromFreq, toFreq, initialFreq, step);
+    }
+
     // Fixing SI4735::getRdsPI() bug where it only returns BLOCKAL
     uint16_t getRdsPI(void)
     {
