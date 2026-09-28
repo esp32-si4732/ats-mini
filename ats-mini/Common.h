@@ -60,7 +60,7 @@ static constexpr const lgfx::IFont* FONT_DIGITS  = &lgfx::fonts::Font7;  // 48px
 #define RESET_PIN     16            // GPIO16   SI4732/5 Reset
 #define ESP32_I2C_SCL  8            // GPIO8    SI4732/5 Clock
 #define ESP32_I2C_SDA 18            // GPIO18   SI4732/5 Data
-#define AUDIO_MUTE    17            // GPIO17   Hardware L/R mute, controlled via SI4735 code (1 = Mute)
+#define AUDIO_MUTE    17            // GPIO17   Hardware L/R mute, controlled by firmware (1 = Mute)
 #define PIN_AMP_EN    -1            // T-Embed shield has no separate amp enable pin
 
 // Display PINs
@@ -79,7 +79,7 @@ static constexpr const lgfx::IFont* FONT_DIGITS  = &lgfx::fonts::Font7;  // 48px
 #define RESET_PIN     16            // GPIO16   SI4732/5 Reset
 #define ESP32_I2C_SCL 17            // GPIO17   SI4732/5 Clock
 #define ESP32_I2C_SDA 18            // GPIO18   SI4732/5 Data
-#define AUDIO_MUTE     3            // GPIO3    Hardware L/R mute, controlled via SI4735 code (1 = Mute)
+#define AUDIO_MUTE     3            // GPIO3    Hardware L/R mute, controlled by firmware (1 = Mute)
 #define PIN_AMP_EN    10            // GPIO10   Hardware Audio Amplifer enable (1 = Enable)
 
 // Display PINs
