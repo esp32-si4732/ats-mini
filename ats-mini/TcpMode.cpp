@@ -70,6 +70,9 @@ int tcpLoop(uint8_t tcpMode)
 
   if(!tcpIsConnected()) return 0;
   remoteTickTime(&tcpClient, &remoteTCPState);
+  // Drive the chunked "$" memory dump. Both the accept path and tcpStop() reset
+  // remoteTCPState, so a dump never survives into another connection.
+  remoteMemoryDumpTick(&tcpClient, &remoteTCPState);
   if(!tcpClient.available()) return 0;
 
   return remoteDoCommand(&tcpClient, &remoteTCPState, tcpClient.read());

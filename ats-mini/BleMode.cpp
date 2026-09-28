@@ -102,8 +102,17 @@ int bleLoop(uint8_t bleMode)
   if (bleMode == BLE_ADHOC)
   {
     if (BLESerial.isConnected())
+    {
       remoteTickTime(&BLESerial, &remoteBLEState);
-    if (!BLESerial.isConnected()) return 0;
+      remoteMemoryDumpTick(&BLESerial, &remoteBLEState);
+    }
+    else
+    {
+      // Scope a chunked "$" dump to a single connection: drop any in-progress
+      // dump so it does not resume and stream unsolicited slots to a new client.
+      remoteBLEState.memoryDumpSlot = -1;
+      return 0;
+    }
     if (BLESerial.available())
       return remoteDoCommand(&BLESerial, &remoteBLEState, BLESerial.read());
     return 0;

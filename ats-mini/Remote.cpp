@@ -116,20 +116,50 @@ char remoteReadChar(Stream* stream)
 {
   char key;
 
-  while (!stream->available());
+  // Bound the wait so a BLE disconnect mid-command (e.g. during '#' or '^')
+  // cannot spin the cooperative loop forever and trip the task watchdog. The
+  // deadline never fires on USB or on a well-behaved BLE host that sends the
+  // whole command at once; delay(1) yields to the scheduler while waiting.
+  uint32_t deadline = millis() + 2000;
+  while (!stream->available())
+  {
+    if ((int32_t)(millis() - deadline) >= 0) return 0; // abort signal
+    delay(1);
+  }
   key = stream->read();
   stream->print(key);
   return key;
+}
+
+// Wait until a byte is available, then return it (via peek(), without consuming)
+// as an int; return -1 if none arrives within the deadline. Multi-byte commands
+// can dribble in over several loop ticks when typed in a terminal, so the parsers
+// must block here rather than give up on a momentarily empty buffer. The deadline
+// + delay(1) replace the previous unbounded busy-spin (`while(peek()==0xFF)`),
+// which on this toolchain (char is unsigned on Xtensa, so peek()==-1 became 0xFF)
+// would loop forever on a BLE disconnect and trip the task watchdog.
+static int remotePeekBlocking(Stream* stream)
+{
+  uint32_t deadline = millis() + 2000;
+  int peeked;
+  while ((peeked = stream->peek()) < 0)
+  {
+    if ((int32_t)(millis() - deadline) >= 0) return -1;
+    delay(1);
+  }
+  return peeked;
 }
 
 long int remoteReadInteger(Stream* stream)
 {
   long int result = 0;
   while (true) {
-    char ch = stream->peek();
-    if (ch == 0xFF) {
-      continue;
-    } else if ((ch >= '0') && (ch <= '9')) {
+    int peeked = remotePeekBlocking(stream);
+    if (peeked < 0) {
+      return result;
+    }
+    char ch = (char)peeked;
+    if ((ch >= '0') && (ch <= '9')) {
       ch = remoteReadChar(stream);
       // Can overflow, but it's ok
       result = result * 10 + (ch - '0');
@@ -143,28 +173,23 @@ void remoteReadString(Stream* stream, char *bufStr, uint8_t bufLen)
 {
   uint8_t length = 0;
   while (true) {
-    char ch = stream->peek();
-    if (ch == 0xFF) {
-      continue;
-    } else if (ch == ',' || ch < ' ') {
+    int peeked = remotePeekBlocking(stream);
+    if (peeked < 0 || (char)peeked == ',' || (char)peeked < ' ') {
       bufStr[length] = '\0';
       return;
-    } else {
-      ch = remoteReadChar(stream);
-      bufStr[length] = ch;
-      if (++length >= bufLen - 1) {
-        bufStr[length] = '\0';
-        return;
-      }
+    }
+    char ch = remoteReadChar(stream);
+    bufStr[length] = ch;
+    if (++length >= bufLen - 1) {
+      bufStr[length] = '\0';
+      return;
     }
   }
 }
 
 static bool expectNewline(Stream* stream)
 {
-  char ch;
-  while ((ch = stream->peek()) == 0xFF);
-  if (ch == '\r') {
+  if (remotePeekBlocking(stream) == '\r') {
     stream->read();
     return true;
   }
@@ -173,8 +198,10 @@ static bool expectNewline(Stream* stream)
 
 static bool remoteShowError(Stream* stream, const char *message)
 {
-  // Consume the remaining input
-  while (stream->available()) remoteReadChar(stream);
+  // Drain the remaining input without echoing it (remoteReadChar() echoes each
+  // byte, which over BLE means an extra write() per leftover byte before the
+  // error message, and pollutes the stream for line-oriented consumers).
+  while (stream->available()) stream->read();
   stream->printf("\r\nError: %s\r\n", message);
   return false;
 }
@@ -209,13 +236,24 @@ static bool remoteSetFrequency(Stream *stream)
   return true;
 }
 
-static void remoteGetMemories(Stream* stream)
+//
+// Emit one populated memory slot per call. The "$" command starts the dump by
+// setting state->memoryDumpSlot = 0; this is then driven once per loop tick so
+// a BLE transfer (~2 KB/s) hands out one ~35-byte slot at a time instead of
+// blocking the cooperative loop for ~1.7 s. The wire format is unchanged.
+//
+void remoteMemoryDumpTick(Stream* stream, RemoteState* state)
 {
-  for (uint8_t i = 0; i < getTotalMemories(); i++) {
+  if (state->memoryDumpSlot < 0) return;
+
+  while (state->memoryDumpSlot < getTotalMemories()) {
+    uint8_t i = state->memoryDumpSlot++;
     if (memories[i].freq) {
       stream->printf("#%02d,%s,%ld,%s\r\n", i + 1, bands[memories[i].band].bandName, memories[i].freq, bandModeDesc[memories[i].mode]);
+      return;
     }
   }
+  state->memoryDumpSlot = -1;
 }
 
 static bool remoteSetMemory(Stream* stream)
@@ -382,10 +420,11 @@ void remotePrintStatus(Stream* stream, RemoteState* state)
 //
 void remoteTickTime(Stream* stream, RemoteState* state)
 {
-  if(state->remoteLogOn && (millis() - state->remoteTimer >= 500))
+  uint32_t now = millis();
+  if(state->remoteLogOn && (now - state->remoteTimer >= 500))
   {
     // Mark time and increment diagnostic sequence number
-    state->remoteTimer = millis();
+    state->remoteTimer = now;
     state->remoteSeqnum++;
     // Show status
     remotePrintStatus(stream, state);
@@ -495,7 +534,8 @@ int remoteDoCommand(Stream* stream, RemoteState* state, char key)
       break;
 
     case '$':
-      remoteGetMemories(stream);
+      // Start a chunked dump; slots are emitted by remoteMemoryDumpTick().
+      state->memoryDumpSlot = 0;
       break;
     case '#':
       if (remoteSetMemory(stream))
@@ -530,6 +570,7 @@ static int serialLoop(Stream* stream, RemoteState* state, uint8_t usbMode)
   if(usbMode == USB_OFF) return 0;
 
   remoteTickTime(stream, state);
+  remoteMemoryDumpTick(stream, state);
 
   if (stream->available())
     return remoteDoCommand(stream, state, stream->read());
