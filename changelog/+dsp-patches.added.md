@@ -1,1 +1,0 @@
-Experimental AM/SSB patch sets can be uploaded over Wi-Fi and selected from the Patches page or Settings → DSP Patches. See [discussion #377](https://github.com/esp32-si4732/ats-mini/discussions/377).

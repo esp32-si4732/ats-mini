@@ -4,6 +4,30 @@ The user manual is available at <https://esp32-si4732.github.io/ats-mini/manual.
 
 <!-- towncrier release notes start -->
 
+## 2.41 (2026-09-29)
+
+
+### Added
+
+- An FM Stereo setting to force mono audio instead of letting the receiver blend down to mono by itself, which trades the stereo image for less hiss on weak stations. [#371](https://github.com/esp32-si4732/ats-mini/issues/371)
+- Binary screenshot command `c` sends a BMP file directly using half as much data. [#373](https://github.com/esp32-si4732/ats-mini/issues/373)
+- Add temporary AVC Hold in LSB/USB via short press in the AVC menu. Rotation resumes automatic AVC; band/mode reinitialization or restart clears Hold.
+- Experimental AM/SSB patch sets can be uploaded over Wi-Fi and selected from the Patches page or Settings → DSP Patches. See [discussion #377](https://github.com/esp32-si4732/ats-mini/discussions/377).
+
+
+### Changed
+
+- FM Region and FM Stereo can be changed in any mode and take effect when using FM. [#371](https://github.com/esp32-si4732/ats-mini/issues/371)
+- Faster screenshot capture with more reliable USB transfers. [#373](https://github.com/esp32-si4732/ats-mini/issues/373)
+- Scan for Bluetooth HID remotes with a 25% duty cycle instead of 100%, so the Bluetooth radio is busy for a quarter of each scan. [#374](https://github.com/esp32-si4732/ats-mini/issues/374)
+
+
+### Fixed
+
+- Keep controls responsive while showing Bluetooth, Wi-Fi, and firmware update status messages. [#374](https://github.com/esp32-si4732/ats-mini/issues/374)
+- Apply volume changes made while muted and preserve hardware mute across band/mode changes, including on T-Embed.
+- Initialize SSB consistently when switching from FM and clear leftover sideband bits when returning to AM or FM, so receiver configuration no longer depends on previously used modes.
+
 ## 2.40 (2026-09-19)
 
 
