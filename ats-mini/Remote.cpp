@@ -382,10 +382,13 @@ void remotePrintStatus(Stream* stream, RemoteState* state)
 //
 void remoteTickTime(Stream* stream, RemoteState* state)
 {
-  if(state->remoteLogOn && (millis() - state->remoteTimer >= 500))
+  if(!state->remoteLogOn) return;
+
+  uint32_t now = millis();
+  if(now - state->remoteTimer >= 500)
   {
     // Mark time and increment diagnostic sequence number
-    state->remoteTimer = millis();
+    state->remoteTimer = now;
     state->remoteSeqnum++;
     // Show status
     remotePrintStatus(stream, state);
