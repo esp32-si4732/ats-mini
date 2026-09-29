@@ -7,6 +7,8 @@
 #include "Splash.h"
 #include "TcpMode.h"
 #include "Ota.h"
+#include "Patches.h"
+#include <new>
 
 #include <WiFi.h>
 #include <WiFiMulti.h>
@@ -66,11 +68,15 @@ static void webUploadFirmwareComplete(AsyncWebServerRequest *request);
 static void webUpdatePage(AsyncWebServerRequest *request, const OtaStatus &status = otaStatus(), int code = 0);
 static void webUploadFirmware(AsyncWebServerRequest *request, const String &filename,
                               size_t index, uint8_t *data, size_t len, bool final);
+static void webPatchesPage(AsyncWebServerRequest *request);
+static void webPatchesComplete(AsyncWebServerRequest *request);
+static void webUploadPatch(AsyncWebServerRequest *request, const String &filename,
+                           size_t index, uint8_t *data, size_t len, bool final);
 static bool webParseUTCDateTime(const String &text, uint32_t *epoch);
 
 static const String webInputField(const String &name, const String &value, bool pass = false);
 static const String webStyleSheet();
-static const String webPage(const String &body);
+static const String webPage(const String &body, const char *title = "ATS-Mini Config");
 static String webNavigation(const char *activePage);
 static const String webUtcOffsetSelector();
 static const String webThemeSelector();
@@ -396,6 +402,9 @@ static void webInit()
     request->redirect("/update");
   });
 
+  server.on("/patches", HTTP_GET, webPatchesPage);
+  server.on("/patches", HTTP_POST, webPatchesComplete, webUploadPatch);
+
   // Start web server
   server.begin();
 }
@@ -706,6 +715,7 @@ static String webNavigation(const char *activePage)
     {"Memory", "/memory"},
     {"Config", "/config"},
     {"Update", "/update"},
+    {"Patches", "/patches"},
   };
   String result = "<P ALIGN='CENTER'>";
   for(size_t i = 0; i < sizeof(pages) / sizeof(pages[0]); i++)
@@ -717,7 +727,7 @@ static String webNavigation(const char *activePage)
   return result + "</P>";
 }
 
-static const String webPage(const String &body)
+static const String webPage(const String &body, const char *title)
 {
   return
 "<!DOCTYPE HTML>"
@@ -725,7 +735,7 @@ static const String webPage(const String &body)
 "<HEAD>"
   "<META CHARSET='UTF-8'>"
   "<META NAME='viewport' CONTENT='width=device-width, initial-scale=1.0'>"
-  "<TITLE>ATS-Mini Config</TITLE>"
+  "<TITLE>" + String(title) + "</TITLE>"
   "<STYLE>" + webStyleSheet() + "</STYLE>"
 "</HEAD>"
 "<BODY STYLE='font-family: sans-serif;'>" + body + "</BODY>"
@@ -1058,5 +1068,159 @@ static void webUpdatePage(AsyncWebServerRequest *request, const OtaStatus &statu
   AsyncWebServerResponse *response = request->beginResponse(code, "text/html", page);
   response->addHeader("Cache-Control", "no-store");
   response->addHeader("Connection", "close");
+  request->send(response);
+}
+
+static PatchUpload *webPatchBegin(AsyncWebServerRequest *request)
+{
+  if(request->_tempObject) return static_cast<PatchUpload *>(request->_tempObject);
+  PatchUpload *state = new(std::nothrow) PatchUpload();
+  if(!state) return nullptr;
+  request->_tempObject = state;
+  request->onDisconnect([request, state]() {
+    // Destroy the C++ upload context before the server frees _tempObject.
+    request->_tempObject = nullptr;
+    delete state;
+  });
+  if(!request->hasParam("slot", true) || !request->hasParam("action", true))
+  {
+    state->error = "Missing patch slot or action.";
+    return state;
+  }
+  String slot = request->getParam("slot", true)->value();
+  String action = request->getParam("action", true)->value();
+  if(slot.length() != 1 || slot[0] < '0' || slot[0] > '3' ||
+     action != "upload")
+  {
+    state->error = "Invalid patch slot or action.";
+    return state;
+  }
+  uint8_t mode = PATCH_MODE_COUNT;
+  if(request->hasParam("mode", true))
+    for(uint8_t i = 0; i < PATCH_MODE_COUNT; i++)
+      if(request->getParam("mode", true)->value() == patchModeNames[i]) mode = i;
+  state->begin(slot[0] - '0', static_cast<PatchMode>(mode));
+  return state;
+}
+
+static void webUploadPatch(AsyncWebServerRequest *request, const String &filename,
+                           size_t index, uint8_t *data, size_t len, bool final)
+{
+  if(!webIsAuthenticated(request) || request->getResponse()) return;
+  if(filename.isEmpty() && index == 0 && len == 0 && final) return;
+  PatchUpload *state = webPatchBegin(request);
+  if(!state) return request->send(503, "text/plain", "Not enough memory to process the patch set.");
+  if(state->error) return;
+  if(index == 0)
+  {
+    String extension = filename;
+    extension.toLowerCase();
+    if(!extension.endsWith(".bin"))
+    {
+      state->error = "Upload exactly one .bin patch file.";
+      return;
+    }
+  }
+
+  state->write(index, data, len, final);
+}
+
+static void webPatchesComplete(AsyncWebServerRequest *request)
+{
+  if(!webIsAuthenticated(request)) return request->requestAuthentication();
+  if(request->getResponse()) return;
+  if(request->hasParam("delete", true))
+  {
+    PatchUpload *state = static_cast<PatchUpload *>(request->_tempObject);
+    if(state)
+    {
+      // Discard any uploaded file and release its reservation before deletion.
+      state->error = "Upload discarded.";
+      state->finish();
+    }
+    const char *error = nullptr;
+    String slot = request->hasParam("slot", true)? request->getParam("slot", true)->value() : "";
+    if(slot.length() != 1 || slot[0] < '1' || slot[0] > '3') error = "Invalid patch slot.";
+    else patchesDelete(slot[0] - '0', error);
+    if(error) return request->send(400, "text/plain", error);
+    return request->redirect("/patches");
+  }
+  if(!request->_tempObject)
+  {
+    if(!request->hasParam("slot", true) || !request->hasParam("action", true))
+      return request->send(400, "text/plain", "Missing patch slot or action.");
+    String slot = request->getParam("slot", true)->value();
+    String action = request->getParam("action", true)->value();
+    const char *error = nullptr;
+    if(slot.length() != 1 || slot[0] < '0' || slot[0] > '3') error = "Invalid patch slot.";
+    else if(action == "select") patchesRequestSelection(slot[0] - '0', error);
+    else error = "Upload one complete .bin patch.";
+    if(error) return request->send(400, "text/plain", error);
+    return request->redirect("/patches");
+  }
+  PatchUpload *state = static_cast<PatchUpload *>(request->_tempObject);
+  state->finish();
+  if(state->error)
+    return request->send(400, "text/plain", state->error);
+  request->redirect("/patches");
+}
+
+static void webPatchesPage(AsyncWebServerRequest *request)
+{
+  if(!webIsAuthenticated(request)) return request->requestAuthentication();
+  bool busy;
+  uint8_t selected;
+  patchesSnapshot(selected, busy);
+  String body = "<H1>SI4732 Patches (Experimental)</H1>" + webNavigation("/patches");
+  if(busy)
+    body += "<TABLE COLUMNS=1><TR><TD CLASS='CENTER'>A patch request is in progress.</TD></TR></TABLE>";
+  body += "<FORM METHOD='POST' ACTION='/patches'>"
+          "<INPUT TYPE='HIDDEN' NAME='action' VALUE='select'>"
+          "<TABLE COLUMNS=2>"
+          "<TR><TH COLSPAN=2 CLASS='HEADING'>Active Patch Set</TH></TR>"
+          "<TR><TD CLASS='LABEL'><LABEL FOR='patchslot'>Patch Set</LABEL></TD><TD>"
+          "<SELECT ID='patchslot' NAME='slot'" + String(busy? " DISABLED" : "") + ">";
+  for(uint8_t slot = 0; slot <= PATCH_SET_COUNT; slot++)
+  {
+    if(slot && !patchesModes(slot)) continue;
+    body += "<OPTION VALUE='" + String(slot) + "'" + String(slot == selected? " SELECTED" : "") + ">" +
+            patchSetNames[slot] + "</OPTION>";
+  }
+  body += "</SELECT></TD></TR><TR><TH COLSPAN=2 CLASS='HEADING'>"
+          "<INPUT TYPE='SUBMIT' VALUE='Apply'" + String(busy? " DISABLED" : "") + ">"
+          "</TH></TR></TABLE></FORM>";
+  for(uint8_t slot = 1; slot <= PATCH_SET_COUNT; slot++)
+  {
+    const String disabled = busy || selected == slot? " DISABLED" : "";
+    uint8_t modes = patchesModes(slot);
+    // Slot and mode precede the file so upload callbacks can read them.
+    body += "<FORM METHOD='POST' ACTION='/patches' ENCTYPE='multipart/form-data'>"
+            "<INPUT TYPE='HIDDEN' NAME='slot' VALUE='" + String(slot) + "'>"
+            "<INPUT TYPE='HIDDEN' NAME='action' VALUE='upload'>"
+            "<TABLE COLUMNS=2><TR><TH COLSPAN=2 CLASS='HEADING'>" + patchSetNames[slot] + "</TH></TR>"
+            "<TR><TD CLASS='LABEL'>Installed Patches</TD><TD>";
+    for(uint8_t mode = 0; mode < PATCH_MODE_COUNT; mode++)
+    {
+      if(mode) body += " &middot; ";
+      body += String(patchModeNames[mode]) + ((modes & (1U << mode))? ": uploaded" : ": Default");
+    }
+    body += "</TD></TR><TR><TD CLASS='LABEL'><LABEL FOR='patchmode" + String(slot) + "'>Mode</LABEL></TD>"
+            "<TD><SELECT ID='patchmode" + String(slot) + "' NAME='mode'" + disabled + ">";
+    for(uint8_t mode = 0; mode < PATCH_MODE_COUNT; mode++)
+      body += String("<OPTION>") + patchModeNames[mode] + "</OPTION>";
+    body += "</SELECT></TD></TR>"
+            "<TR><TD CLASS='LABEL'><LABEL FOR='patchfile" + String(slot) + "'>Upload Patch</LABEL></TD>"
+            "<TD><INPUT TYPE='FILE' ID='patchfile" + String(slot) + "' NAME='patch' ACCEPT='.bin'" + disabled + ">"
+            "<BR><SMALL>One .bin file at a time; maximum size: 32 KiB</SMALL></TD></TR>";
+    if(modes)
+      body += "<TR><TD CLASS='LABEL'><LABEL FOR='patchdelete" + String(slot) + "'>Delete set</LABEL></TD>"
+              "<TD><INPUT TYPE='CHECKBOX' ID='patchdelete" + String(slot) + "' NAME='delete' VALUE='on'" + disabled + "></TD></TR>";
+    body += "<TR><TH COLSPAN=2 CLASS='HEADING'><INPUT TYPE='SUBMIT' VALUE='Save'" + disabled + ">"
+            "</TH></TR></TABLE></FORM>";
+  }
+
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/html", webPage(body, "SI4732 Patches (Experimental)"));
+  response->addHeader("Cache-Control", "no-store");
+  if(busy) response->addHeader("Refresh", "2; url=/patches");
   request->send(response);
 }

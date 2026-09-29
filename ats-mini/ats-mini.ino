@@ -7,6 +7,7 @@
 #include "Rotary.h"
 #include "Button.h"
 #include "Menu.h"
+#include "Patches.h"
 #include "Draw.h"
 #include "Storage.h"
 #include "Themes.h"
@@ -241,6 +242,8 @@ void setup()
   // Audio Amplifier Enable. G8PTN: Added
   // After the SI4732 has been setup, enable the audio amplifier
   if(PIN_AMP_EN >= 0) digitalWrite(PIN_AMP_EN, HIGH);
+
+  patchesInit();
 
   // SI4732 STARTUP!
   selectBand(bandIdx, false);
@@ -1006,6 +1009,7 @@ void loop()
 
   // Tick NETWORK time, connecting to WiFi if requested
   netTickTime();
+  needRedraw |= patchesTick();
 
   // Update clock display
   needRedraw |= clockUpdate();

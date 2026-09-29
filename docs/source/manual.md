@@ -74,6 +74,7 @@ The menu can be invoked by clicking the encoder button and is closed automatical
 * **Date/Time** - Set the UTC date and time with the encoder. Click to select the next field, or short press to set the clock and close the menu. A timeout closes the menu without changing the clock.
 * **FM Region** - FM de-emphasis time constant by region (50µs for EU/JP/AU and 70µs for the US).
 * **FM Stereo** - **Auto** lets the receiver blend down to mono on its own as the signal gets worse, **Mono** forces mono audio, trading the stereo image for less hiss on a weak station.
+* **DSP Patches** - Select **Default** or an uploaded AM/SSB patch set. Manage these experimental patches on the web interface's **Patches** page.
 * **Theme** - Color theme.
 * **UI Layout** - Alternative UI layouts. For now there is just one alternative UI with large S-meter and S/N-meter.
 * **Zoom Menu** - Display the currently selected menu item using a larger font (accessibility option).
@@ -126,6 +127,8 @@ When on the go, you can set up a mobile Wi-Fi hotspot on your smartphone and use
 <!-- ### Receiver settings available via Wi-Fi only -->
 
 Firmware updates are available through **Settings → Update FW** or the web interface's **Update** page. See [updating over Wi-Fi](flash.md#update-over-wi-fi) for instructions.
+
+The **Patches** page supports up to three experimental AM/SSB patch sets. You can upload or delete patches in any inactive slot. To edit the active slot, select another set or **Default** first. Upload one `.bin` file (up to 32 KiB) at a time into **Custom 1**, **Custom 2**, or **Custom 3**, then select the set on the page or in **Settings → DSP Patches**. Only slots with uploaded patches are selectable. Missing modes use Default, and FM is unaffected. To remove both mode patches from a slot, check **Delete set** and click **Save**. Deletion takes priority over an upload.
 
 ## Schedule
 
