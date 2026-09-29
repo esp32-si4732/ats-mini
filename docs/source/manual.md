@@ -128,7 +128,15 @@ When on the go, you can set up a mobile Wi-Fi hotspot on your smartphone and use
 
 Firmware updates are available through **Settings → Update FW** or the web interface's **Update** page. See [updating over Wi-Fi](flash.md#update-over-wi-fi) for instructions.
 
-The **Patches** page supports up to three experimental AM/SSB patch sets. You can upload or delete patches in any inactive slot. To edit the active slot, select another set or **Default** first. Upload one `.bin` file (up to 32 KiB) at a time into **Custom 1**, **Custom 2**, or **Custom 3**, then select the set on the page or in **Settings → DSP Patches**. Only slots with uploaded patches are selectable. Missing modes use Default, and FM is unaffected. To remove both mode patches from a slot, check **Delete set** and click **Save**. Deletion takes priority over an upload.
+On the **Patches** page, upload and select experimental AM/SSB patches (see [discussion #377](https://github.com/esp32-si4732/ats-mini/discussions/377)):
+
+1. Find the section for **Custom 1**, **Custom 2**, or **Custom 3** where you want to upload the patches.
+2. Select **AM** or **SSB**, choose the matching `.bin` patch file (up to 32 KiB), and click **Save**. Repeat for the other mode if needed.
+3. Activate the patch set on the web page or through **Settings → DSP Patches** on the receiver. Only sets with uploaded patches are selectable.
+
+Missing modes use Default; FM is unaffected. To replace patches in the active set, activate another set or **Default** first.
+
+To remove a patch set, check **Delete set** and click **Save**. Deletion takes priority over any selected upload.
 
 ## Schedule
 
