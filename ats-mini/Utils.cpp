@@ -424,7 +424,8 @@ bool isMemoryInBand(const Band *band, const Memory *memory)
 //
 int getStrength(int rssi)
 {
-  if(switchThemeEditor()) return(17);
+  // Preview normal, strong-signal and empty bar colors together.
+  if(switchThemeEditor()) return(13);
 
   if(currentMode!=FM)
   {

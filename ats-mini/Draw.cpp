@@ -317,12 +317,14 @@ void drawSMeter(int strength, int x, int y)
   spr.drawTriangle(x + 1, y + 1, x + 11, y + 1, x + 6, y + 6, TH.smeter_icon);
   spr.drawLine(x + 6, y + 1, x + 6, y + 14, TH.smeter_icon);
 
-  for(int i=0 ; i<strength ; i++)
+  for(int i=0 ; i<17 ; i++)
   {
-    if(i<10)
+    if(i<10 && i<strength)
       spr.fillRect(15+x + (i*4), 2+y, 2, 12, TH.smeter_bar);
-    else
+    else if(i<strength)
       spr.fillRect(15+x + (i*4), 2+y, 2, 12, TH.smeter_bar_plus);
+    else
+      spr.fillRect(15+x + (i*4), 2+y, 2, 12, TH.smeter_bar_empty);
   }
 }
 
