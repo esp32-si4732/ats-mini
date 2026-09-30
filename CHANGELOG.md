@@ -4,6 +4,22 @@ The user manual is available at <https://esp32-si4732.github.io/ats-mini/manual.
 
 <!-- towncrier release notes start -->
 
+## 2.42 (2026-09-30)
+
+
+### Added
+
+- Add a web-based memory editor with slot names, reordering, and JSON import/export.
+- Show memory slot names in the memory menu and below matching frequencies, with RDS station names taking priority.
+- Show used and free internal heap and PSRAM in a small, muted footer on each receiver web page.
+- The remote `#` command accepts an optional name, and `$` includes saved names in its output.
+
+
+### Changed
+
+- Reordered the settings menu to group related controls.
+- The default layout's RSSI meter now shows empty bars across its full range.
+
 ## 2.41 (2026-09-29)
 
 
