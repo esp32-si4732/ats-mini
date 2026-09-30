@@ -116,25 +116,25 @@ static const char *menu[] =
 //
 
 #define MENU_BRIGHTNESS   0
-#define MENU_CALIBRATION  1
-#define MENU_RDS          2
-#define MENU_UTCOFFSET    3
-#define MENU_DATETIME     4
-#define MENU_FM_REGION    5
-#define MENU_FM_STEREO    6
-#define MENU_DSP_PATCHES  7
-#define MENU_THEME        8
-#define MENU_UI           9
-#define MENU_ZOOM         10
-#define MENU_SCROLL       11
-#define MENU_SLEEP        12
-#define MENU_SLEEPMODE    13
+#define MENU_DATETIME     1
+#define MENU_UTCOFFSET    2
+#define MENU_SLEEP        3
+#define MENU_SLEEPMODE    4
+#define MENU_THEME        5
+#define MENU_UI           6
+#define MENU_ZOOM         7
+#define MENU_SCROLL       8
+#define MENU_RDS          9
+#define MENU_FM_STEREO    10
+#define MENU_FM_REGION    11
+#define MENU_CALIBRATION  12
+#define MENU_DSP_PATCHES  13
 #define MENU_LOADEIBI     14
-#define MENU_USBMODE      15
-#define MENU_TCPMODE      16
-#define MENU_BLEMODE      17
-#define MENU_WIFIMODE     18
-#define MENU_UPDATEFW     19
+#define MENU_UPDATEFW     15
+#define MENU_USBMODE      16
+#define MENU_TCPMODE      17
+#define MENU_BLEMODE      18
+#define MENU_WIFIMODE     19
 #define MENU_ABOUT        20
 
 
@@ -146,25 +146,25 @@ int8_t settingsIdx = MENU_BRIGHTNESS;
 static const char *settings[] =
 {
   "Brightness",
-  "Calibration",
-  "RDS",
-  "UTC Offset",
   "Date/Time",
-  "FM Region",
-  "FM Stereo",
-  "DSP Patches",
+  "UTC Offset",
+  "Sleep",
+  "Sleep Mode",
   "Theme",
   "UI Layout",
   "Zoom Menu",
   "Scroll Dir.",
-  "Sleep",
-  "Sleep Mode",
+  "RDS",
+  "FM Stereo",
+  "FM Region",
+  "Calibration",
+  "DSP Patches",
   "Load EiBi",
+  "Update FW",
   "USB Port",
   "TCP Port",
   "Bluetooth",
   "Wi-Fi",
-  "Update FW",
   "About",
 };
 
