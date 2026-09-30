@@ -80,7 +80,7 @@ function exportMemories() {
   if(!form.reportValidity()) return;
   try {
     const data = read();
-    const url = URL.createObjectURL(new Blob([JSON.stringify(data)], {type: 'application/json'}));
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2) + '\n'], {type: 'application/json'}));
     const download = document.createElement('a');
     download.href = url;
     download.download = 'memories.json';
