@@ -213,7 +213,9 @@ static void remoteGetMemories(Stream* stream)
 {
   for (uint8_t i = 0; i < getTotalMemories(); i++) {
     if (memories[i].freq) {
-      stream->printf("#%02d,%s,%ld,%s\r\n", i + 1, bands[memories[i].band].bandName, memories[i].freq, bandModeDesc[memories[i].mode]);
+      stream->printf("#%02d,%s,%ld,%s", i + 1, bands[memories[i].band].bandName, memories[i].freq, bandModeDesc[memories[i].mode]);
+      if(memories[i].name[0]) stream->printf(",%s", memories[i].name);
+      stream->println();
     }
   }
 }
@@ -221,7 +223,6 @@ static void remoteGetMemories(Stream* stream)
 static bool remoteSetMemory(Stream* stream)
 {
   stream->print('#');
-  Memory mem;
   uint32_t freq = 0;
 
   long int slot = remoteReadInteger(stream);
@@ -229,6 +230,8 @@ static bool remoteSetMemory(Stream* stream)
     return remoteShowError(stream, "Expected ','");
   if (slot < 1 || slot > getTotalMemories())
     return remoteShowError(stream, "Invalid memory slot number");
+
+  Memory mem = memories[slot-1];
 
   char band[8];
   remoteReadString(stream, band, 8);
@@ -250,6 +253,25 @@ static bool remoteSetMemory(Stream* stream)
 
   char mode[4];
   remoteReadString(stream, mode, 4);
+  int ch;
+  while((ch = stream->peek()) < 0);
+  if(ch == ',')
+  {
+    remoteReadChar(stream);
+    memset(mem.name, 0, sizeof(mem.name));
+    size_t length = 0;
+    while(true)
+    {
+      while((ch = stream->peek()) < 0);
+      if(ch == '\r') break;
+      remoteReadChar(stream);
+      if(ch < 0x20 || ch > 0x7e)
+        return remoteShowError(stream, "Name must contain printable ASCII characters");
+      if(length >= sizeof(mem.name) - 1)
+        return remoteShowError(stream, "Name is too long (maximum 9 characters)");
+      mem.name[length++] = ch;
+    }
+  }
   if (!expectNewline(stream))
     return remoteShowError(stream, "Expected newline");
   stream->println();
