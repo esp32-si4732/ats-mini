@@ -69,6 +69,7 @@ static void wifiRegisterPowerLevelCallback();
 static void wifiPowerLevelOnEvent(WiFiEvent_t event);
 
 static void webSetConfig(AsyncWebServerRequest *request);
+static void webSetMemories(AsyncWebServerRequest *request);
 static void webUploadSplash(AsyncWebServerRequest *request, const String &filename,
                             size_t index, uint8_t *data, size_t len, bool final);
 static bool webIsAuthenticated(AsyncWebServerRequest *request);
@@ -371,10 +372,11 @@ static void webInit()
     request->send(200, "text/html", webRadioPage());
   });
 
-  server.on("/memory", HTTP_ANY, [] (AsyncWebServerRequest *request) {
+  server.on("/memory", HTTP_GET, [] (AsyncWebServerRequest *request) {
     if(!webIsAuthenticated(request)) return request->requestAuthentication();
     request->send(200, "text/html", webMemoryPage());
   });
+  server.on("/memory", HTTP_POST, webSetMemories);
 
   server.on("/config", HTTP_ANY, [] (AsyncWebServerRequest *request) {
     if(!webIsAuthenticated(request)) return request->requestAuthentication();
@@ -739,28 +741,140 @@ static const String webRadioPage()
   }), pageStatusTitle);
 }
 
-static const String webMemoryPage()
+static void webSetMemories(AsyncWebServerRequest *request)
 {
-  String items;
-  for(int j=0 ; j<MEMORY_COUNT ; j++)
+  if(!webIsAuthenticated(request)) return request->requestAuthentication();
+
+  // Validate a complete replacement before modifying any live slots.
+  Memory *pending = static_cast<Memory *>(ps_calloc(getTotalMemories(), sizeof(Memory)));
+  if(!pending) return request->send(503, "text/plain", "Not enough memory to save the slots.");
+  const char *error = nullptr;
+  int slot = 0;
+  for(; slot<getTotalMemories() ; slot++)
   {
-    char slot[4];
-    snprintf(slot, sizeof(slot), "%02d", j+1);
-    if(!memories[j].freq)
-      pageAppend(items, pageMemoryEmpty, {{"slot", slot}});
-    else
+    String suffix(slot);
+    const auto *name = request->getParam("name" + suffix, true);
+    const auto *band = request->getParam("band" + suffix, true);
+    const auto *freq = request->getParam("freq" + suffix, true);
+    const auto *mode = request->getParam("mode" + suffix, true);
+    if(!name || !band || !freq || !mode)
     {
-      String freq = memories[j].mode == FM?
-        String(memories[j].freq / 1000000.0) + "MHz "
-      : String(memories[j].freq / 1000.0) + "kHz ";
-      pageAppend(items, pageMemoryRow, {
-        {"slot", slot}, {"frequency", freq}, {"mode", bandModeDesc[memories[j].mode]}
-      });
+      error = "Missing slot fields.";
+      break;
+    }
+
+    Memory &mem = pending[slot];
+    const String &label = name->value();
+    if(label.length() >= sizeof(mem.name)) error = "Names must be at most 9 characters.";
+    for(size_t i=0 ; !error && i<label.length() ; i++)
+      if((uint8_t)label[i]<0x20 || (uint8_t)label[i]>0x7e)
+        error = "Names must contain printable ASCII characters.";
+    if(error) break;
+    memcpy(mem.name, label.c_str(), label.length());
+
+    const String &number = freq->value();
+    if(!number.length() || number.length()>10) error = "Invalid frequency in Hz.";
+    uint64_t hz = 0;
+    for(size_t i=0 ; !error && i<number.length() ; i++)
+    {
+      if(number[i]<'0' || number[i]>'9') error = "Invalid frequency in Hz.";
+      else hz = hz * 10 + number[i] - '0';
+    }
+    if(hz>UINT32_MAX) error = "Frequency is out of range.";
+    if(error) break;
+    mem.freq = hz;
+
+    mem.mode = AM;
+    if(mode->value().length() || mem.freq)
+    {
+      mem.mode = 0xff;
+      for(int i=0 ; i<getTotalModes() ; i++)
+        if(mode->value() == bandModeDesc[i]) mem.mode = i;
+      if(mem.mode == 0xff)
+      {
+        error = "Unknown mode.";
+        break;
+      }
+    }
+
+    mem.band = 0xff;
+    for(int i=0 ; i<getTotalBands() ; i++)
+    {
+      if(band->value() != bands[i].bandName) continue;
+      // Resolve duplicate band names using the frequency and mode. Check Hz
+      // before converting to the receiver's narrower frequency representation.
+      uint32_t unit = mem.mode == FM? 10000 : 1000;
+      if(mem.freq && (hz < (uint32_t)bands[i].minimumFreq * unit ||
+                     hz > (uint32_t)bands[i].maximumFreq * unit ||
+                     !isMemoryInBand(&bands[i], &mem))) continue;
+      mem.band = i;
+      break;
+    }
+    if(mem.band == 0xff)
+    {
+      if(!mem.freq && !band->value().length()) mem.band = 0;
+      else
+      {
+        error = "Frequency or mode does not match the band.";
+        break;
+      }
     }
   }
+
+  if(error)
+  {
+    free(pending);
+    return request->send(400, "text/html", webPage(pageRender(pageMemoryError, {
+      {"title", pageMemoryTitle},
+      {"slot", String(slot + 1)}, {"error", error}
+    }), pageMemoryTitle));
+  }
+
+  memcpy(memories, pending, getTotalMemories() * sizeof(Memory));
+  free(pending);
+  prefsRequestSave(SAVE_MEMORIES, true);
+  request->redirect("/memory");
+}
+
+static const String webMemoryPage()
+{
+  String rows;
+  for(int j=0 ; j<getTotalMemories() ; j++)
+  {
+    const Memory &mem = memories[j];
+    const char *band = mem.freq && mem.band<getTotalBands()? bands[mem.band].bandName : "";
+    String bandOptions;
+    for(int i=0 ; i<getTotalBands() ; i++)
+    {
+      bool duplicate = false;
+      for(int k=0 ; k<i ; k++)
+        if(!strcmp(bands[k].bandName, bands[i].bandName)) duplicate = true;
+      if(duplicate) continue;
+      pageAppend(bandOptions, pageMemoryOption, {
+        {"value", bands[i].bandName}, {"selected", !strcmp(band, bands[i].bandName)? "SELECTED" : ""}
+      });
+    }
+
+    String modeOptions;
+    for(int i=0 ; i<getTotalModes() ; i++)
+      pageAppend(modeOptions, pageMemoryOption, {
+        {"value", bandModeDesc[i]}, {"selected", mem.freq && mem.mode==i? "SELECTED" : ""}
+      });
+
+    char slot[4];
+    snprintf(slot, sizeof(slot), "%02d", j+1);
+    pageAppend(rows, pageMemoryRow, {
+      {"index", String(j)}, {"slot", slot}, {"name", mem.name}, {"frequency", String(mem.freq)},
+      {"bands", bandOptions}, {"modes", modeOptions},
+      {"up_disabled", j==0? "DISABLED" : ""},
+      {"down_disabled", j==getTotalMemories()-1? "DISABLED" : ""}
+    });
+  }
+
   return webPage(pageRender(pageMemory, {
     {"title", pageMemoryTitle},
-    {"navigation", webNavigation("/memory")}, {"rows", items}
+    {"navigation", webNavigation("/memory")}, {"rows", rows},
+    {"toolbar", pageMemoryToolbar}
   }), pageMemoryTitle);
 }
 

@@ -97,7 +97,7 @@ The Wi-Fi mode (2.4GHz only) can be used for the following purposes (for now):
 * Download the EiBi shortwave schedule.
 * Control the receiver over [TCP](remote.md#tcp-over-wi-fi).
 * Viewing the receiver status (date/time and UTC offset, frequency, RSSI/SNR, volume, battery voltage, etc).
-* Viewing the Memory slots with saved frequencies.
+* Edit, reorder, import, and export memory slots.
 * Manage the receiver settings.
 * Upload or delete an optional [splash image](_static/splash-outdoor.png) shown when the receiver starts.
 
@@ -116,6 +116,7 @@ Initial configuration:
 * Enable the **AP Only** mode (the receiver will briefly display its 10.1.1.1 IP address).
 * Connect to the `ATS-Mini` access point from your phone or computer. There is no internet connection available on this access point. When connecting from a phone, it might be necessary to switch off the mobile data connection and any VPN/firewall software.
 * Open a browser and visit the following URL: <http://10.1.1.1>. The status web page should open. Alternatively, you can try the mDNS address <atsmini.local> in your browser.
+* Click the `Memory` link to edit slot names, bands, frequencies (in Hz), and modes. Use the up/down buttons to reorder slots, and press `Save` to apply changes to the receiver. `Export` downloads the current table as JSON; `Import` loads a previously exported file, including files from the legacy USB editor.
 * Click the `Config` link. Here you can configure up to three access points the receiver will try to connect to, add optional login and password to protect the memory, settings, and firmware update pages, set the UTC date/time manually or from the browser, and change the UTC offset and other settings. Enable `Scan Hidden SSIDs` only if one of the configured access points does not broadcast its network name; leaving it off makes Wi-Fi connection faster. Leave `Half-step Encoder` off for the original EC11 20C20P encoder (20 clicks, 20 pulses), and enable it for an EC11 30C15P encoder (30 clicks, 15 pulses). Half-step mode is also required for the LILYGO T-Embed SI4732 hardware variant. See [discussion #87](https://github.com/esp32-si4732/ats-mini/discussions/87) for more information.
 * After that, switch the Wi-Fi mode to **AP+Connect** or **Connect** (the receiver will briefly show its new dynamic IP address it got from a configured access point).
 * Now connect your phone/computer to the same access point and open the new URL to check whether the receiver connected to the internet.
