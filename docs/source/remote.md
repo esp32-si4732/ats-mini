@@ -134,7 +134,7 @@ The ad hoc protocol is the main remote-control protocol. It can be used over:
 Memory names can contain up to 9 printable ASCII characters. Omit the name field to keep the existing name, or append a comma with no name to clear it (for example, `#01,VHF,107900000,FM,`). The `$` command includes non-empty names in its output.
 
 ```{hint}
-To edit/backup/restore the Memory slots, you can open this [web based tool](memory.md) in Google Chrome.
+To edit, back up, or restore memory slots, use the receiver's **Memory** page over [Wi-Fi](manual.md#wi-fi). For older firmware, use the [legacy USB memory editor](memory.md).
 ```
 
 #### Monitor output
