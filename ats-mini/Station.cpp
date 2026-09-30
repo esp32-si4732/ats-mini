@@ -2,6 +2,7 @@
 #include "Themes.h"
 #include "Utils.h"
 #include "Menu.h"
+#include "Memories.h"
 #include "EIBI.h"
 
 // CB frequency range
@@ -73,8 +74,18 @@ const char *getStationName()
 {
   if(switchThemeEditor())
     return("*STATION*");
-  else
-    return(getRDSMode() & RDS_PS? bufStationName : "");
+
+  const char *station = getRDSMode() & RDS_PS? bufStationName : "";
+  // Live FM identification takes precedence over a saved name.
+  if(currentMode==FM && station[strspn(station, " ")]) return(station);
+
+  static char memoryName[10];
+  uint32_t freq = freqToHz(currentFrequency, currentMode);
+  if(isSSB()) freq += currentBFO;
+  if(findMemoryName(freq, currentMode, bandIdx, memoryIdx, memoryName))
+    return(memoryName);
+
+  return(station);
 }
 
 const char *getRadioText()

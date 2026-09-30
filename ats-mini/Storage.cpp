@@ -2,6 +2,7 @@
 #include "Storage.h"
 #include "Themes.h"
 #include "Menu.h"
+#include "Memories.h"
 #include <LittleFS.h>
 #include "nvs_flash.h"
 
@@ -133,7 +134,8 @@ void prefsSaveMemory(uint8_t idx, bool openPrefs)
   sprintf(name, "Memory-%d", idx);
 
   // Write a preference
-  prefs.putBytes(name, &memories[idx], sizeof(memories[idx]));
+  Memory memory = getMemory(idx);
+  prefs.putBytes(name, &memory, sizeof(memory));
 
   // Done with memory preferences
   if(openPrefs) prefs.end();
@@ -150,14 +152,15 @@ bool prefsLoadMemory(uint8_t idx, bool openPrefs)
   sprintf(name, "Memory-%d", idx);
 
   // Read a preference
-  bool result = !!prefs.getBytes(name, &memories[idx], sizeof(memories[idx]));
+  Memory memory = {};
+  bool result = !!prefs.getBytes(name, &memory, sizeof(memory));
 
   if(result)
   {
     bool validName = false;
-    for(size_t i=0 ; i<sizeof(memories[idx].name) ; i++)
+    for(size_t i=0 ; i<sizeof(memory.name) ; i++)
     {
-      unsigned char c = memories[idx].name[i];
+      unsigned char c = memory.name[i];
       if(!c)
       {
         validName = true;
@@ -165,7 +168,8 @@ bool prefsLoadMemory(uint8_t idx, bool openPrefs)
       }
       if(c<0x20 || c>0x7e) break;
     }
-    if(!validName) memset(memories[idx].name, 0, sizeof(memories[idx].name));
+    if(!validName) memset(memory.name, 0, sizeof(memory.name));
+    setMemory(idx, memory);
   }
 
   // Done with memory preferences

@@ -44,10 +44,11 @@ void drawLayoutDefault()
   );
 
   // Show station or channel name, if present
-  if(*getStationName() == 0xFF)
-    drawLongStationName(getStationName() + 1, MENU_OFFSET_X + 1 + 76 + MENU_DELTA_X + 2, RDS_OFFSET_Y);
-  else if(*getStationName())
-    drawStationName(getStationName(), RDS_OFFSET_X, RDS_OFFSET_Y);
+  const char *stationName = getStationName();
+  if(*stationName == 0xFF)
+    drawLongStationName(stationName + 1, MENU_OFFSET_X + 1 + 76 + MENU_DELTA_X + 2, RDS_OFFSET_Y);
+  else if(*stationName)
+    drawStationName(stationName, RDS_OFFSET_X, RDS_OFFSET_Y);
 
   // Draw left-side menu/info bar
   // @@@ FIXME: Frequency display (above) intersects the side bar!

@@ -2,6 +2,7 @@
 #include "Themes.h"
 #include "Utils.h"
 #include "Menu.h"
+#include "Memories.h"
 #include "Draw.h"
 #include "Remote.h"
 
@@ -212,9 +213,10 @@ static bool remoteSetFrequency(Stream *stream)
 static void remoteGetMemories(Stream* stream)
 {
   for (uint8_t i = 0; i < getTotalMemories(); i++) {
-    if (memories[i].freq) {
-      stream->printf("#%02d,%s,%ld,%s", i + 1, bands[memories[i].band].bandName, memories[i].freq, bandModeDesc[memories[i].mode]);
-      if(memories[i].name[0]) stream->printf(",%s", memories[i].name);
+    const Memory memory = getMemory(i);
+    if (memory.freq) {
+      stream->printf("#%02d,%s,%ld,%s", i + 1, bands[memory.band].bandName, memory.freq, bandModeDesc[memory.mode]);
+      if(memory.name[0]) stream->printf(",%s", memory.name);
       stream->println();
     }
   }
@@ -231,7 +233,7 @@ static bool remoteSetMemory(Stream* stream)
   if (slot < 1 || slot > getTotalMemories())
     return remoteShowError(stream, "Invalid memory slot number");
 
-  Memory mem = memories[slot-1];
+  Memory mem = getMemory(slot-1);
 
   char band[8];
   remoteReadString(stream, band, 8);
@@ -290,7 +292,7 @@ static bool remoteSetMemory(Stream* stream)
   if (!isMemoryInBand(&bands[mem.band], &mem)) {
     if (!freq) {
       // Clear slot
-      memories[slot-1] = mem;
+      setMemory(slot-1, mem);
       return true;
     } else {
       // Handle duplicate band names (15M)
@@ -308,7 +310,7 @@ static bool remoteSetMemory(Stream* stream)
     }
   }
 
-  memories[slot-1] = mem;
+  setMemory(slot-1, mem);
   return true;
 }
 

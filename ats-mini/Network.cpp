@@ -3,6 +3,7 @@
 #include "Themes.h"
 #include "Utils.h"
 #include "Menu.h"
+#include "Memories.h"
 #include "Draw.h"
 #include "Splash.h"
 #include "TcpMode.h"
@@ -830,7 +831,7 @@ static void webSetMemories(AsyncWebServerRequest *request)
     }), pageMemoryTitle));
   }
 
-  memcpy(memories, pending, getTotalMemories() * sizeof(Memory));
+  setMemories(pending);
   free(pending);
   prefsRequestSave(SAVE_MEMORIES, true);
   request->redirect("/memory");
@@ -841,7 +842,7 @@ static const String webMemoryPage()
   String rows;
   for(int j=0 ; j<getTotalMemories() ; j++)
   {
-    const Memory &mem = memories[j];
+    const Memory mem = getMemory(j);
     const char *band = mem.freq && mem.band<getTotalBands()? bands[mem.band].bandName : "";
     String bandOptions;
     for(int i=0 ; i<getTotalBands() ; i++)

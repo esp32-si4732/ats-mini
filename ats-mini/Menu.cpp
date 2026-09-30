@@ -7,6 +7,7 @@
 #include "Ota.h"
 #include "BleMode.h"
 #include "Menu.h"
+#include "Memories.h"
 #include "Patches.h"
 
 #include <time.h>
@@ -199,10 +200,7 @@ uint8_t dspPatchesIdx = DSP_PATCHES_DEFAULT;
 //
 
 uint8_t memoryIdx = 0;
-Memory *memories = nullptr;
 Memory newMemory;
-
-int getTotalMemories() { return(MEMORY_COUNT); }
 
 //
 // RDS Menu
@@ -916,7 +914,8 @@ bool tuneToMemory(const Memory *memory)
 static void doMemory(int16_t enc)
 {
   memoryIdx = wrap_range(memoryIdx, enc, 0, getTotalMemories() - 1);
-  if(!tuneToMemory(&memories[memoryIdx])) tuneToMemory(&newMemory);
+  Memory memory = getMemory(memoryIdx);
+  if(!tuneToMemory(&memory)) tuneToMemory(&newMemory);
 }
 
 static void clickMemory(uint8_t idx, bool shortPress)
@@ -927,9 +926,11 @@ static void clickMemory(uint8_t idx, bool shortPress)
   if(shortPress)
   {
     // If clicking on an empty memory slot, save to it
-    if(!memories[idx].freq) memories[idx] = newMemory;
+    Memory memory = getMemory(idx);
+    if(!memory.freq) memory = newMemory;
     // Otherwise, delete memory slot contents
-    else memories[idx].freq = 0;
+    else memory.freq = 0;
+    setMemory(idx, memory);
   }
   // On a click, do nothing, slot already activated in doMemory()
   else currentCmd = CMD_NONE;
@@ -1711,17 +1712,18 @@ static void drawMemory(int x, int y, int sx)
   for(int i=-2 ; i<3 ; i++)
   {
     int j = abs((memoryIdx+count+i)%count);
+    const Memory memory = getMemory(j);
     char buf[16];
     const char *text = buf;
 
-    if(!memories[j].freq)
+    if(!memory.freq)
       text = "- - -";
-    else if(memories[j].name[0])
-      text = memories[j].name;
-    else if(memories[j].mode==FM)
-      sprintf(buf, "%3.2f %s", memories[j].freq / 1000000.0, bandModeDesc[memories[j].mode]);
+    else if(memory.name[0])
+      text = memory.name;
+    else if(memory.mode==FM)
+      sprintf(buf, "%3.2f %s", memory.freq / 1000000.0, bandModeDesc[memory.mode]);
     else
-      sprintf(buf, "%5lu %s", memories[j].freq / 1000, bandModeDesc[memories[j].mode]);
+      sprintf(buf, "%5lu %s", memory.freq / 1000, bandModeDesc[memory.mode]);
 
     if(i==0) {
       drawZoomedMenu(text);

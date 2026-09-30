@@ -7,6 +7,7 @@
 #include "Rotary.h"
 #include "Button.h"
 #include "Menu.h"
+#include "Memories.h"
 #include "Patches.h"
 #include "Draw.h"
 #include "Storage.h"
@@ -183,9 +184,7 @@ void setup()
   // Initialize flash file system
   diskInit();
 
-  memories = static_cast<Memory *>(ps_calloc(MEMORY_COUNT, sizeof(*memories)));
-
-  if(!ESP.getPsramSize() || !memories) {
+  if(!ESP.getPsramSize() || !memoriesInit()) {
     ledcWrite(PIN_LCD_BL, 255);       // Default value 255 = 100%
     tft.setTextSize(2);
     tft.setTextColor(TH.text_warn, TH.bg);

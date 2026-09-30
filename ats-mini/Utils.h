@@ -40,9 +40,6 @@ bool clockSetEpoch(uint32_t epoch);
 void clockReset();
 bool clockUpdate();
 
-// Check if given memory entry belongs to a band
-bool isMemoryInBand(const Band *band, const Memory *memory);
-
 // Helpers to convert from/to Hz
 uint16_t freqFromHz(uint32_t freq, uint8_t mode);
 uint16_t bfoFromHz(uint32_t freq);

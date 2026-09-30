@@ -60,6 +60,8 @@ To set Bluetooth LE and Wi-Fi TX power with `make`:
 BLE_POWER_LEVEL=ESP_PWR_LVL_N12 WIFI_POWER_LEVEL=WIFI_POWER_13dBm PORT=/dev/tty.usbmodem14401 make upload
 ```
 
+When adding, removing, or renaming firmware source or header files, update the `SRC` and `HEADERS` lists in `ats-mini/Makefile` so `make` tracks the correct build dependencies.
+
 ## Decoding stack traces
 
 To decode a stack trace (printed via serial port) use the following tool: <https://esphome.github.io/esp-stacktrace-decoder/>

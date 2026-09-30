@@ -406,20 +406,6 @@ uint16_t bfoFromHz(uint32_t freq)
 }
 
 //
-// Check if given memory entry belongs to given band
-//
-bool isMemoryInBand(const Band *band, const Memory *memory)
-{
-  uint16_t freq = freqFromHz(memory->freq, memory->mode);
-  if(freq<band->minimumFreq) return(false);
-  if(freq>band->maximumFreq) return(false);
-  if(freq==band->maximumFreq && bfoFromHz(memory->freq)) return(false);
-  if(memory->mode==FM && band->bandMode!=FM) return(false);
-  if(memory->mode!=FM && band->bandMode==FM) return(false);
-  return(true);
-}
-
-//
 // Get S-level signal strength from RSSI value
 //
 int getStrength(int rssi)

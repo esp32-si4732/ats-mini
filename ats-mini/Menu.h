@@ -3,9 +3,6 @@
 
 #include "Common.h"
 
-// Number of memory slots
-#define MEMORY_COUNT  99
-
 // Band Types
 #define FM_BAND_TYPE  0
 #define MW_BAND_TYPE  1
@@ -87,7 +84,7 @@ typedef struct
 //
 
 extern Band bands[];
-extern Memory *memories;
+extern uint8_t memoryIdx;
 extern const UTCOffset utcOffsets[];
 extern const char *bandModeDesc[];
 extern const FMRegion fmRegions[];
@@ -114,7 +111,6 @@ void selectBand(uint8_t idx, bool drawLoadingPatch = true);
 void applyFmStereo();
 int getTotalBands();
 int getTotalModes();
-int getTotalMemories();
 Band *getCurrentBand();
 uint8_t getFreqInputPos();
 int getFreqInputStep();

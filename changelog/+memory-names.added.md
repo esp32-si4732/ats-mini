@@ -1,1 +1,1 @@
-Show memory slot names in the memory menu when available, falling back to frequency and mode for unnamed slots.
+Show memory slot names in the memory menu and below matching frequencies, with RDS station names taking priority.
