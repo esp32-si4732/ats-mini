@@ -149,8 +149,24 @@ bool prefsLoadMemory(uint8_t idx, bool openPrefs)
   // Compose preference name
   sprintf(name, "Memory-%d", idx);
 
-  // Write a preference
+  // Read a preference
   bool result = !!prefs.getBytes(name, &memories[idx], sizeof(memories[idx]));
+
+  if(result)
+  {
+    bool validName = false;
+    for(size_t i=0 ; i<sizeof(memories[idx].name) ; i++)
+    {
+      unsigned char c = memories[idx].name[i];
+      if(!c)
+      {
+        validName = true;
+        break;
+      }
+      if(c<0x20 || c>0x7e) break;
+    }
+    if(!validName) memset(memories[idx].name, 0, sizeof(memories[idx].name));
+  }
 
   // Done with memory preferences
   if(openPrefs) prefs.end();

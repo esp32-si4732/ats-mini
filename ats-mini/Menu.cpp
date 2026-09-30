@@ -1716,6 +1716,8 @@ static void drawMemory(int x, int y, int sx)
 
     if(!memories[j].freq)
       text = "- - -";
+    else if(memories[j].name[0])
+      text = memories[j].name;
     else if(memories[j].mode==FM)
       sprintf(buf, "%3.2f %s", memories[j].freq / 1000000.0, bandModeDesc[memories[j].mode]);
     else
