@@ -101,6 +101,8 @@ The Wi-Fi mode (2.4GHz only) can be used for the following purposes (for now):
 * Manage the receiver settings.
 * Upload or delete an optional [splash image](_static/splash-outdoor.png) shown when the receiver starts.
 
+Each web page has a footer showing used and free internal heap and PSRAM, measured while the page is generated.
+
 There are a couple of modes:
 
 * **Off** (default)

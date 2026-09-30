@@ -87,6 +87,14 @@ To decode a stack trace (printed via serial port) use the following tool: <https
 3. Run a local webserver `uv run sphinx-autobuild docs/source docs/build` and open the http://127.0.0.1:8000 in a browser
 4. Edit the Markdown files in `docs/source` folder and immediately see your changes reflected in the browser
 
+## Web pages
+
+The web UI templates live in `ats-mini/Page*.h`. Edit the HTML, CSS, and JavaScript inside the `R"HTML(...)HTML"` raw strings; no generation step is needed before compiling.
+
+`PageCommon.h` contains the shared document layout, navigation, and styles. The other page headers contain each page and its repeated fragments. `Network.cpp` supplies the values and handles requests.
+
+The renderer in `PageTemplate.h` replaces `{{name}}` with an HTML-escaped value for text or a quoted attribute. Use `{{{name}}}` only for trusted HTML fragments rendered by the firmware. Values are inserted once, so braces inside a value are not interpreted as another placeholder. These placeholders are not intended for JavaScript or CSS values.
+
 ## Theme editor
 
 A terminal command <kbd>T</kbd> toggles a special mode that helps you pick the right colors faster without recompiling and flashing the firmware each time. When the theme editor is enabled, some screen elements are always visible (and various status icons change their state every couple of seconds):

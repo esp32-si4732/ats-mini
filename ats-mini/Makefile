@@ -34,7 +34,8 @@ HEADERS = \
 	Common.h Themes.h Menu.h Storage.h Display.h Rotary.h \
 	Utils.h Button.h EIBI.h Remote.h BleMode.h TcpMode.h BlePeripheral.h \
 	BleUartPeripheral.h BleCentral.h BleHidCentral.h \
-	SI4735-fixed.h patch_init.h PatchParser.h Patches.h Splash.h Ota.h
+	SI4735-fixed.h patch_init.h PatchParser.h Patches.h Splash.h Ota.h \
+	$(wildcard Page*.h)
 
 SRC = \
 	$(INO) Utils.cpp Rotary.cpp Button.cpp Draw.cpp Menu.cpp \
