@@ -3,7 +3,9 @@
 
 #include <Arduino.h>
 
-static const char pagePatches[] PROGMEM = R"HTML(<H1>SI4732 Patches (Experimental)</H1>
+static const char pagePatchesTitle[] PROGMEM = "ATS-Mini SI4732 Patches (Experimental)";
+
+static const char pagePatches[] PROGMEM = R"HTML(<H1>{{title}}</H1>
 {{{navigation}}}
 {{{busy}}}
 <FORM METHOD="POST" ACTION="/patches">

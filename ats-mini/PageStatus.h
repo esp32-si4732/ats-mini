@@ -3,7 +3,9 @@
 
 #include <Arduino.h>
 
-static const char pageStatus[] PROGMEM = R"HTML(<H1>ATS-Mini Pocket Receiver</H1>
+static const char pageStatusTitle[] PROGMEM = "ATS-Mini Status";
+
+static const char pageStatus[] PROGMEM = R"HTML(<H1>{{title}}</H1>
 {{{navigation}}}
 <TABLE COLUMNS="2">
   <TR><TD CLASS="LABEL">IP Address</TD><TD><A HREF="http://{{ip}}">{{ip}}</A> ({{ssid}})</TD></TR>

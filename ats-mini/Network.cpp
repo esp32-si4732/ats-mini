@@ -82,7 +82,7 @@ static void webUploadPatch(AsyncWebServerRequest *request, const String &filenam
                            size_t index, uint8_t *data, size_t len, bool final);
 static bool webParseUTCDateTime(const String &text, uint32_t *epoch);
 
-static const String webPage(const String &body, const char *title = "ATS-Mini Config");
+static const String webPage(const String &body, const char *title);
 static const String webUtcOffsetSelector();
 static const String webThemeSelector();
 static const String webRadioPage();
@@ -730,12 +730,13 @@ static const String webRadioPage()
   }
 
   return webPage(pageRender(pageStatus, {
+    {"title", pageStatusTitle},
     {"navigation", webNavigation("/")}, {"ip", ip}, {"ssid", ssid},
     {"mac", String(getMACAddress())}, {"version", String(getVersion(true))},
     {"time", receiverTime}, {"band", getCurrentBand()->bandName},
     {"frequency", freq}, {"mode", bandModeDesc[currentMode]},
     {"rssi", String(rssi)}, {"snr", String(snr)}, {"battery", String(batteryMonitor())}
-  }));
+  }), pageStatusTitle);
 }
 
 static const String webMemoryPage()
@@ -757,7 +758,10 @@ static const String webMemoryPage()
       });
     }
   }
-  return webPage(pageRender(pageMemory, {{"navigation", webNavigation("/memory")}, {"rows", items}}));
+  return webPage(pageRender(pageMemory, {
+    {"title", pageMemoryTitle},
+    {"navigation", webNavigation("/memory")}, {"rows", items}
+  }), pageMemoryTitle);
 }
 
 const String webConfigPage()
@@ -777,6 +781,7 @@ const String webConfigPage()
   String splashResolution = String(spr.width()) + "x" + String(spr.height());
 
   return webPage(pageRender(pageConfig, {
+    {"title", pageConfigTitle},
     {"navigation", webNavigation("/config")},
     {"ssid1", ssid1}, {"pass1", pass1}, {"ssid2", ssid2}, {"pass2", pass2},
     {"ssid3", ssid3}, {"pass3", pass3}, {"username", loginUsername}, {"password", loginPassword},
@@ -785,7 +790,7 @@ const String webConfigPage()
     {"scroll", scrollDirection<0? "CHECKED" : ""},
     {"half_step", encoderHalfStep? "CHECKED" : ""}, {"zoom", zoomMenu? "CHECKED" : ""},
     {"splash", splashImage}, {"resolution", splashResolution}
-  }));
+  }), pageConfigTitle);
 }
 
 // Explicit request errors leave the active operation's status unchanged.
@@ -797,10 +802,11 @@ static void webUpdatePage(AsyncWebServerRequest *request, const OtaStatus &statu
   const bool available = status.phase == OTA_AVAILABLE;
   const char *refresh = complete? pageUpdateComplete : busy? pageUpdateBusy : "";
   const String page = webPage(pageRender(pageUpdate, {
+    {"title", pageUpdateTitle},
     {"navigation", webNavigation("/update")}, {"message", status.message},
     {"action", available? "install" : "check"}, {"disabled", busy || complete? "DISABLED" : ""},
     {"button", available? "Update" : "Check for updates"}, {"refresh", refresh}
-  }));
+  }), pageUpdateTitle);
   if(!code) code = status.phase == OTA_FAILED? 400 : 200;
   AsyncWebServerResponse *response = request->beginResponse(code, "text/html", page);
   response->addHeader("Cache-Control", "no-store");
@@ -945,10 +951,11 @@ static void webPatchesPage(AsyncWebServerRequest *request)
   }
 
   String body = pageRender(pagePatches, {
+    {"title", pagePatchesTitle},
     {"navigation", webNavigation("/patches")}, {"busy", busy? pagePatchesBusy : ""},
     {"disabled", busy? "DISABLED" : ""}, {"options", options}, {"sets", sets}
   });
-  AsyncWebServerResponse *response = request->beginResponse(200, "text/html", webPage(body, "SI4732 Patches (Experimental)"));
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/html", webPage(body, pagePatchesTitle));
   response->addHeader("Cache-Control", "no-store");
   if(busy) response->addHeader("Refresh", "2; url=/patches");
   request->send(response);

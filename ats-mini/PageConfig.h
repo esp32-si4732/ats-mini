@@ -3,7 +3,9 @@
 
 #include <Arduino.h>
 
-static const char pageConfig[] PROGMEM = R"HTML(<H1>ATS-Mini Config</H1>
+static const char pageConfigTitle[] PROGMEM = "ATS-Mini Config";
+
+static const char pageConfig[] PROGMEM = R"HTML(<H1>{{title}}</H1>
 {{{navigation}}}
 <FORM ACTION="/setconfig" METHOD="POST" ENCTYPE="multipart/form-data" ONSUBMIT="browserDateTime(true)">
   <TABLE COLUMNS="2">

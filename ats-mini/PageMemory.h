@@ -3,7 +3,9 @@
 
 #include <Arduino.h>
 
-static const char pageMemory[] PROGMEM = R"HTML(<H1>ATS-Mini Pocket Receiver Memory</H1>
+static const char pageMemoryTitle[] PROGMEM = "ATS-Mini Memory";
+
+static const char pageMemory[] PROGMEM = R"HTML(<H1>{{title}}</H1>
 {{{navigation}}}
 <TABLE COLUMNS="2">
 {{{rows}}}

@@ -3,7 +3,9 @@
 
 #include <Arduino.h>
 
-static const char pageUpdate[] PROGMEM = R"HTML(<H1>Firmware Update</H1>
+static const char pageUpdateTitle[] PROGMEM = "ATS-Mini Update";
+
+static const char pageUpdate[] PROGMEM = R"HTML(<H1>{{title}}</H1>
 {{{navigation}}}
 <TABLE COLUMNS="1">
   <TR><TD CLASS="CENTER">{{message}}</TD></TR>
