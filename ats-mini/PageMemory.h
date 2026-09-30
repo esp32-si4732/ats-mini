@@ -28,7 +28,7 @@ static const char pageMemory[] PROGMEM = R"HTML(<STYLE>
 {{{navigation}}}
 <P CLASS="MEMORY-HELP">Edit frequencies in Hz (0 clears a slot). Names: up to 9 printable ASCII characters.
 Use the up/down buttons to reorder slots. Press Save to apply changes.</P>
-<FORM ID="memories" METHOD="post" ACTION="/memory" AUTOCOMPLETE="off" ONINPUT="changed()">
+<FORM ID="memories" METHOD="post" ACTION="/memory" AUTOCOMPLETE="on" ONINPUT="changed()">
   {{{toolbar}}}
   <P ID="memory-status" ROLE="status"></P>
   <INPUT TYPE="file" ID="memory-file" ACCEPT=".json,application/json" HIDDEN>
