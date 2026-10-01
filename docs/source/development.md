@@ -97,6 +97,19 @@ The web UI templates live in `ats-mini/Page*.h`. Edit the HTML, CSS, and JavaScr
 
 The renderer in `PageTemplate.h` replaces `{{name}}` with an HTML-escaped value for text or a quoted attribute. Use `{{{name}}}` only for trusted HTML fragments rendered by the firmware. Values are inserted once, so braces inside a value are not interpreted as another placeholder. These placeholders are not intended for JavaScript or CSS values.
 
+Pages render into one output buffer. Pass repeated or nested content as a lazy fragment instead of building a separate HTML string:
+
+```cpp
+pageAppend(out, "<UL>{{{items}}}</UL>", {}, {
+  {"items", [&](String &out) {
+    for(const auto &name : names)
+      pageAppend(out, "<LI>{{name}}</LI>", {{"name", name}});
+  }}
+});
+```
+
+The second list supplies callbacks for triple-brace placeholders. Callbacks run synchronously and write to the same buffer. Values and callbacks are borrowed: construct the lists in the render call and do not store them for later use.
+
 ## Theme editor
 
 A terminal command <kbd>T</kbd> toggles a special mode that helps you pick the right colors faster without recompiling and flashing the firmware each time. When the theme editor is enabled, some screen elements are always visible (and various status icons change their state every couple of seconds):

@@ -84,9 +84,8 @@ static void webUploadPatch(AsyncWebServerRequest *request, const String &filenam
                            size_t index, uint8_t *data, size_t len, bool final);
 static bool webParseUTCDateTime(const String &text, uint32_t *epoch);
 
-static const String webPage(const String &body, const char *title);
-static const String webUtcOffsetSelector();
-static const String webThemeSelector();
+static String webPage(const char *body, const char *title, std::initializer_list<PageValue> values,
+                      std::initializer_list<PageFragment> fragments = {});
 static const String webRadioPage();
 static const String webMemoryPage();
 static const String webConfigPage();
@@ -651,12 +650,14 @@ static bool webParseUTCDateTime(const String &text, uint32_t *epoch)
          clockUTCDateTimeToEpoch(year, month, day, hour, minute, second, epoch));
 }
 
-static const String webPage(const String &body, const char *title)
+static String webPage(const char *body, const char *title, std::initializer_list<PageValue> values,
+                      std::initializer_list<PageFragment> fragments)
 {
   String page;
-  page.reserve(sizeof(pageStart) + strlen(title) + body.length() + sizeof(pageEnd) + 64);
+  pageReserve(page, sizeof(pageStart) + strlen(title) + strlen(body) + sizeof(pageEnd) + 64);
   pageAppend(page, pageStart, {{"title", title}});
-  page += body;
+  pageAppend(page, body, values, fragments);
+  pageReserve(page, sizeof(pageEnd) + 64);
   // Snapshot after allocating the page, before the HTTP response copies it.
   multi_heap_info_t heap, psram;
   heap_caps_get_info(&heap, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
@@ -668,27 +669,6 @@ static const String webPage(const String &body, const char *title)
     {"psram_free", String(psram.total_free_bytes / 1024.0, 1)}
   });
   return page;
-}
-
-static const String webUtcOffsetSelector()
-{
-  String result;
-  for(int i=0 ; i<getTotalUTCOffsets(); i++)
-    pageAppend(result, pageConfigUtcOption, {
-      {"value", String(i)}, {"minutes", String(utcOffsets[i].offset * 15)},
-      {"selected", utcOffsetIdx==i? "SELECTED" : ""}, {"label", utcOffsets[i].desc}
-    });
-  return result;
-}
-
-static const String webThemeSelector()
-{
-  String result;
-  for(int i=0 ; i<getTotalThemes(); i++)
-    pageAppend(result, pageConfigThemeOption, {
-      {"value", String(i)}, {"selected", themeIdx==i? "SELECTED" : ""}, {"label", theme[i].name}
-    });
-  return result;
 }
 
 static const String webRadioPage()
@@ -732,14 +712,16 @@ static const String webRadioPage()
     ssid = String(apSSID);
   }
 
-  return webPage(pageRender(pageStatus, {
+  return webPage(pageStatus, pageStatusTitle, {
     {"title", pageStatusTitle},
-    {"navigation", webNavigation("/")}, {"ip", ip}, {"ssid", ssid},
+    {"ip", ip}, {"ssid", ssid},
     {"mac", String(getMACAddress())}, {"version", String(getVersion(true))},
     {"time", receiverTime}, {"band", getCurrentBand()->bandName},
     {"frequency", freq}, {"mode", bandModeDesc[currentMode]},
     {"rssi", String(rssi)}, {"snr", String(snr)}, {"battery", String(batteryMonitor())}
-  }), pageStatusTitle);
+  }, {
+    {"navigation", [](String &out) { webNavigation(out, "/"); }}
+  });
 }
 
 static void webSetMemories(AsyncWebServerRequest *request)
@@ -825,10 +807,10 @@ static void webSetMemories(AsyncWebServerRequest *request)
   if(error)
   {
     free(pending);
-    return request->send(400, "text/html", webPage(pageRender(pageMemoryError, {
+    return request->send(400, "text/html", webPage(pageMemoryError, pageMemoryTitle, {
       {"title", pageMemoryTitle},
       {"slot", String(slot + 1)}, {"error", error}
-    }), pageMemoryTitle));
+    }));
   }
 
   setMemories(pending);
@@ -839,44 +821,44 @@ static void webSetMemories(AsyncWebServerRequest *request)
 
 static const String webMemoryPage()
 {
-  String rows;
-  for(int j=0 ; j<getTotalMemories() ; j++)
-  {
-    const Memory mem = getMemory(j);
-    const char *band = mem.freq && mem.band<getTotalBands()? bands[mem.band].bandName : "";
-    String bandOptions;
-    for(int i=0 ; i<getTotalBands() ; i++)
-    {
-      bool duplicate = false;
-      for(int k=0 ; k<i ; k++)
-        if(!strcmp(bands[k].bandName, bands[i].bandName)) duplicate = true;
-      if(duplicate) continue;
-      pageAppend(bandOptions, pageMemoryOption, {
-        {"value", bands[i].bandName}, {"selected", !strcmp(band, bands[i].bandName)? "SELECTED" : ""}
-      });
-    }
-
-    String modeOptions;
-    for(int i=0 ; i<getTotalModes() ; i++)
-      pageAppend(modeOptions, pageMemoryOption, {
-        {"value", bandModeDesc[i]}, {"selected", mem.freq && mem.mode==i? "SELECTED" : ""}
-      });
-
-    char slot[4];
-    snprintf(slot, sizeof(slot), "%02d", j+1);
-    pageAppend(rows, pageMemoryRow, {
-      {"index", String(j)}, {"slot", slot}, {"name", mem.name}, {"frequency", String(mem.freq)},
-      {"bands", bandOptions}, {"modes", modeOptions},
-      {"up_disabled", j==0? "DISABLED" : ""},
-      {"down_disabled", j==getTotalMemories()-1? "DISABLED" : ""}
-    });
-  }
-
-  return webPage(pageRender(pageMemory, {
-    {"title", pageMemoryTitle},
-    {"navigation", webNavigation("/memory")}, {"rows", rows},
-    {"toolbar", pageMemoryToolbar}
-  }), pageMemoryTitle);
+  return webPage(pageMemory, pageMemoryTitle, {
+    {"title", pageMemoryTitle}, {"toolbar", pageMemoryToolbar}
+  }, {
+    {"navigation", [](String &out) { webNavigation(out, "/memory"); }},
+    {"rows", [](String &out) {
+      for(int j=0 ; j<getTotalMemories() ; j++)
+      {
+        const Memory mem = getMemory(j);
+        const char *band = mem.freq && mem.band<getTotalBands()? bands[mem.band].bandName : "";
+        char slot[4];
+        snprintf(slot, sizeof(slot), "%02d", j+1);
+        pageAppend(out, pageMemoryRow, {
+          {"index", String(j)}, {"slot", slot}, {"name", mem.name}, {"frequency", String(mem.freq)},
+          {"up_disabled", j==0? "DISABLED" : ""},
+          {"down_disabled", j==getTotalMemories()-1? "DISABLED" : ""}
+        }, {
+          {"bands", [&](String &out) {
+            for(int i=0 ; i<getTotalBands() ; i++)
+            {
+              bool duplicate = false;
+              for(int k=0 ; k<i ; k++)
+                if(!strcmp(bands[k].bandName, bands[i].bandName)) duplicate = true;
+              if(duplicate) continue;
+              pageAppend(out, pageMemoryOption, {
+                {"value", bands[i].bandName}, {"selected", !strcmp(band, bands[i].bandName)? "SELECTED" : ""}
+              });
+            }
+          }},
+          {"modes", [&](String &out) {
+            for(int i=0 ; i<getTotalModes() ; i++)
+              pageAppend(out, pageMemoryOption, {
+                {"value", bandModeDesc[i]}, {"selected", mem.freq && mem.mode==i? "SELECTED" : ""}
+              });
+          }}
+        });
+      }
+    }}
+  });
 }
 
 const String webConfigPage()
@@ -891,21 +873,36 @@ const String webConfigPage()
   bool scanHidden = prefs.getBool("wifiscanhidden", false);
   prefs.end();
 
-  String splashImage = LittleFS.exists(SPLASH_PATH)?
-    pageRender(pageSplash, {{"version", String(millis())}}) : "Not installed";
   String splashResolution = String(spr.width()) + "x" + String(spr.height());
 
-  return webPage(pageRender(pageConfig, {
+  return webPage(pageConfig, pageConfigTitle, {
     {"title", pageConfigTitle},
-    {"navigation", webNavigation("/config")},
     {"ssid1", ssid1}, {"pass1", pass1}, {"ssid2", ssid2}, {"pass2", pass2},
     {"ssid3", ssid3}, {"pass3", pass3}, {"username", loginUsername}, {"password", loginPassword},
     {"scan_hidden", scanHidden? "CHECKED" : ""},
-    {"utc_options", webUtcOffsetSelector()}, {"theme_options", webThemeSelector()},
     {"scroll", scrollDirection<0? "CHECKED" : ""},
     {"half_step", encoderHalfStep? "CHECKED" : ""}, {"zoom", zoomMenu? "CHECKED" : ""},
-    {"splash", splashImage}, {"resolution", splashResolution}
-  }), pageConfigTitle);
+    {"resolution", splashResolution}
+  }, {
+    {"navigation", [](String &out) { webNavigation(out, "/config"); }},
+    {"utc_options", [](String &out) {
+      for(int i=0 ; i<getTotalUTCOffsets(); i++)
+        pageAppend(out, pageConfigUtcOption, {
+          {"value", String(i)}, {"minutes", String(utcOffsets[i].offset * 15)},
+          {"selected", utcOffsetIdx==i? "SELECTED" : ""}, {"label", utcOffsets[i].desc}
+        });
+    }},
+    {"theme_options", [](String &out) {
+      for(int i=0 ; i<getTotalThemes(); i++)
+        pageAppend(out, pageConfigThemeOption, {
+          {"value", String(i)}, {"selected", themeIdx==i? "SELECTED" : ""}, {"label", theme[i].name}
+        });
+    }},
+    {"splash", [](String &out) {
+      if(LittleFS.exists(SPLASH_PATH)) pageAppend(out, pageSplash, {{"version", String(millis())}});
+      else out += "Not installed";
+    }}
+  });
 }
 
 // Explicit request errors leave the active operation's status unchanged.
@@ -916,12 +913,14 @@ static void webUpdatePage(AsyncWebServerRequest *request, const OtaStatus &statu
   const bool complete = status.phase == OTA_COMPLETE || status.phase == OTA_REBOOT_PENDING;
   const bool available = status.phase == OTA_AVAILABLE;
   const char *refresh = complete? pageUpdateComplete : busy? pageUpdateBusy : "";
-  const String page = webPage(pageRender(pageUpdate, {
+  const String page = webPage(pageUpdate, pageUpdateTitle, {
     {"title", pageUpdateTitle},
-    {"navigation", webNavigation("/update")}, {"message", status.message},
+    {"message", status.message},
     {"action", available? "install" : "check"}, {"disabled", busy || complete? "DISABLED" : ""},
     {"button", available? "Update" : "Check for updates"}, {"refresh", refresh}
-  }), pageUpdateTitle);
+  }, {
+    {"navigation", [](String &out) { webNavigation(out, "/update"); }}
+  });
   if(!code) code = status.phase == OTA_FAILED? 400 : 200;
   AsyncWebServerResponse *response = request->beginResponse(code, "text/html", page);
   response->addHeader("Cache-Control", "no-store");
@@ -1029,48 +1028,49 @@ static void webPatchesPage(AsyncWebServerRequest *request)
   bool busy;
   uint8_t selected;
   patchesSnapshot(selected, busy);
-  String options;
-  for(uint8_t slot = 0; slot <= PATCH_SET_COUNT; slot++)
-  {
-    if(slot && !patchesModes(slot)) continue;
-    pageAppend(options, pagePatchOption, {
-      {"value", String(slot)}, {"selected", slot == selected? "SELECTED" : ""}, {"label", patchSetNames[slot]}
-    });
-  }
-
-  String modeOptions;
-  for(uint8_t mode = 0; mode < PATCH_MODE_COUNT; mode++)
-    pageAppend(modeOptions, pagePatchOption, {
-      {"value", patchModeNames[mode]}, {"selected", ""}, {"label", patchModeNames[mode]}
-    });
-
-  String sets;
-  for(uint8_t slot = 1; slot <= PATCH_SET_COUNT; slot++)
-  {
-    const char *disabled = busy || selected == slot? "DISABLED" : "";
-    uint8_t modes = patchesModes(slot);
-    String installed;
-    for(uint8_t mode = 0; mode < PATCH_MODE_COUNT; mode++)
-    {
-      if(mode) installed += " · ";
-      installed += patchModeNames[mode];
-      installed += (modes & (1U << mode))? ": uploaded" : ": Default";
-    }
-    String deleteRow = modes? pageRender(pagePatchDelete, {
-      {"slot", String(slot)}, {"disabled", disabled}
-    }) : "";
-    pageAppend(sets, pagePatchSet, {
-      {"slot", String(slot)}, {"name", patchSetNames[slot]}, {"installed", installed},
-      {"options", modeOptions}, {"disabled", disabled}, {"delete", deleteRow}
-    });
-  }
-
-  String body = pageRender(pagePatches, {
-    {"title", pagePatchesTitle},
-    {"navigation", webNavigation("/patches")}, {"busy", busy? pagePatchesBusy : ""},
-    {"disabled", busy? "DISABLED" : ""}, {"options", options}, {"sets", sets}
+  const String page = webPage(pagePatches, pagePatchesTitle, {
+    {"title", pagePatchesTitle}, {"busy", busy? pagePatchesBusy : ""},
+    {"disabled", busy? "DISABLED" : ""}
+  }, {
+    {"navigation", [](String &out) { webNavigation(out, "/patches"); }},
+    {"options", [&](String &out) {
+      for(uint8_t slot = 0; slot <= PATCH_SET_COUNT; slot++)
+      {
+        if(slot && !patchesModes(slot)) continue;
+        pageAppend(out, pagePatchOption, {
+          {"value", String(slot)}, {"selected", slot == selected? "SELECTED" : ""}, {"label", patchSetNames[slot]}
+        });
+      }
+    }},
+    {"sets", [&](String &out) {
+      for(uint8_t slot = 1; slot <= PATCH_SET_COUNT; slot++)
+      {
+        const char *disabled = busy || selected == slot? "DISABLED" : "";
+        uint8_t modes = patchesModes(slot);
+        String installed;
+        for(uint8_t mode = 0; mode < PATCH_MODE_COUNT; mode++)
+        {
+          if(mode) installed += " · ";
+          installed += patchModeNames[mode];
+          installed += (modes & (1U << mode))? ": uploaded" : ": Default";
+        }
+        pageAppend(out, pagePatchSet, {
+          {"slot", String(slot)}, {"name", patchSetNames[slot]}, {"installed", installed}, {"disabled", disabled}
+        }, {
+          {"options", [](String &out) {
+            for(uint8_t mode = 0; mode < PATCH_MODE_COUNT; mode++)
+              pageAppend(out, pagePatchOption, {
+                {"value", patchModeNames[mode]}, {"selected", ""}, {"label", patchModeNames[mode]}
+              });
+          }},
+          {"delete", [&](String &out) {
+            if(modes) pageAppend(out, pagePatchDelete, {{"slot", String(slot)}, {"disabled", disabled}});
+          }}
+        });
+      }
+    }}
   });
-  AsyncWebServerResponse *response = request->beginResponse(200, "text/html", webPage(body, pagePatchesTitle));
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/html", page);
   response->addHeader("Cache-Control", "no-store");
   if(busy) response->addHeader("Refresh", "2; url=/patches");
   request->send(response);

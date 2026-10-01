@@ -34,7 +34,7 @@ static const char pageEnd[] PROGMEM = R"HTML(
 </HTML>
 )HTML";
 
-static String webNavigation(const char *activePage)
+static void webNavigation(String &out, const char *activePage)
 {
   static const struct { const char *name; const char *path; } pages[] =
   {
@@ -44,14 +44,14 @@ static String webNavigation(const char *activePage)
     {"Update", "/update"},
     {"Patches", "/patches"},
   };
-  String links;
+  out += R"HTML(<P ALIGN="CENTER">)HTML";
   for(size_t i = 0; i < sizeof(pages) / sizeof(pages[0]); i++)
   {
-    if(i) links += "&nbsp;|&nbsp;";
-    if(!strcmp(activePage, pages[i].path)) links += pages[i].name;
-    else pageAppend(links, R"HTML(<A HREF="{{path}}">{{label}}</A>)HTML", {{"path", pages[i].path}, {"label", pages[i].name}});
+    if(i) out += "&nbsp;|&nbsp;";
+    if(!strcmp(activePage, pages[i].path)) out += pages[i].name;
+    else pageAppend(out, R"HTML(<A HREF="{{path}}">{{label}}</A>)HTML", {{"path", pages[i].path}, {"label", pages[i].name}});
   }
-  return pageRender(R"HTML(<P ALIGN="CENTER">{{{links}}}</P>)HTML", {{"links", links}});
+  out += "</P>";
 }
 
 #endif // PAGE_COMMON_H
