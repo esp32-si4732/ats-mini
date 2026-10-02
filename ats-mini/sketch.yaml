@@ -7,7 +7,7 @@ profiles:
         platform_index_url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
     libraries:
       - PU2CLR SI4735 (2.1.8)
-      - LovyanGFX (1.2.29)
+      - LovyanGFX (1.2.32)
       - Async TCP (3.5.0)
       - ESP Async WebServer (3.12.1)
       - NTPClient (3.2.1)
@@ -20,7 +20,7 @@ profiles:
         platform_index_url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
     libraries:
       - PU2CLR SI4735 (2.1.8)
-      - LovyanGFX (1.2.29)
+      - LovyanGFX (1.2.32)
       - Async TCP (3.5.0)
       - ESP Async WebServer (3.12.1)
       - NTPClient (3.2.1)
