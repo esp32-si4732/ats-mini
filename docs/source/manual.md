@@ -4,7 +4,7 @@
 
 ![](_static/screenshot-main.png)
 
-* **RSSI meter** (top left corner), also serves as a mono/stereo indicator in FM mode (one/two rows).
+* **RSSI meter** (top left corner), also serves as a mono/stereo indicator in FM mode (one/two rows). The single mark ahead of the bar is the peak hold, which stays for a moment and then slides back down.
 * **Settings save icon** (right after the RSSI meter). The settings are saved to non-volatile memory after 10 seconds of inactivity.
 * **Bluetooth icon** (right after the save icon). Different colors indicate the connection status.
 * **Wi-Fi icon** (top right area near the battery). Different colors indicate the connection status.
@@ -24,7 +24,7 @@ The differences are:
 * **Stereo indicator** is on the right side of the band and mode (VHF & FM).
 * **Tuning scale** (right under the station name). Numbers on the left & right sides are the band limits.
 * **S/N Meter** (in dB). The range is 0...127 and the visual indicator linearly displays this range.
-* **RSSI & S-Meter** (the number is in dBµV, the meter is in S-points). Please note that the RSSI range is also 0...127 (no negative values) and according to [these tables](https://dl4zao.de/_downloads/Dezibel.pdf) any values below S4 on HF (rssi < 4) and below S7 on VHF (rssi < 2) are bogus. Thus it is very far from being precise, and also depends on the antenna impedance.
+* **RSSI & S-Meter** (the number is in dBµV, the meter is in S-points). The single mark ahead of the bar is the peak hold. Please note that the RSSI range is also 0...127 (no negative values) and according to [these tables](https://dl4zao.de/_downloads/Dezibel.pdf) any values below S4 on HF (rssi < 4) and below S7 on VHF (rssi < 2) are bogus. Thus it is very far from being precise, and also depends on the antenna impedance.
 
 Both meters can be replaced with additional RDS fields (RT, PTY) when extended RDS is enabled, or RSSI/SNR graphs in Scan mode.
 
