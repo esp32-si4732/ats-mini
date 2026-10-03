@@ -31,6 +31,7 @@ OPTIONS = \
 	--warnings all
 
 HEADERS = \
+	Parser.h ParserTypes.h ParserUtils.h \
 	Common.h Themes.h Menu.h Memories.h Storage.h Display.h Rotary.h \
 	Utils.h Button.h EIBI.h Remote.h BleMode.h TcpMode.h BlePeripheral.h \
 	BleUartPeripheral.h BleCentral.h BleHidCentral.h \
@@ -38,6 +39,7 @@ HEADERS = \
 	$(wildcard Page*.h)
 
 SRC = \
+	Parser.cpp \
 	$(INO) Utils.cpp Rotary.cpp Button.cpp Draw.cpp Menu.cpp Memories.cpp \
 	Station.cpp Battery.cpp Storage.cpp Themes.cpp Remote.cpp \
 	Network.cpp Patches.cpp Ota.cpp Splash.cpp EIBI.cpp Scan.cpp About.cpp BleMode.cpp TcpMode.cpp \
@@ -66,4 +68,11 @@ clean:
 	rm -Rf ./build/
 
 
-.PHONY: all help build upload clean
+build/TestParser: tests/TestParser.cpp Parser.cpp Parser.h ParserTypes.h ParserUtils.h
+	mkdir -p build
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -std=c++11 -Wall -Wextra -UNDEBUG tests/TestParser.cpp Parser.cpp $(LDFLAGS) -o $@
+
+test: build/TestParser
+	./build/TestParser
+
+.PHONY: all help build upload clean test
