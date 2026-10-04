@@ -264,11 +264,8 @@ bool ntpSyncTime();
 void netRequestConnect();
 void netTickTime();
 
-// Remote.c
-#define REMOTE_CHANGED   1
-#define REMOTE_CLICK     2
-#define REMOTE_SHORT_PRESS 8
-#define REMOTE_PRESSED   16
-#define REMOTE_DIRECTION 8
+// Shared receiver control actions. Return whether the display needs updating.
+bool handleRotation(int16_t enc, int16_t accelerated, bool pressed = false);
+bool handleClick(bool shortPress);
 
 #endif // COMMON_H

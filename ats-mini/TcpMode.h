@@ -6,7 +6,7 @@
 constexpr uint16_t TCP_CONTROL_PORT = 60000;
 
 void tcpStop();
-int tcpLoop(uint8_t tcpMode);
+bool tcpLoop(uint8_t tcpMode);
 bool tcpConsumeAbortPending(uint8_t tcpMode);
 
 #endif

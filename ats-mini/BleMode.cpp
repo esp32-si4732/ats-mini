@@ -11,6 +11,7 @@
 static BleUartPeripheral BLESerial;
 static BleHidCentral BLEHid;
 static RemoteState remoteBLEState;
+static bool hidPushAndRotate = false;
 
 static void bleControllerDisable()
 {
@@ -53,6 +54,7 @@ int8_t getBleStatus()
 //
 void bleStop()
 {
+  hidPushAndRotate = false;
   if (BLESerial.isStarted())
     BLESerial.end();
 
@@ -97,20 +99,24 @@ void bleInit(uint8_t bleMode)
   }
 }
 
-int bleLoop(uint8_t bleMode)
+static InputEvent bleReadInput(uint8_t& byte)
 {
+  return BLESerial.readInput(byte);
+}
+
+bool blePushAndRotate()
+{
+  return hidPushAndRotate;
+}
+
+bool bleLoop(uint8_t bleMode)
+{
+  if(bleMode != BLE_HID) hidPushAndRotate = false;
   if (bleMode == BLE_ADHOC)
-  {
-    if (BLESerial.isConnected())
-      remoteTickTime(&BLESerial, &remoteBLEState);
-    if (!BLESerial.isConnected()) return 0;
-    if (BLESerial.available())
-      return remoteDoCommand(&BLESerial, &remoteBLEState, BLESerial.read());
-    return 0;
-  }
+    return remoteLoop(&BLESerial, &remoteBLEState, bleReadInput);
 
   if (bleMode != BLE_HID)
-    return 0;
+    return false;
 
   // BLEHid.loop() below connects synchronously, so the status stays up for
   // the whole connection attempt
@@ -124,29 +130,33 @@ int bleLoop(uint8_t bleMode)
   else
     BLEHid.loop();
 
-  if (!BLEHid.isConnected()) return 0;
+  if (!BLEHid.isConnected())
+  {
+    hidPushAndRotate = false;
+    return false;
+  }
 
   BleHidState input = BLEHid.update();
-  int event = input.isPressed ? REMOTE_PRESSED : 0;
-  if (!input.rotation && !input.wasClicked && !input.wasShortPressed) return event;
-
-  event |= REMOTE_CHANGED;
-  if (input.rotation)
-    event |= input.rotation << REMOTE_DIRECTION;
-  if (input.wasClicked)
-    event |= REMOTE_CLICK;
-  if (input.wasShortPressed)
-    event |= REMOTE_SHORT_PRESS;
-  return event;
+  if(!input.isPressed) hidPushAndRotate = false;
+  else if(input.rotation && !(sleepOn() && sleepModeIdx == SLEEP_LOCKED))
+    hidPushAndRotate = true;
+  if(input.rotation)
+    return handleRotation(input.rotation, input.rotation, input.isPressed);
+  if(input.wasClicked || input.wasShortPressed)
+    return handleClick(input.wasShortPressed);
+  return false;
 }
 
 bool bleConsumeAbortPending(uint8_t bleMode)
 {
   if (bleMode == BLE_ADHOC)
-    return BLESerial.consumeAbortPending();
+    return remoteConsumeAbortPending(&remoteBLEState, bleReadInput);
 
-  if (bleMode == BLE_HID)
-    return BLEHid.consumeAbortPending();
+  if (bleMode == BLE_HID && BLEHid.consumeAbortPending())
+  {
+    hidPushAndRotate = false;
+    return true;
+  }
 
   return false;
 }

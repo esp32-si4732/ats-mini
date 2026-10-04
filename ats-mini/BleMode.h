@@ -7,7 +7,9 @@
 void bleInit(uint8_t bleMode);
 void bleStop();
 int8_t getBleStatus();
-int bleLoop(uint8_t bleMode);
+bool bleLoop(uint8_t bleMode);
+// True from a held rotation until release, disconnect, or cancellation.
+bool blePushAndRotate();
 bool bleConsumeAbortPending(uint8_t bleMode);
 
 #endif

@@ -1,15 +1,5 @@
 #include "BleUartPeripheral.h"
 #include <host/ble_hs.h>
-#include "Remote.h"
-
-bool BleUartPeripheral::consumeAbortPending()
-{
-  bool pending = abortPending;
-  abortPending = false;
-  if (pending)
-    rxBuf.flush();
-  return pending;
-}
 
 bool BleUartPeripheral::canSend() const
 {
@@ -94,7 +84,6 @@ void BleUartPeripheral::clearPendingTx()
 
 void BleUartPeripheral::resetTxSession()
 {
-  abortPending = false;
   clearPendingTx();
   txBuf.flush();
   txConnHandle = BLE_HS_CONN_HANDLE_NONE;
@@ -126,8 +115,10 @@ void BleUartPeripheral::createServices()
 void BleUartPeripheral::destroyServices()
 {
   resetTxSession();
-  abortPending = false;
+  std::lock_guard<std::mutex> lock(rxMutex);
   rxBuf.flush();
+  rxConnHandle = BLE_HS_CONN_HANDLE_NONE;
+  inputResetPending = true;
 }
 
 void BleUartPeripheral::configureAdvertising(BLEAdvertising& advertising)
@@ -138,6 +129,12 @@ void BleUartPeripheral::configureAdvertising(BLEAdvertising& advertising)
 
 void BleUartPeripheral::onConnect(BLEServer* server, ble_gap_conn_desc* desc)
 {
+  {
+    std::lock_guard<std::mutex> lock(rxMutex);
+    rxBuf.flush();
+    rxConnHandle = desc->conn_handle;
+    inputResetPending = true;
+  }
   txConnHandle = desc->conn_handle;
   txPeerMtu = BLE_MIN_MTU;
   txSubscribed = false;
@@ -150,7 +147,15 @@ void BleUartPeripheral::onDisconnect(BLEServer* server, ble_gap_conn_desc* desc)
   if (desc->conn_handle == txConnHandle)
     resetTxSession();
 
-  rxBuf.flush();
+  {
+    std::lock_guard<std::mutex> lock(rxMutex);
+    if(desc->conn_handle == rxConnHandle)
+    {
+      rxBuf.flush();
+      rxConnHandle = BLE_HS_CONN_HANDLE_NONE;
+      inputResetPending = true;
+    }
+  }
   BlePeripheral::onDisconnect(server, desc);
 }
 
@@ -160,7 +165,8 @@ void BleUartPeripheral::onWrite(BLECharacteristic* characteristic, ble_gap_conn_
 
   uint8_t* data = characteristic->getData();
   size_t byteCount = characteristic->getLength();
-  abortPending |= byteCount > 0;
+  std::lock_guard<std::mutex> lock(rxMutex);
+  if(desc->conn_handle != rxConnHandle) return;
   size_t room = rxBuf.room();
   if (byteCount > room)
     byteCount = room;
@@ -240,22 +246,37 @@ void BleUartPeripheral::onStatus(BLECharacteristic* characteristic, Status statu
 int BleUartPeripheral::available()
 {
   pumpTx();
+  std::lock_guard<std::mutex> lock(rxMutex);
   return rxBuf.available();
 }
 
 int BleUartPeripheral::peek()
 {
   pumpTx();
+  std::lock_guard<std::mutex> lock(rxMutex);
   return rxBuf.peek();
 }
 
 int BleUartPeripheral::read()
 {
   pumpTx();
+  std::lock_guard<std::mutex> lock(rxMutex);
+  return rxBuf.read();
+}
+
+InputEvent BleUartPeripheral::readInput(uint8_t& byte)
+{
+  pumpTx();
+  std::lock_guard<std::mutex> lock(rxMutex);
+  if(inputResetPending)
+  {
+    inputResetPending = false;
+    return InputEvent::SessionReset;
+  }
   int value = rxBuf.read();
-  if (value >= 0)
-    abortPending = false;
-  return value;
+  if(value < 0) return InputEvent::NoData;
+  byte = uint8_t(value);
+  return InputEvent::Byte;
 }
 
 void BleUartPeripheral::flush()

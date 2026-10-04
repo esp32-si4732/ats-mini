@@ -2,7 +2,9 @@
 #define BLE_UART_PERIPHERAL_H
 
 #include <cbuf.h>
+#include <mutex>
 #include "BlePeripheral.h"
+#include "Remote.h"
 
 #define UART_SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
 #define UART_CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
@@ -30,8 +32,8 @@ public:
   int available() override;
   int peek() override;
   int read() override;
+  InputEvent readInput(uint8_t& byte);
   void flush() override;
-  bool consumeAbortPending();
 
   size_t write(uint8_t byte) override;
   size_t write(const uint8_t* data, size_t size) override;
@@ -66,7 +68,10 @@ private:
 
   cbuf rxBuf{BLE_BUFFER_SIZE};
   cbuf txBuf{BLE_BUFFER_SIZE};
-  volatile bool abortPending = false;
+  // Order session changes and received bytes before handing them to the main loop.
+  std::mutex rxMutex;
+  bool inputResetPending = true;
+  uint16_t rxConnHandle = BLE_HS_CONN_HANDLE_NONE;
   // Flat notify payload assembled from txBuf, even when the ring wraps.
   uint8_t txChunk[BLE_TX_PAYLOAD_CAP];
   // Bytes currently retained for notify/retry outside txBuf.

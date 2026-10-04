@@ -1,15 +1,29 @@
 #ifndef REMOTE_H
 #define REMOTE_H
 
-typedef struct {
+#include <Arduino.h>
+#include "Parser.h"
+
+enum class InputEvent : uint8_t { NoData, SessionReset, Byte };
+
+// Nonblocking. Report SessionReset before any bytes from a new connection,
+// even when no bytes are queued. Only Byte sets the output argument.
+using RemoteReadInput = InputEvent (*)(uint8_t& byte);
+
+struct RemoteState {
   uint32_t remoteTimer = millis();
   uint8_t remoteSeqnum = 0;
   bool remoteLogOn = false;
-} RemoteState;
+  FramerState input;
+  uint32_t inputTimer = 0;
+};
 
-void remoteTickTime(Stream* stream, RemoteState* state);
-int remoteDoCommand(Stream* stream, RemoteState* state, char key);
-int serialLoop(uint8_t usbMode);
+// Process at most one command. Return whether the display needs updating.
+bool remoteLoop(Stream* stream, RemoteState* state, RemoteReadInput readInput);
+// Skip ignored separators; consume cancellation input without executing its
+// command, including its tail.
+bool remoteConsumeAbortPending(RemoteState* state, RemoteReadInput readInput);
+bool serialLoop(uint8_t usbMode);
 bool serialConsumeAbortPending(uint8_t usbMode);
 
 #endif

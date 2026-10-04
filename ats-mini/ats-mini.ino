@@ -43,7 +43,7 @@ int8_t agcNdx = 0;
 int8_t softMuteMaxAttIdx = 4;
 
 volatile bool seekStop = false; // G8PTN: Added flag to abort seeking on rotary encoder detection
-bool pushAndRotate = false;   // Push and rotate is active, ignore the long press
+bool pushAndRotate = false;   // Combined physical/BLE gesture state for the display
 
 long elapsedRSSI = millis();
 long elapsedButton = millis();
@@ -585,9 +585,11 @@ bool doSeek(int16_t enc, int16_t enca)
       clearStationInfo();
       rssi = snr = 0;
 
-      // Clear stale abort state before starting seek
-      consumeAbortPending();
-      rx.seekStationProgress(showFrequencySeek, consumeAbortPending, enc>0? 1 : 0);
+      // Clear only the encoder latch. Pending remote input cancels the seek
+      // and is consumed without executing its command.
+      seekStop = false;
+      if(!consumeAbortPending())
+        rx.seekStationProgress(showFrequencySeek, consumeAbortPending, enc>0? 1 : 0);
       updateFrequency(rx.getFrequency(), true);
     }
   }
@@ -760,200 +762,126 @@ bool processRssiSnr()
   return needRedraw;
 }
 
+// Shared by the physical encoder, BLE HID, and ad hoc R/r commands.
+bool handleRotation(int16_t enc, int16_t accelerated, bool pressed)
+{
+  if(!enc || (sleepOn() && sleepModeIdx == SLEEP_LOCKED)) return false;
+  bool changed = false;
+  if(pressed)
+  {
+    switch(currentCmd)
+    {
+      case CMD_NONE:
+        currentCmd = CMD_FREQ;
+        changed = true;
+        break;
+      case CMD_FREQ:
+        doSelectDigit(enc);
+        changed = true;
+        break;
+      case CMD_SEEK:
+        changed = doTune(enc);
+        prefsRequestSave(SAVE_CUR_BAND);
+        break;
+    }
+  }
+  else
+  {
+    switch(currentCmd)
+    {
+      case CMD_NONE:
+      case CMD_SCAN:
+        changed = doTune(accelerated);
+        prefsRequestSave(SAVE_CUR_BAND);
+        break;
+      case CMD_FREQ:
+        changed = doDigit(enc);
+        prefsRequestSave(SAVE_CUR_BAND);
+        break;
+      case CMD_SEEK:
+        changed = doSeek(enc, accelerated);
+        prefsRequestSave(SAVE_CUR_BAND);
+        break;
+      default:
+        changed = doSideBar(currentCmd, enc, accelerated);
+        break;
+    }
+  }
+  elapsedSleep = elapsedCommand = millis();
+  return changed;
+}
+
+// Shared by the physical button, BLE HID, and ad hoc e/E commands.
+bool handleClick(bool shortPress)
+{
+  elapsedSleep = elapsedCommand = millis();
+  if(sleepOn())
+  {
+    if(currentSleep)
+      sleepOn(false);
+    else if(sleepModeIdx == SLEEP_UNLOCKED)
+    {
+      if(shortPress && currentCmd == CMD_NONE)
+        currentCmd = CMD_VOLUME;
+      else if(currentCmd == CMD_VOLUME)
+        clickHandler(currentCmd, shortPress);
+    }
+    else return false;
+  }
+  else if(!clickHandler(currentCmd, shortPress))
+  {
+    if(currentCmd != CMD_NONE)
+      currentCmd = CMD_NONE;
+    else
+      currentCmd = shortPress ? CMD_VOLUME : CMD_MENU;
+  }
+  // Waking the display or loading schedules can take time.
+  elapsedSleep = elapsedCommand = millis();
+  return true;
+}
+
 //
 // Main event loop
 //
 void loop()
 {
-  uint32_t currentTime = millis();
   bool needRedraw = false;
-
   uint32_t encCounts = consumeEncoderCounts();
   int16_t encCount = (int16_t)(encCounts & 0xFFFF);
   int16_t encCountAccel = (int16_t)(encCounts >> 16);
+  ButtonTracker::State button = pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW);
 
-  ButtonTracker::State pb1st = pb1.update(digitalRead(ENCODER_PUSH_BUTTON) == LOW);
+  if(encCount && sleepOn() && sleepModeIdx == SLEEP_LOCKED)
+    encCount = encCountAccel = 0;
+  // Keep gesture ownership separate: releasing one control must not clear
+  // a held gesture on the other, or affect physical long-press handling.
+  static bool physicalPushAndRotate = false;
+  if(encCount && button.isPressed) physicalPushAndRotate = true;
+  if(!button.isPressed) physicalPushAndRotate = false;
 
-  // if(encCount && getCpuFrequencyMhz()!=240) setCpuFrequencyMhz(240);
-
-  // Receive and execute serial command
-  int ser_event = serialLoop(usbModeIdx);
-  needRedraw |= !!(ser_event & REMOTE_CHANGED);
-  pb1st.isPressed |= !!(ser_event & REMOTE_PRESSED);
-  pb1st.wasClicked |= !!(ser_event & REMOTE_CLICK);
-  pb1st.wasShortPressed |= !!(ser_event & REMOTE_SHORT_PRESS);
-  int ser_direction = ser_event >> REMOTE_DIRECTION;
-  encCount = ser_direction? ser_direction : encCount;
-  encCountAccel = ser_direction? ser_direction : encCountAccel;
-
-  // Receive and execute BLE command
-  int ble_event = bleLoop(bleModeIdx);
-  needRedraw |= !!(ble_event & REMOTE_CHANGED);
-  pb1st.isPressed |= !!(ble_event & REMOTE_PRESSED);
-  pb1st.wasClicked |= !!(ble_event & REMOTE_CLICK);
-  pb1st.wasShortPressed |= !!(ble_event & REMOTE_SHORT_PRESS);
-  int ble_direction = ble_event >> REMOTE_DIRECTION;
-  encCount = ble_direction? ble_direction : encCount;
-  encCountAccel = ble_direction? ble_direction : encCountAccel;
-
-  // Receive and execute TCP command
-  int tcp_event = tcpLoop(tcpModeIdx);
-  needRedraw |= !!(tcp_event & REMOTE_CHANGED);
-  pb1st.isPressed |= !!(tcp_event & REMOTE_PRESSED);
-  pb1st.wasClicked |= !!(tcp_event & REMOTE_CLICK);
-  pb1st.wasShortPressed |= !!(tcp_event & REMOTE_SHORT_PRESS);
-  int tcp_direction = tcp_event >> REMOTE_DIRECTION;
-  encCount = tcp_direction? tcp_direction : encCount;
-  encCountAccel = tcp_direction? tcp_direction : encCountAccel;
-
-  // Block encoder rotation when in the locked sleep mode
-  if(encCount && sleepOn() && sleepModeIdx==SLEEP_LOCKED) encCount = encCountAccel = 0;
-
-  // Activate push and rotate mode (can span multiple loop iterations until the button is released)
-  if (encCount && pb1st.isPressed) pushAndRotate = true;
-
-  // Deactivate push and rotate mode as soon as the button is released so
-  // click handling in this loop iteration follows the normal path.
-  if(!pb1st.isPressed && pushAndRotate)
+  if(encCount)
+    needRedraw |= handleRotation(encCount, encCountAccel, button.isPressed);
+  else if(!physicalPushAndRotate && button.isLongPressed)
   {
-    pushAndRotate = false;
-    needRedraw = true;
+    sleepOn(!sleepOn());
+    elapsedSleep = elapsedCommand = millis();
   }
+  else if(!physicalPushAndRotate && (button.wasClicked || button.wasShortPressed))
+    needRedraw |= handleClick(button.wasShortPressed);
 
-  // If push and rotate mode is active...
-  if(pushAndRotate)
-  {
-    // If encoder has been rotated
-    if(encCount)
-    {
-      switch(currentCmd)
-      {
-        case CMD_NONE:
-          // Activate frequency input mode
-          currentCmd = CMD_FREQ;
-          needRedraw = true;
-          break;
-        case CMD_FREQ:
-          // Select digit
-          doSelectDigit(encCount);
-          needRedraw = true;
-          break;
-        case CMD_SEEK:
-          // Normal tuning in seek mode
-          needRedraw |= doTune(encCount);
-          // Current frequency may have changed
-          prefsRequestSave(SAVE_CUR_BAND);
-          break;
-      }
-    }
-    // Reset timeouts while push and rotate is active
-    elapsedSleep = elapsedCommand = currentTime;
-  }
-  else
-  {
-    // If encoder has been rotated
-    if(encCount)
-    {
-      switch(currentCmd)
-      {
-        case CMD_NONE:
-        case CMD_SCAN:
-          // Tuning
-          needRedraw |= doTune(encCountAccel);
-          // Current frequency may have changed
-          prefsRequestSave(SAVE_CUR_BAND);
-          break;
-        case CMD_FREQ:
-          // Digit tuning
-          needRedraw |= doDigit(encCount);
-          // Current frequency may have changed
-          prefsRequestSave(SAVE_CUR_BAND);
-          break;
-        case CMD_SEEK:
-          // Seek mode
-          needRedraw |= doSeek(encCount, encCountAccel);
-          // Seek can take long time, renew the timestamp
-          currentTime = millis();
-          // Current frequency may have changed
-          prefsRequestSave(SAVE_CUR_BAND);
-          break;
-        default:
-          // Side bar menus / settings
-          needRedraw |= doSideBar(currentCmd, encCount, encCountAccel);
-          break;
-      }
-
-      // Reset timeouts
-      elapsedSleep = elapsedCommand = currentTime;
-    }
-    else if(pb1st.isLongPressed)
-    {
-      // Encoder is being LONG PRESSED: TOGGLE DISPLAY
-      sleepOn(!sleepOn());
-      // CPU sleep can take long time, renew the timestamps
-      elapsedSleep = elapsedCommand = currentTime = millis();
-
-    }
-    else if(pb1st.wasClicked || pb1st.wasShortPressed)
-    {
-      // Encoder click or short press
-      // Reset timeouts
-      elapsedSleep = elapsedCommand = currentTime;
-
-      // If in locked/unlocked sleep mode
-      if(sleepOn())
-      {
-        // If sleep timeout is enabled, exit it via button press of any duration
-        // (users don't need to figure out that a long press is required to wake up the device)
-        if(currentSleep)
-        {
-          sleepOn(false);
-          needRedraw = true;
-        }
-        else if(sleepModeIdx == SLEEP_UNLOCKED)
-        {
-          // Allow to adjust the volume in sleep mode
-          if(pb1st.wasShortPressed && currentCmd==CMD_NONE)
-            currentCmd = CMD_VOLUME;
-          else if(currentCmd==CMD_VOLUME)
-            clickHandler(currentCmd, pb1st.wasShortPressed);
-
-          needRedraw = true;
-        }
-      }
-      else if(clickHandler(currentCmd, pb1st.wasShortPressed))
-      {
-        // Command handled, redraw screen
-        needRedraw = true;
-
-        // EiBi can take long time, renew the timestamps
-        elapsedSleep = elapsedCommand = currentTime = millis();
-      }
-      else if(currentCmd != CMD_NONE)
-      {
-        // Deactivate modal mode
-        currentCmd = CMD_NONE;
-        needRedraw = true;
-      }
-      else if(pb1st.wasShortPressed)
-      {
-        // Volume shortcut (only active in VFO mode)
-        currentCmd = CMD_VOLUME;
-        needRedraw = true;
-      }
-      else
-      {
-        // Activate menu
-        currentCmd = CMD_MENU;
-        needRedraw = true;
-      }
-    }
-  }
+  // Each source executes independently, so simultaneous inputs are not lost.
+  needRedraw |= serialLoop(usbModeIdx);
+  needRedraw |= bleLoop(bleModeIdx);
+  needRedraw |= tcpLoop(tcpModeIdx);
+  uint32_t currentTime = millis();
+  const bool heldRotation = physicalPushAndRotate || blePushAndRotate();
+  needRedraw |= heldRotation != pushAndRotate;
+  pushAndRotate = heldRotation;
+  if(pushAndRotate) elapsedSleep = elapsedCommand = currentTime;
 
   // Disable commands control
   if((currentTime - elapsedCommand) > ELAPSED_COMMAND)
   {
-    // if(getCpuFrequencyMhz()!=80) setCpuFrequencyMhz(80);
     if(currentCmd != CMD_NONE && currentCmd != CMD_SEEK && currentCmd != CMD_SCAN && currentCmd != CMD_MEMORY)
     {
       currentCmd = CMD_NONE;

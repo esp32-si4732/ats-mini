@@ -9,6 +9,7 @@ static WiFiServer tcpServer(TCP_CONTROL_PORT, 1);
 static WiFiClient tcpClient;
 static RemoteState remoteTCPState;
 static uint32_t lastListenAttempt;
+static bool tcpInputResetPending = true;
 
 static bool tcpIsConnected()
 {
@@ -27,31 +28,49 @@ static bool tcpIsConnected()
   return tcpClient.fd() >= 0;
 }
 
+static InputEvent tcpReadInput(uint8_t& byte)
+{
+  if(tcpInputResetPending)
+  {
+    tcpInputResetPending = false;
+    return InputEvent::SessionReset;
+  }
+  if(tcpClient.fd() < 0) return InputEvent::NoData;
+
+  // Drain received bytes before checking EOF, without probing the socket for
+  // every byte of a command.
+  int value = tcpClient.read();
+  if(value < 0)
+    return tcpIsConnected() ? InputEvent::NoData : InputEvent::SessionReset;
+  byte = uint8_t(value);
+  return InputEvent::Byte;
+}
+
 void tcpStop()
 {
   tcpClient.stop();
   tcpServer.end();
-  remoteTCPState = RemoteState{};
+  tcpInputResetPending = true;
 }
 
-int tcpLoop(uint8_t tcpMode)
+bool tcpLoop(uint8_t tcpMode)
 {
   bool networkUp = WiFi.status() == WL_CONNECTED || (WiFi.getMode() & WIFI_AP);
   if(tcpMode != TCP_ADHOC || !networkUp)
   {
     if(tcpServer) tcpStop();
-    return 0;
+    return false;
   }
 
   if(!tcpServer)
   {
-    if(millis() - lastListenAttempt < 1000) return 0;
+    if(millis() - lastListenAttempt < 1000) return false;
     lastListenAttempt = millis();
     tcpServer.begin();
     if(!tcpServer)
     {
       tcpServer.end();
-      return 0;
+      return false;
     }
     tcpServer.setNoDelay(false);
   }
@@ -63,20 +82,15 @@ int tcpLoop(uint8_t tcpMode)
       incoming.stop(); // One controller at a time.
     else
     {
-      remoteTCPState = RemoteState{};
       tcpClient = incoming;
+      tcpInputResetPending = true;
     }
   }
 
-  if(!tcpIsConnected()) return 0;
-  remoteTickTime(&tcpClient, &remoteTCPState);
-  if(!tcpClient.available()) return 0;
-
-  return remoteDoCommand(&tcpClient, &remoteTCPState, tcpClient.read());
+  return remoteLoop(&tcpClient, &remoteTCPState, tcpReadInput);
 }
 
 bool tcpConsumeAbortPending(uint8_t tcpMode)
 {
-  if(tcpMode != TCP_ADHOC || !tcpClient.available()) return false;
-  return tcpClient.read() >= 0;
+  return tcpMode == TCP_ADHOC && remoteConsumeAbortPending(&remoteTCPState, tcpReadInput);
 }
