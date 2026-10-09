@@ -10,6 +10,7 @@ Arduino firmware for the ATS Mini ESP32-S3/SI4732 receiver.
 - Build firmware changes from the repository root:
   `arduino-cli compile --warnings all ats-mini`
 - Do not compile anything unless asked.
+- Do not create new unit tests unless explicitly asked.
 - Run repository checks: `uv run prek run --all-files`.
 - Keep board settings in `ats-mini/sketch.yaml` and
   `.github/workflows/build.yml` consistent when changing them.

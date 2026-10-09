@@ -29,7 +29,21 @@ on:
         required: false
 
 jobs:
+  tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: "${{ github.event.inputs.revision || github.ref }}"
+      - name: Run unit tests
+        run: make -C ats-mini test
+
   build:
+    needs: tests
     name: build ${{ matrix.board.artifact-suffix }}
     runs-on: ubuntu-latest
     permissions: {}
