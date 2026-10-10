@@ -148,9 +148,9 @@ static void remoteGetMemories(Stream* stream)
   for (uint8_t i = 0; i < getTotalMemories(); i++) {
     const Memory memory = getMemory(i);
     if (memory.freq) {
-      stream->printf("#%02d,%s,%lu,%s", i + 1, bands[memory.band].bandName, (unsigned long)memory.freq, bandModeDesc[memory.mode]);
-      if(memory.name[0]) stream->printf(",%s", memory.name);
-      stream->println();
+      stream->printf("#%02d,%s,%lu,%s%s%s\r\n", i + 1, bands[memory.band].bandName,
+                     (unsigned long)memory.freq, bandModeDesc[memory.mode],
+                     memory.name[0] ? "," : "", memory.name);
     }
   }
 }
