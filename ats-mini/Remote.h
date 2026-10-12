@@ -18,6 +18,9 @@ struct RemoteState {
   uint32_t inputTimer = 0;
 };
 
+// Capture from the main loop into a buffer of at least BMP_FILE_SIZE bytes.
+bool remoteCaptureBmp(uint8_t *bmp);
+
 // Process at most one command. Return whether the display needs updating.
 bool remoteLoop(Stream* stream, RemoteState* state, RemoteReadInput readInput);
 // Skip ignored separators; consume cancellation input without executing its

@@ -42,8 +42,6 @@ static bool remoteWriteScreenshot(Stream* stream, const uint8_t* data, size_t si
   return true;
 }
 
-static constexpr uint32_t BMP_FILE_SIZE = 66 + (uint32_t)DISPLAY_WIDTH * DISPLAY_HEIGHT * 2;
-
 // BMP dimensions match the display sprite; all fields are little-endian.
 static const uint8_t bmpHeader[] = {
   'B', 'M',
@@ -62,11 +60,12 @@ static const uint8_t bmpHeader[] = {
 //
 // Send the screen as a hex ('C') or binary ('c') RGB565 BMP.
 //
-static void remoteCaptureScreen(Stream* stream, bool binary)
+template<typename Write>
+static bool captureScreen(Write write, bool binary)
 {
   const uint16_t *fb = (const uint16_t *)spr.getBuffer();
   uint8_t buf[256];
-  if(!fb) return;
+  if(!fb) return false;
 
   // Keep chunks full across the header and rows. All output is added in pairs.
   uint8_t *p = buf;
@@ -75,7 +74,7 @@ static void remoteCaptureScreen(Stream* stream, bool binary)
     *p++ = second;
     if(p == buf + sizeof(buf))
     {
-      if(!remoteWriteScreenshot(stream, buf, sizeof(buf))) return false;
+      if(!write(buf, sizeof(buf))) return false;
       p = buf;
     }
     return true;
@@ -89,12 +88,12 @@ static void remoteCaptureScreen(Stream* stream, bool binary)
                   : appendHexByte(first) && appendHexByte(second);
   };
 
-  if(!binary && !appendPair('\r', '\n')) return;
+  if(!binary && !appendPair('\r', '\n')) return false;
   for(size_t i=0 ; i<sizeof(bmpHeader) ; i+=2)
   {
-    if(!appendBmpPair(bmpHeader[i], bmpHeader[i + 1])) return;
+    if(!appendBmpPair(bmpHeader[i], bmpHeader[i + 1])) return false;
   }
-  if(!binary && !appendPair('\r', '\n')) return;
+  if(!binary && !appendPair('\r', '\n')) return false;
 
   // Send rows bottom-up. The unrotated sprite stores contiguous rows of
   // byte-swapped RGB565 words; emit the high byte first for BMP pixel data.
@@ -104,13 +103,30 @@ static void remoteCaptureScreen(Stream* stream, bool binary)
     for(int x=0 ; x<DISPLAY_WIDTH ; x++)
     {
       uint16_t v = row[x];
-      if(!appendBmpPair(v >> 8, v & 0xFF)) return;
+      if(!appendBmpPair(v >> 8, v & 0xFF)) return false;
     }
-    if(!binary && !appendPair('\r', '\n')) return;
+    if(!binary && !appendPair('\r', '\n')) return false;
   }
-  if(p != buf && !remoteWriteScreenshot(stream, buf, p - buf)) return;
+  if(p != buf && !write(buf, p - buf)) return false;
+  return true;
+}
+
+static void remoteCaptureScreen(Stream* stream, bool binary)
+{
+  if(!captureScreen([&](const uint8_t *data, size_t size) {
+    return remoteWriteScreenshot(stream, data, size);
+  }, binary)) return;
   // HWCDC flush() can discard pending output on a false disconnect.
   if(stream != &Serial) stream->flush();
+}
+
+bool remoteCaptureBmp(uint8_t *bmp)
+{
+  return captureScreen([&](const uint8_t *data, size_t length) {
+    memcpy(bmp, data, length);
+    bmp += length;
+    return true;
+  }, true);
 }
 
 static bool remoteShowError(Stream* stream, const char *message)

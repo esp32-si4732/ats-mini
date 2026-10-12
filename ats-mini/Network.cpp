@@ -7,6 +7,7 @@
 #include "Draw.h"
 #include "Splash.h"
 #include "TcpMode.h"
+#include "Remote.h"
 #include "Ota.h"
 #include "Patches.h"
 #include "PageTemplate.h"
@@ -17,6 +18,7 @@
 #include "PageUpdate.h"
 #include "PagePatches.h"
 #include <new>
+#include <mutex>
 
 #include <WiFi.h>
 #include <WiFiMulti.h>
@@ -100,6 +102,68 @@ static bool webIsAuthenticated(AsyncWebServerRequest *request)
 {
   return(loginUsername == "" || loginPassword == "" ||
          request->authenticate(loginUsername.c_str(), loginPassword.c_str()));
+}
+
+// One download owns the PSRAM buffer until completion, disconnect, or failure.
+static struct
+{
+  enum State { Pending, Ready, Failed } state = Pending;
+  std::mutex mutex;
+  uint8_t *bmp = nullptr;
+  char filename[sizeof("screenshot-yyyy-mm-dd-hh-mm-ss.bmp")];
+
+  // Caller holds mutex, including on capture timeout or failure.
+  void release()
+  {
+    free(bmp);
+    bmp = nullptr;
+  }
+} screenshot;
+
+static const char *webScreenshotAcquire()
+{
+  std::unique_lock<std::mutex> lock(screenshot.mutex);
+  if(screenshot.bmp) return "A screenshot download is already in progress.";
+  screenshot.bmp = (uint8_t *)heap_caps_malloc(BMP_FILE_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if(!screenshot.bmp) return "Unable to allocate screenshot buffer.";
+  screenshot.state = screenshot.Pending;
+
+  // Yield to the main loop, but do not hold up the async web task indefinitely.
+  uint32_t started = millis();
+  while(screenshot.state == screenshot.Pending && millis() - started < 1000)
+  {
+    lock.unlock();
+    delay(1);
+    lock.lock();
+  }
+  if(screenshot.state == screenshot.Ready) return nullptr;
+  screenshot.release();
+  return screenshot.state == screenshot.Pending ? "Receiver is busy. Try again." : "Unable to capture screenshot.";
+}
+
+static void webScreenshotRelease()
+{
+  std::lock_guard<std::mutex> lock(screenshot.mutex);
+  screenshot.release();
+}
+
+void netScreenshotTick()
+{
+  // Capture between redraws. A timeout cancels pending work; once ready,
+  // the buffer stays unchanged until the download ends.
+  std::lock_guard<std::mutex> lock(screenshot.mutex);
+  if(screenshot.bmp && screenshot.state == screenshot.Pending)
+  {
+    strcpy(screenshot.filename, "screenshot.bmp");
+    if(clockGetDate(nullptr, nullptr, nullptr, nullptr))
+    {
+      time_t now = time(NULL) + getCurrentUTCOffset() * 15 * 60;
+      struct tm fields;
+      gmtime_r(&now, &fields);
+      strftime(screenshot.filename, sizeof(screenshot.filename), "screenshot-%Y-%m-%d-%H-%M-%S.bmp", &fields);
+    }
+    screenshot.state = remoteCaptureBmp(screenshot.bmp) ? screenshot.Ready : screenshot.Failed;
+  }
 }
 
 //
@@ -381,6 +445,23 @@ static void webInit()
   server.on("/config", HTTP_ANY, [] (AsyncWebServerRequest *request) {
     if(!webIsAuthenticated(request)) return request->requestAuthentication();
     request->send(200, "text/html", webConfigPage());
+  });
+
+  server.on("/screenshot.bmp", HTTP_GET, [] (AsyncWebServerRequest *request) {
+    if(!webIsAuthenticated(request)) return request->requestAuthentication();
+    if(const char *error = webScreenshotAcquire())
+      return request->send(503, "text/plain", error);
+    AsyncWebServerResponse *response = request->beginResponse(200, "image/bmp", screenshot.bmp, BMP_FILE_SIZE);
+    if(!response)
+    {
+      webScreenshotRelease();
+      return request->send(503, "text/plain", "Unable to start screenshot download.");
+    }
+    // The server closes the connection after the response; aborts release it too.
+    request->onDisconnect(webScreenshotRelease);
+    response->addHeader("Content-Disposition", String("attachment; filename=\"") + screenshot.filename + "\"");
+    response->addHeader("Cache-Control", "no-store");
+    request->send(response);
   });
 
   server.on("/splash.png", HTTP_GET, [] (AsyncWebServerRequest *request) {

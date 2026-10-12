@@ -18,6 +18,7 @@ static const char pageStatus[] PROGMEM = R"HTML(<H1>{{title}}</H1>
   <TR><TD CLASS="LABEL">Signal to Noise</TD><TD>{{snr}}dB</TD></TR>
   <TR><TD CLASS="LABEL">Battery Voltage</TD><TD>{{battery}}V</TD></TR>
 </TABLE>
+<P CLASS="CENTER"><A HREF="/screenshot.bmp">Download screenshot</A></P>
 )HTML";
 
 #endif // PAGE_STATUS_H

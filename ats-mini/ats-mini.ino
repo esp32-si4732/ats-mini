@@ -845,6 +845,7 @@ bool handleClick(bool shortPress)
 //
 void loop()
 {
+  netScreenshotTick();
   bool needRedraw = false;
   uint32_t encCounts = consumeEncoderCounts();
   int16_t encCount = (int16_t)(encCounts & 0xFFFF);

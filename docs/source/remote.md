@@ -169,6 +169,8 @@ In SSB mode, the "Display" frequency (Hz) = (currentFrequency x 1000) + currentB
 
 #### Making screenshots
 
+Over Wi-Fi, select **Download screenshot** on the web interface's status page to save a BMP image. The web login is required if configured. Only one screenshot download can run at a time.
+
 The screenshot function is intended for interface and theme designers, as well as for the documentation writers. The `C` command dumps the screen to the remote console as a BMP image in HEX format. To convert it to an image file, you need to convert the HEX string to binary format.
 
 A quick one-liner for macOS and Linux over the **USB Serial** transport (change the `/dev/cu.usbmodem14401` serial port name as needed):
