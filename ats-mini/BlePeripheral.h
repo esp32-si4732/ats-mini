@@ -3,7 +3,7 @@
 
 #include <BLEDevice.h>
 #include <BLEServer.h>
-#include "host/ble_gap.h"
+#include <host/ble_gap.h>
 
 class BlePeripheral : protected BLEServerCallbacks {
 public:
