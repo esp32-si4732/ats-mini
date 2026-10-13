@@ -26,6 +26,12 @@ int getStrength(int rssi);
 bool sleepOn(int x = 2);
 bool muteOn(uint8_t mode, int x = 2);
 
+// Configured duration is saved; a fresh countdown starts on power-up.
+extern uint16_t offTimerMinutes;
+void offTimerRestart();
+uint16_t offTimerRemainingMinutes();
+void offTimerTick();
+
 // Main task only. Strings are copied; duration 0 keeps the status until replaced or cleared.
 // Pass nullptr for both lines to clear the status.
 void statusShow(const char *line1, const char *line2 = nullptr, uint32_t duration = 2000);

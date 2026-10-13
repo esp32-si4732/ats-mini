@@ -31,7 +31,6 @@
 #define RDS_CHECK_TIME         250  // Increased from 90
 #define SEEK_TIMEOUT        600000  // Max seek timeout (ms)
 #define SCHEDULE_CHECK_TIME   2000  // How often to identify the same frequency (ms)
-#define BACKGROUND_REFRESH_TIME 5000    // Background screen refresh time. Covers the situation where there are no other events causing a refresh
 
 // =================================
 // CONSTANTS AND VARIABLES
@@ -230,6 +229,9 @@ void setup()
     while(digitalRead(ENCODER_PUSH_BUTTON)!=LOW) delay(100);
     while(digitalRead(ENCODER_PUSH_BUTTON)==LOW) delay(100);
   }
+
+  // Start a fresh countdown using the configured duration.
+  offTimerRestart();
 
   // If loading memories fails, save default memories
   if(!prefsLoad(SAVE_MEMORIES|SAVE_VERIFY)) prefsSave(SAVE_MEMORIES);
@@ -845,6 +847,7 @@ bool handleClick(bool shortPress)
 void loop()
 {
   webScreenshotTick();
+  offTimerTick();
   bool needRedraw = false;
   uint32_t encCounts = consumeEncoderCounts();
   int16_t encCount = (int16_t)(encCounts & 0xFFFF);

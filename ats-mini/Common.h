@@ -7,6 +7,7 @@
 
 static constexpr uint16_t DISPLAY_WIDTH  = 320;
 static constexpr uint16_t DISPLAY_HEIGHT = 170;
+static constexpr uint32_t BACKGROUND_REFRESH_TIME = 5000; // Fallback screen refresh and date/time alternation interval (ms).
 static constexpr uint32_t BMP_FILE_SIZE = 66 + (uint32_t)DISPLAY_WIDTH * DISPLAY_HEIGHT * 2;
 
 // Shorthands for the LovyanGFX fonts used by the UI

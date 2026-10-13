@@ -121,22 +121,23 @@ static const char *menu[] =
 #define MENU_UTCOFFSET    2
 #define MENU_SLEEP        3
 #define MENU_SLEEPMODE    4
-#define MENU_THEME        5
-#define MENU_UI           6
-#define MENU_ZOOM         7
-#define MENU_SCROLL       8
-#define MENU_RDS          9
-#define MENU_FM_STEREO    10
-#define MENU_FM_REGION    11
-#define MENU_CALIBRATION  12
-#define MENU_DSP_PATCHES  13
-#define MENU_LOADEIBI     14
-#define MENU_UPDATEFW     15
-#define MENU_USBMODE      16
-#define MENU_TCPMODE      17
-#define MENU_BLEMODE      18
-#define MENU_WIFIMODE     19
-#define MENU_ABOUT        20
+#define MENU_OFFTIMER     5
+#define MENU_THEME        6
+#define MENU_UI           7
+#define MENU_ZOOM         8
+#define MENU_SCROLL       9
+#define MENU_RDS          10
+#define MENU_FM_STEREO    11
+#define MENU_FM_REGION    12
+#define MENU_CALIBRATION  13
+#define MENU_DSP_PATCHES  14
+#define MENU_LOADEIBI     15
+#define MENU_UPDATEFW     16
+#define MENU_USBMODE      17
+#define MENU_TCPMODE      18
+#define MENU_BLEMODE      19
+#define MENU_WIFIMODE     20
+#define MENU_ABOUT        21
 
 
 static uint8_t updateFwIdx = 0;
@@ -151,6 +152,7 @@ static const char *settings[] =
   "UTC Offset",
   "Sleep",
   "Sleep Mode",
+  "Off Timer",
   "Theme",
   "UI Layout",
   "Zoom Menu",
@@ -819,6 +821,14 @@ static void doSleep(int16_t enc)
   prefsRequestSave(SAVE_SETTINGS);
 }
 
+static void doOffTimer(int16_t enc)
+{
+  if(!enc) return;
+  offTimerMinutes = clamp_range(offTimerMinutes, 5 * enc, 0, 240);
+  offTimerRestart();
+  prefsRequestSave(SAVE_SETTINGS);
+}
+
 static void doSleepMode(int16_t enc)
 {
   sleepModeIdx = wrap_range(sleepModeIdx, enc, 0, LAST_ITEM(sleepModeDesc));
@@ -1150,6 +1160,7 @@ static void clickSettings(int cmd, bool shortPress)
       break;
     case MENU_ZOOM:       currentCmd = CMD_ZOOM;       break;
     case MENU_SCROLL:     currentCmd = CMD_SCROLL;     break;
+    case MENU_OFFTIMER:   currentCmd = CMD_OFFTIMER;   break;
     case MENU_SLEEP:      currentCmd = CMD_SLEEP;      break;
     case MENU_SLEEPMODE:  currentCmd = CMD_SLEEPMODE;  break;
     case MENU_UTCOFFSET:  currentCmd = CMD_UTCOFFSET;  break;
@@ -1202,6 +1213,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_UI:         doUILayout(scrollDirection * enc);break;
     case CMD_RDS:        doRDSMode(scrollDirection * enc);break;
     case CMD_MEMORY:     doMemory(scrollDirection * enca);break;
+    case CMD_OFFTIMER:   doOffTimer(enca);break;
     case CMD_SLEEP:      doSleep(enca);break;
     case CMD_SLEEPMODE:  doSleepMode(scrollDirection * enc);break;
     case CMD_USBMODE:    doUSBMode(scrollDirection * enc);break;
@@ -1232,6 +1244,15 @@ bool clickHandler(uint16_t cmd, bool shortPress)
     case CMD_MEMORY:   clickMemory(memoryIdx, shortPress);break;
     case CMD_BLEMODE:  clickBleMode(bleModeMenuIdx, shortPress);break;
     case CMD_WIFIMODE: clickWiFiMode(wifiModeIdx, shortPress);break;
+    case CMD_OFFTIMER:
+      if(shortPress)
+      {
+        offTimerMinutes = 0;
+        offTimerRestart();
+        prefsRequestSave(SAVE_SETTINGS);
+      }
+      else currentCmd = CMD_NONE;
+      break;
     case CMD_VOLUME:   clickVolume(shortPress);break;
     case CMD_AVC:      clickAvc(shortPress);break;
     case CMD_SQUELCH:  clickSquelch(shortPress);break;
@@ -1969,6 +1990,20 @@ static void drawBrt(int x, int y, int sx)
   spr.drawNumber(currentBrt, 40+x+(sx/2), 60+y, FONT_LARGE);
 }
 
+static void drawOffTimer(int x, int y, int sx)
+{
+  drawCommon(settings[MENU_OFFTIMER], x, y, sx);
+  drawZoomedMenu(settings[MENU_OFFTIMER]);
+  spr.setTextDatum(MC_DATUM);
+  spr.setTextColor(TH.menu_param);
+  uint16_t minutes = offTimerMinutes;
+  char text[16];
+  if(minutes) snprintf(text, sizeof(text), "%u", minutes);
+  else strlcpy(text, "Off", sizeof(text));
+  spr.drawString(text, 40+x+(sx/2), 60+y, FONT_LARGE);
+  if(minutes) spr.drawString("min", 40+x+(sx/2), 88+y, FONT_SMALL);
+}
+
 static void drawSleep(int x, int y, int sx)
 {
   drawCommon(settings[MENU_SLEEP], x, y, sx);
@@ -2067,9 +2102,16 @@ static void drawInfo(int x, int y, int sx)
     spr.drawString(text, 48+x, 64+y + (1*16), FONT_SMALL);
   }
 
-  // Draw current time
+  // Alternate the Off Timer countdown with the current date and time.
   const char *clock = clockGet();
-  if(clock)
+  uint16_t minutes = offTimerRemainingMinutes();
+  if(minutes && (!clock || millis() / BACKGROUND_REFRESH_TIME % 2))
+  {
+    snprintf(text, sizeof(text), "%02u:%02u", minutes / 60, minutes % 60);
+    spr.drawString("Zzz:", 6+x, 64+y+(2*16), FONT_SMALL);
+    spr.drawString(text, 48+x, 64+y+(2*16), FONT_SMALL);
+  }
+  else if(clock)
   {
     uint16_t year;
     uint8_t month, day, weekday;
@@ -2118,6 +2160,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_BRT:        drawBrt(x, y, sx);        break;
     case CMD_RDS:        drawRDSMode(x, y, sx);    break;
     case CMD_MEMORY:     drawMemory(x, y, sx);     break;
+    case CMD_OFFTIMER:   drawOffTimer(x, y, sx);   break;
     case CMD_SLEEP:      drawSleep(x, y, sx);      break;
     case CMD_SLEEPMODE:  drawSleepMode(x, y, sx);  break;
     case CMD_USBMODE:    drawUSBMode(x, y, sx);    break;

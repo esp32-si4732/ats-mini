@@ -46,7 +46,8 @@
 #define CMD_UPDATEFW   0x3200 // |
 #define CMD_FM_STEREO  0x3300 // |
 #define CMD_DSP_PATCHES 0x3400 // |
-#define CMD_ABOUT      0x3500 //-+
+#define CMD_ABOUT      0x3500 // |
+#define CMD_OFFTIMER   0x3600 //-+
 
 // UI Layouts
 #define UI_DEFAULT  0
@@ -89,18 +90,6 @@ extern const UTCOffset utcOffsets[];
 extern const char *bandModeDesc[];
 extern const FMRegion fmRegions[];
 extern int bandIdx;
-
-// These are menu commands
-static inline bool isMenuMode(uint16_t cmd)
-{
-  return((cmd>=CMD_BAND) && (cmd<CMD_SETTINGS));
-}
-
-// These are settings
-static inline bool isSettingsMode(uint16_t cmd)
-{
-  return((cmd>=CMD_SETTINGS) && (cmd<CMD_ABOUT));
-}
 
 uint8_t seekMode(bool toggle = false);
 void drawSideBar(uint16_t cmd, int x, int y, int sx);

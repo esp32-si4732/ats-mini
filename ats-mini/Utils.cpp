@@ -1,4 +1,8 @@
 #include <driver/rtc_io.h>
+#include <driver/gpio.h>
+#include <esp_timer.h>
+#include "Storage.h"
+#include "BleMode.h"
 #include "Common.h"
 #include "Themes.h"
 #include "Button.h"
@@ -13,6 +17,69 @@ extern ButtonTracker pb1;
 
 // Current sleep status, returned by sleepOn()
 static bool sleep_on = false;
+
+// esp_timer includes time spent in light sleep and is independent of the clock.
+uint16_t offTimerMinutes = 0;
+static int64_t offTimerDeadline = 0;
+
+static int64_t offTimerRemainingUs()
+{
+  int64_t remaining = offTimerDeadline - esp_timer_get_time();
+  return offTimerDeadline && remaining > 0 ? remaining : 0;
+}
+
+void offTimerRestart()
+{
+  offTimerDeadline = offTimerMinutes ? esp_timer_get_time() + (int64_t)offTimerMinutes * 60000000 : 0;
+}
+
+uint16_t offTimerRemainingMinutes()
+{
+  return (offTimerRemainingUs() + 59999999) / 60000000;
+}
+
+static void holdOutputLow(int pin)
+{
+  if(pin < 0) return;
+  pinMode(pin, OUTPUT);
+  digitalWrite(pin, LOW);
+  gpio_hold_en((gpio_num_t)pin);
+}
+
+static void offTimerShutdown()
+{
+  muteOn(MUTE_FORCE, true);
+  netStop();
+  bleStop();
+  prefsSave();
+  rx.powerDown();
+  ledcWrite(PIN_LCD_BL, 0);
+  tft.sleep();
+  delay(120);
+
+  // Keep the receiver supply, amplifier, and backlight off in deep sleep.
+  ledcDetach(PIN_LCD_BL);
+  holdOutputLow(PIN_LCD_BL);
+  holdOutputLow(PIN_AMP_EN);
+  holdOutputLow(PIN_POWER_ON);
+  gpio_deep_sleep_hold_en();
+
+  // Discard both the encoder wake and any pending light-sleep timer wake.
+  esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
+  rtc_gpio_pullup_dis((gpio_num_t)ENCODER_PUSH_BUTTON);
+  rtc_gpio_pulldown_dis((gpio_num_t)ENCODER_PUSH_BUTTON);
+  rtc_gpio_deinit((gpio_num_t)ENCODER_PUSH_BUTTON);
+  pinMode(ENCODER_PUSH_BUTTON, INPUT);
+  pinMode(ENCODER_PIN_A, INPUT);
+  pinMode(ENCODER_PIN_B, INPUT);
+  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
+  esp_deep_sleep_start();
+}
+
+void offTimerTick()
+{
+  if(offTimerDeadline && !offTimerRemainingUs()) offTimerShutdown();
+}
 
 // Time
 static bool clockHasBeenSet = false;
@@ -223,12 +290,19 @@ bool sleepOn(int x)
 
       while(true)
       {
+        offTimerTick();
+        bool timedWake = offTimerDeadline != 0;
+        // Never miss expiry if the deadline passes between this and the tick.
+        if(timedWake) esp_sleep_enable_timer_wakeup(max(offTimerRemainingUs(), (int64_t)1));
         esp_sleep_enable_ext0_wakeup((gpio_num_t)ENCODER_PUSH_BUTTON, LOW);
         rtc_gpio_pullup_en((gpio_num_t)ENCODER_PUSH_BUTTON);
         rtc_gpio_pulldown_dis((gpio_num_t)ENCODER_PUSH_BUTTON);
         esp_light_sleep_start();
 
-        // Waking up here
+        // A timer wake shuts down without restoring the display or networking.
+        if(timedWake) esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
+        offTimerTick();
+        if(esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER) continue;
         if(currentSleep) break; // Short click is enough to exit from sleep if timeout is enabled
 
         // Wait for a long press, otherwise enter the sleep again
