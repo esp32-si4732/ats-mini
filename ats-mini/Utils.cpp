@@ -340,6 +340,13 @@ bool clockUTCDateTimeToEpoch(int year, int month, int day, int hour, int minute,
   return(true);
 }
 
+// SNTP has already updated system time; do not set it again from a stale sample.
+void clockTimeSynchronized()
+{
+  clockHasBeenSet = true;
+  identifyFrequency(currentFrequency + currentBFO / 1000);
+}
+
 void clockReset()
 {
   clockHasBeenSet = false;

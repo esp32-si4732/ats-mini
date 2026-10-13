@@ -260,11 +260,10 @@ char *getWiFiIPAddress();
 void netInit(uint8_t netMode);
 void netStop();
 bool ntpIsAvailable();
-bool ntpSyncTime();
 
+void netSetScanHidden(bool enabled);
 void netRequestConnect();
-void netTickTime();
-void netScreenshotTick();
+bool netTickTime();
 
 // Shared receiver control actions. Return whether the display needs updating.
 bool handleRotation(int16_t enc, int16_t accelerated, bool pressed = false);

@@ -93,7 +93,7 @@ To decode a stack trace (printed via serial port) use the following tool: <https
 
 The web UI templates live in `ats-mini/Page*.h`. Edit the HTML, CSS, and JavaScript inside the `R"HTML(...)HTML"` raw strings; no generation step is needed before compiling.
 
-`PageCommon.h` contains the shared document layout, navigation, and styles. The other page headers contain each page and its repeated fragments. `Network.cpp` supplies the values and handles requests.
+`PageCommon.h` contains the shared document layout, navigation, and styles. The other page headers contain each page and its repeated fragments. `Web.cpp` supplies the values and handles requests.
 
 The renderer in `PageTemplate.h` replaces `{{name}}` with an HTML-escaped value for text or a quoted attribute. Use `{{{name}}}` only for trusted HTML fragments rendered by the firmware. Values are inserted once, so braces inside a value are not interpreted as another placeholder. These placeholders are not intended for JavaScript or CSS values.
 

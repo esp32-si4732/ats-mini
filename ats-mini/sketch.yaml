@@ -10,7 +10,6 @@ profiles:
       - LovyanGFX (1.2.32)
       - Async TCP (3.5.0)
       - ESP Async WebServer (3.12.1)
-      - NTPClient (3.2.1)
 
   esp32s3-qspi:
     # If you change this line, change it in build.yml as well
@@ -23,6 +22,5 @@ profiles:
       - LovyanGFX (1.2.32)
       - Async TCP (3.5.0)
       - ESP Async WebServer (3.12.1)
-      - NTPClient (3.2.1)
 
 default_profile: esp32s3-ospi
