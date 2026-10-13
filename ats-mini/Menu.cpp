@@ -150,7 +150,7 @@ static const char *settings[] =
   "Brightness",
   "Date/Time",
   "UTC Offset",
-  "Sleep",
+  "Sleep Timer",
   "Sleep Mode",
   "Off Timer",
   "Theme",
@@ -2011,7 +2011,13 @@ static void drawSleep(int x, int y, int sx)
   spr.setTextDatum(MC_DATUM);
 
   spr.setTextColor(TH.menu_param);
-  spr.drawNumber(currentSleep, 40+x+(sx/2), 60+y, FONT_LARGE);
+  if(currentSleep)
+  {
+    spr.drawNumber(currentSleep, 40+x+(sx/2), 60+y, FONT_LARGE);
+    spr.drawString("sec", 40+x+(sx/2), 88+y, FONT_SMALL);
+  }
+  else
+    spr.drawString("Off", 40+x+(sx/2), 60+y, FONT_LARGE);
 }
 
 static void drawZoom(int x, int y, int sx)

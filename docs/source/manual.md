@@ -70,7 +70,7 @@ The menu can be invoked by clicking the encoder button and is closed automatical
 * **Brightness** - Display brightness level (10...255). The minimal one draws about 80mA of the battery power, the default one about 100mA, the max level about 120mA.
 * **Date/Time** - Set the UTC date and time with the encoder. Click to select the next field, or short press to set the clock and close the menu. A timeout closes the menu without changing the clock.
 * **UTC Offset** - Affects the displayed date and time. Please note that automatic DST transitions are not supported; the offset needs to be adjusted manually.
-* **Sleep** - Automatic sleep interval in seconds (0 - disabled).
+* **Sleep Timer** - Automatic sleep interval in seconds (Off - disabled).
 * **Sleep Mode** - Locked - lock the encoder rotation during sleep; Unlocked - allow tuning the frequency in sleep mode; CPU Sleep - the maximum power saving mode. With the display being on, default brightness, and Wi-Fi the power consumption is about 170mA, without Wi-Fi 100mA, Locked/Unlocked modes draw about 70mA, CPU sleep mode draws about 40mA.
 * **Off Timer** - Shut down after 5–240 minutes, in 5-minute steps. Turn the encoder to start or restart the timer; short press to disable it (Off). The remaining time alternates with the date and time in the info panel. The timer works during sleep and restarts on each power-up. After shutdown, cycle the power switch to restart the receiver. This is not a true power-off state: the receiver still draws some current.
 * **Theme** - Color theme.
