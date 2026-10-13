@@ -13,6 +13,9 @@
 // Get firmware version
 const char *getVersion(bool shorter = false);
 
+// HTTP User-Agent for downloads
+String getUserAgent();
+
 // Hardware info
 const char *getMACAddress();
 

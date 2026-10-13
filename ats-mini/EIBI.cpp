@@ -400,6 +400,7 @@ bool eibiLoadSchedule()
   drawScreen();
 
   // Open HTTP connection to EiBi site
+  http.setUserAgent(getUserAgent());
   http.begin(EIBI_URL);
   if(http.GET() != HTTP_CODE_OK)
   {

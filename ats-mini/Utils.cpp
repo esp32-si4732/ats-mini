@@ -65,6 +65,14 @@ const char *getVersion(bool shorter)
 }
 
 //
+// HTTP User-Agent for downloads
+//
+String getUserAgent()
+{
+  return("ATS-Mini/" + String(getVersion(true)));
+}
+
+//
 // Get MAC address
 //
 const char *getMACAddress()

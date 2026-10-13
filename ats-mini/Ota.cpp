@@ -240,7 +240,7 @@ static bool otaDownloadLatest(bool install)
   http.setConnectTimeout(OTA_HTTP_TIMEOUT_SECONDS * 1000);
   http.setTimeout(OTA_HTTP_TIMEOUT_SECONDS * 1000);
   http.useHTTP10(true);
-  http.setUserAgent("ATS-Mini/" + String(getVersion(true)));
+  http.setUserAgent(getUserAgent());
 
   // The latest-release redirect provides the tag without downloading JSON/HTML.
   if(!http.begin(client, FIRMWARE_URL "/releases/latest"))
