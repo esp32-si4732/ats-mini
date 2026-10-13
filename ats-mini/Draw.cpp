@@ -201,9 +201,10 @@ void drawFrequency(uint32_t freq, int x, int y, int ux, int uy, uint8_t hl)
 
     // FM frequency
     spr.drawFloat(freq/100.00, 2, x, y, FONT_DIGITS);
-    spr.setTextDatum(ML_DATUM);
+    spr.setTextDatum(L_BASELINE);
     spr.setTextColor(TH.funit_text);
-    spr.drawString("MHz", ux, uy);
+    // Orbitron's M/H extend 17 pixels above the baseline.
+    spr.drawString("MHz", ux, uy + 17);
   }
   else
   {
@@ -230,8 +231,10 @@ void drawFrequency(uint32_t freq, int x, int y, int ux, int uy, uint8_t hl)
     }
 
     // SSB/AM frequencies are measured in kHz
+    spr.setTextDatum(L_BASELINE);
     spr.setTextColor(TH.funit_text);
-    spr.drawString("kHz", ux, uy);
+    // The lowercase k extends 19 pixels above the baseline.
+    spr.drawString("kHz", ux, uy + 19);
   }
 
   // If drawing an underscore...
