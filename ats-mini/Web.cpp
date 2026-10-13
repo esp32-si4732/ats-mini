@@ -627,7 +627,7 @@ static const String webMemoryPage()
   }, {
     {"navigation", [](String &out) { webNavigation(out, "/memory"); }},
     {"rows", [](String &out) {
-      for(int j=0 ; j<getTotalMemories() ; j++)
+      for(int j=0 ; j<MEMORY_COUNT ; j++)
       {
         const Memory mem = getMemory(j);
         const char *band = mem.freq && mem.band<getTotalBands()? bands[mem.band].bandName : "";
