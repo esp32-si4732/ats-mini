@@ -498,9 +498,15 @@ static int getLastBandwidth(int mode)
   return(0);
 }
 
+static int8_t getCurrentBandwidthIdx()
+{
+  int8_t idx = bands[bandIdx].bandwidthIdx;
+  return(idx<0 || idx>getLastBandwidth(currentMode)? defaultBwIdx[currentMode] : idx);
+}
+
 const Bandwidth *getCurrentBandwidth()
 {
-  return(&bandwidths[currentMode][bands[bandIdx].bandwidthIdx > getLastBandwidth(currentMode) ? defaultBwIdx[currentMode] : bands[bandIdx].bandwidthIdx]);
+  return(&bandwidths[currentMode][getCurrentBandwidthIdx()]);
 }
 
 static void setBandwidth()
