@@ -4,6 +4,28 @@ The user manual is available at <https://esp32-si4732.github.io/ats-mini/manual.
 
 <!-- towncrier release notes start -->
 
+## 2.43 (2026-10-14)
+
+
+### Added
+
+- Added VFO A/B tuning slots that persist across restarts. Click the VFO A/B menu item to switch slots, or short press to copy the active slot to the other.
+- Added an Off Timer to shut down the receiver after 5–240 minutes. Cycle the power switch to restart the receiver.
+- Download a BMP screenshot from the Wi-Fi web interface’s status page, one download at a time.
+
+
+### Changed
+
+- Keep tuning and menus responsive while connecting to Wi-Fi or synchronizing the clock. Failed time synchronization no longer clears the clock, and changing RDS settings preserves time set via Wi-Fi.
+- Remote control over USB, TCP, and Bluetooth is more reliable and no longer freezes receiver controls while waiting for commands.
+- Renamed Sleep to Sleep Timer, added a “sec” label, and show “Off” when disabled.
+
+
+### Fixed
+
+- Fixed saving preferences after button actions, including saving and deleting memory slots. Menu navigation no longer triggers unnecessary saves.
+- Preserved SSB fine tuning across band changes and restarts, and fixed recalling memories that differ only below 1 kHz. SSB tuning now uses a fixed 28 kHz tuning grid so the BFO no longer depends on tuning direction. WARNING: this update resets saved band frequencies, modes, steps, bandwidths, and SSB calibration.
+
 ## 2.42 (2026-09-30)
 
 

@@ -1,1 +1,0 @@
-Preserved SSB fine tuning across band changes and restarts, and fixed recalling memories that differ only below 1 kHz. SSB tuning now uses a fixed 28 kHz tuning grid so the BFO no longer depends on tuning direction. WARNING: this update resets saved band frequencies, modes, steps, bandwidths, and SSB calibration.
