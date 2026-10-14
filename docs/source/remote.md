@@ -126,7 +126,7 @@ The ad hoc protocol is the main remote-control protocol. It can be used over:
 | <kbd>c</kbd> | Screenshot (binary) | Capture a screenshot as a raw little-endian RGB565 BMP (about half the bytes of `C`)             |
 | <kbd>$</kbd> | Show Memory Slots   | Show memory slots in a format suitable for restoring them after the reset                        |
 | <kbd>#</kbd> | Set Memory Slot     | Example `#01,VHF,107900000,FM,Radio One` (slot, band, frequency, mode, optional name). Set freq to 0 to clear a slot. |
-| <kbd>F</kbd> | Set Frequency       | Example `F107900000`. Frequency is in Hz and must stay within the current band. In SSB modes, sub-kHz digits set the BFO. |
+| <kbd>F</kbd> | Set Frequency       | Example `F107900000`. Frequency is in Hz and must stay within the current band. In SSB modes, the exact requested frequency is used and the BFO is derived automatically from the fixed tuning grid. |
 | <kbd>T</kbd> | Theme Editor        | Toggle the [theme editor](development.md#theme-editor) on and off                                |
 | <kbd>@</kbd> | Get Theme           | Print the current color theme                                                                    |
 | <kbd>^</kbd> | Set Theme           | Set the current color theme as a list of HEX numbers (effective until a power cycle)             |
