@@ -83,16 +83,17 @@ Band *getCurrentBand() { return(&bands[bandIdx]); }
 #define MENU_MODE         0
 #define MENU_BAND         1
 #define MENU_VOLUME       2
-#define MENU_STEP         3
-#define MENU_SEEK         4
-#define MENU_SCAN         5
-#define MENU_MEMORY       6
-#define MENU_SQUELCH      7
-#define MENU_BW           8
-#define MENU_AGC_ATT      9
-#define MENU_AVC         10
-#define MENU_SOFTMUTE    11
-#define MENU_SETTINGS    12
+#define MENU_VFO          3
+#define MENU_STEP         4
+#define MENU_SEEK         5
+#define MENU_SCAN         6
+#define MENU_MEMORY       7
+#define MENU_SQUELCH      8
+#define MENU_BW           9
+#define MENU_AGC_ATT     10
+#define MENU_AVC         11
+#define MENU_SOFTMUTE    12
+#define MENU_SETTINGS    13
 
 int8_t menuIdx = MENU_VOLUME;
 
@@ -101,6 +102,7 @@ static const char *menu[] =
   "Mode",
   "Band",
   "Volume",
+  "VFO A/B",
   "Step",
   "Seek",
   "Scan",
@@ -941,6 +943,69 @@ bool tuneToMemory(const Memory *memory)
   return(true);
 }
 
+// The active VFO follows live tuning; capture it before saving or switching.
+VfoState vfos[2] = {};
+uint8_t vfoIdx = 0;
+bool vfoInitialized = false;
+
+VfoState captureVfo()
+{
+  const Band *band = getCurrentBand();
+  return {
+    currentFrequency,
+    (uint8_t)bandIdx, currentMode, band->currentStepIdx, getCurrentBandwidthIdx()
+  };
+}
+
+static bool validVfo(const VfoState &vfo)
+{
+  if(vfo.band>=getTotalBands() || vfo.mode>=getTotalModes()) return(false);
+  const Band &band = bands[vfo.band];
+  if((vfo.mode==FM) != (band.bandType==FM_BAND_TYPE)) return(false);
+  if(!isFreqInBand(&band, vfo.freq)) return(false);
+  return(vfo.stepIdx>=0 && vfo.stepIdx<=getLastStep(vfo.mode) &&
+         vfo.bandwidthIdx>=0 && vfo.bandwidthIdx<=getLastBandwidth(vfo.mode));
+}
+
+static void restoreVfo(bool drawLoadingPatch = true)
+{
+  const VfoState &vfo = vfos[vfoIdx];
+  Band &band = bands[vfo.band];
+  band.currentFreq = vfo.freq;
+  band.bandMode = vfo.mode;
+  band.currentStepIdx = vfo.stepIdx;
+  band.bandwidthIdx = vfo.bandwidthIdx;
+  selectBand(vfo.band, drawLoadingPatch);
+}
+
+void initVfo()
+{
+  if(vfoIdx<2 && validVfo(vfos[0]) && validVfo(vfos[1]))
+    restoreVfo(false);
+  else
+  {
+    selectBand(bandIdx, false);
+    vfoIdx = 0;
+    vfos[0] = vfos[1] = captureVfo();
+    prefsRequestSave(SAVE_CUR_BAND);
+  }
+  vfoInitialized = true;
+}
+
+static void clickVfo(bool shortPress)
+{
+  vfos[vfoIdx] = captureVfo();
+  if(shortPress)
+    vfos[vfoIdx ^ 1] = vfos[vfoIdx];
+  else
+  {
+    vfoIdx ^= 1;
+    restoreVfo();
+  }
+  // Save both bands: they may contain pending edits from before the switch.
+  prefsRequestSave(SAVE_SETTINGS | SAVE_BANDS);
+}
+
 static void doMemory(int16_t enc)
 {
   memoryIdx = wrap_range(memoryIdx, enc, 0, getTotalMemories() - 1);
@@ -1100,6 +1165,7 @@ static void clickMenu(int cmd, bool shortPress)
     case MENU_SETTINGS: currentCmd = CMD_SETTINGS;  break;
     case MENU_SQUELCH:  currentCmd = CMD_SQUELCH;   break;
     case MENU_VOLUME:   currentCmd = CMD_VOLUME;    break;
+    case MENU_VFO:      clickVfo(shortPress);       break;
 
     case MENU_MEMORY:
       currentCmd = CMD_MEMORY;

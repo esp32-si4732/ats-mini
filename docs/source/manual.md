@@ -9,7 +9,7 @@
 * **Bluetooth icon** (right after the save icon). Different colors indicate the connection status.
 * **Wi-Fi icon** (top right area near the battery). Different colors indicate the connection status.
 * **Battery status** (top right corner). It doesn't show the voltage when charged, see [#36](https://github.com/esp32-si4732/ats-mini/issues/36#issuecomment-2778356143). The only indication that the battery is charging is the hardware LED on the bottom of the receiver, which turns ON during charging.
-* **Band name and modulation** (VHF & FM, top center). See the [Bands table](#bands-table) for more details.
+* **Band name and modulation** (VHF & FM, top center). The rounded **A** or **B** indicator after the mode shows the active VFO slot. See the [Bands table](#bands-table) for more details.
 * **Info panel** (the box on the left side), also **Menu**. The parameters are explained in the [Menu](#menu) section. It can also show the current time, or the date and time after a successful synchronization. When Off Timer is enabled, this row alternates with the remaining time as **Zzz: hh:mm**. If the clock is not set, only the countdown is shown.
 * **Frequency** (center of the screen).
 * **FM station name** (RDS PS) or **frequency name** (right below the frequency). A frequency name appears for some popular frequencies like FT8, SSTV, CB channels, or a shortwave [schedule](#schedule). Can also display current **menu option** using a bigger font when the Zoom Menu setting is enabled.
@@ -21,7 +21,7 @@
 
 The differences are:
 
-* **Stereo indicator** is on the right side of the band and mode (VHF & FM).
+* **Stereo indicator** is on the right side of the VFO indicator.
 * **Tuning scale** (right under the station name). Numbers on the left & right sides are the band limits.
 * **S/N Meter** (in dB). The range is 0...127 and the visual indicator linearly displays this range.
 * **RSSI & S-Meter** (the number is in dBµV, the meter is in S-points). Please note that the RSSI range is also 0...127 (no negative values) and according to [these tables](https://dl4zao.de/_downloads/Dezibel.pdf) any values below S4 on HF (rssi < 4) and below S7 on VHF (rssi < 2) are bogus. Thus it is very far from being precise, and also depends on the antenna impedance.
@@ -54,6 +54,7 @@ The menu can be invoked by clicking the encoder button and is closed automatical
 * **Mode** - FM (only available on the VHF band); LSB, USB, AM (available on other bands). The receiver doesn't support the NFM mode (on any band, including the CB) due to limitations of the SI4732 chip.
 * **Band** - List of [Bands](#bands-table).
 * **Volume** - 0 (silent) ... 63 (max). The headphone volume level can be low (compared to the built-in speaker) due to limitation of the initial hardware design. Use short press to mute/unmute.
+* **VFO A/B** - Click to switch between two tuning slots, or short press (>0.5 sec) to copy the active slot into the inactive slot without switching. Both actions return to tuning. Each slot remembers its frequency (including SSB fine tuning), band, mode, step, and bandwidth. Tuning and memory recall affect only the active slot; other settings and memory slots are shared. Both slots and the active selection are saved after 10 seconds of inactivity. Initially, both slots contain the current tuning position.
 * **Step** - Tuning step (not every step is available on every band and mode).
 * **Seek** - Seek up or down on AM/FM, normal tuning on LSB/USB (hardware seek function is not supported by SI4732 on SSB). Rotate or click the encoder to stop the seek. Use short press to switch between the seek and [schedule](#schedule) modes. Use press and rotate for manual fine tuning.
 * **Scan** - Scan a frequency range and plot the RSSI (S) and SNR (N) graphs (unfortunately, these metrics are almost meaningless in SSB modes due to SI4732 patch limitations). Both graphs are normalized to 0.0 - 1.0 range. While the Scan mode is active, short press the encoder for 0.5 seconds to rescan. To abort a running scan process click or rotate the encoder.

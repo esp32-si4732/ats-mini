@@ -29,7 +29,7 @@ static constexpr const lgfx::IFont* FONT_DIGITS  = &lgfx::fonts::Font7;  // 48px
 #define VER_OTA          1  // OTA compatibility; bump when a full USB flash is required
 #define VER_SETTINGS    71  // Settings version
 #define VER_MEMORIES    71  // Memories version
-#define VER_BANDS       73  // Bands version
+#define VER_BANDS       73  // Bands and VFO slots version
 #define VER_STORAGE      0  // LittleFS storage version
 
 // Modes

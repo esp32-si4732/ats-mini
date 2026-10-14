@@ -228,20 +228,22 @@ void prefsSave(uint32_t items)
     prefs.end();
   }
 
-  if(items & SAVE_BANDS)
+  if(items & (SAVE_BANDS | SAVE_CUR_BAND))
   {
-    // Will be saving to bands
     prefs.begin("bands", false, STORAGE_PARTITION);
-    prefs.putUChar("Version", VER_BANDS);
-    // Save band settings
-    for(int i=0 ; i<getTotalBands() ; i++) prefsSaveBand(i, false);
-    // Done with bands
+    if(items & SAVE_BANDS)
+    {
+      prefs.putUChar("Version", VER_BANDS);
+      for(int i=0 ; i<getTotalBands() ; i++) prefsSaveBand(i, false);
+    }
+    else
+      prefsSaveBand(bandIdx, false);
+
+    // Startup may save defaults before the receiver is ready to capture.
+    if(vfoInitialized) vfos[vfoIdx] = captureVfo();
+    prefs.putBytes("VFOSlots", vfos, sizeof(vfos));
+    prefs.putUChar("VFOActive", vfoIdx);
     prefs.end();
-  }
-  else if(items & SAVE_CUR_BAND)
-  {
-    // Save current band only
-    prefsSaveBand(bandIdx);
   }
 
   if(items & SAVE_MEMORIES)
@@ -316,6 +318,10 @@ bool prefsLoad(uint32_t items)
 
   if(items & SAVE_BANDS)
   {
+    // Missing or incompatible VFO data is initialized after radio startup.
+    vfos[0] = vfos[1] = {};
+    vfoIdx = 0;
+
     // Will be loading from bands
     prefs.begin("bands", true, STORAGE_PARTITION);
 
@@ -328,6 +334,12 @@ bool prefsLoad(uint32_t items)
 
     // Read band settings
     for(int i=0 ; i<getTotalBands() ; i++) prefsLoadBand(i, false);
+
+    if(prefs.getBytesLength("VFOSlots")==sizeof(vfos) &&
+       prefs.getBytes("VFOSlots", vfos, sizeof(vfos))==sizeof(vfos))
+      vfoIdx = prefs.getUChar("VFOActive", 0);
+    else
+      vfos[0] = vfos[1] = {};
 
     // Done with bands
     prefs.end();

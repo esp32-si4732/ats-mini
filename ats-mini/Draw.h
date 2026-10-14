@@ -19,7 +19,7 @@
 #define FUNIT_OFFSET_Y (FREQ_OFFSET_Y - 23) // Visible top edge of the 48px frequency digits
 #define BAND_OFFSET_X  150    // Band horizontal offset
 #define BAND_OFFSET_Y    9    // Band vertical offset
-#define ALT_STEREO_OFFSET_X 232
+#define ALT_STEREO_OFFSET_X 251
 #define ALT_STEREO_OFFSET_Y 24
 #define RDS_OFFSET_X   165    // RDS horizontal offset
 #define RDS_OFFSET_Y    94    // RDS vertical offset

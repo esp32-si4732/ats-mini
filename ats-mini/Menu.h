@@ -69,6 +69,15 @@ typedef struct
 
 typedef struct
 {
+  uint32_t freq;    // Frequency in Hz
+  uint8_t band;
+  uint8_t mode;
+  int8_t stepIdx;
+  int8_t bandwidthIdx;
+} VfoState;
+
+typedef struct
+{
   int step;         // Tuning step in Hz
   const char *desc; // Step description
   uint8_t spacing;  // Receiver seek spacing: 10 kHz for FM, 1 kHz for AM/SSB
@@ -90,6 +99,12 @@ extern const UTCOffset utcOffsets[];
 extern const char *bandModeDesc[];
 extern const FMRegion fmRegions[];
 extern int bandIdx;
+extern VfoState vfos[2];
+extern uint8_t vfoIdx;
+extern bool vfoInitialized;
+
+void initVfo();
+VfoState captureVfo();
 
 uint8_t seekMode(bool toggle = false);
 void drawSideBar(uint16_t cmd, int x, int y, int sx);

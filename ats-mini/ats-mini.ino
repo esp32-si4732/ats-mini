@@ -245,7 +245,7 @@ void setup()
   patchesInit();
 
   // SI4732 STARTUP!
-  selectBand(bandIdx, false);
+  initVfo();
   delay(50);
   rx.setVolume(volume);
   rx.setMaxSeekTime(SEEK_TIMEOUT);
