@@ -5,19 +5,19 @@
 #include "Memories.h"
 #include "EIBI.h"
 
-// CB frequency range
-#define MIN_CB_FREQUENCY 26060
-#define MAX_CB_FREQUENCY 27995
+// CB frequency range in Hz
+#define MIN_CB_FREQUENCY 26060000
+#define MAX_CB_FREQUENCY 27995000
 
 //
-// Named frequencies, sorted by increasing frequency!
+// Named frequencies in Hz, sorted by increasing frequency!
 //
 static const NamedFreq namedFrequencies[] =
 {
-  {  1840, "FT8"  }, {  3573, "FT8"  }, {  5357, "FT8"  }, {  7074, "FT8" },
-  {  7165, "SSTV" }, {  7171, "SSTV" }, { 10136, "FT8"  }, { 14074, "FT8" },
-  { 14230, "SSTV" }, { 18100, "FT8"  }, { 21074, "FT8"  }, { 24915, "FT8" },
-  { 27700, "SSTV" }, { 28074, "FT8"  }, { 28680, "SSTV" },
+  {  1840000, "FT8"  }, {  3573000, "FT8"  }, {  5357000, "FT8"  }, {  7074000, "FT8" },
+  {  7165000, "SSTV" }, {  7171000, "SSTV" }, { 10136000, "FT8"  }, { 14074000, "FT8" },
+  { 14230000, "SSTV" }, { 18100000, "FT8"  }, { 21074000, "FT8"  }, { 24915000, "FT8" },
+  { 27700000, "SSTV" }, { 28074000, "FT8"  }, { 28680000, "SSTV" },
 };
 
 //
@@ -80,9 +80,7 @@ const char *getStationName()
   if(currentMode==FM && station[strspn(station, " ")]) return(station);
 
   static char memoryName[10];
-  uint32_t freq = freqToHz(currentFrequency, currentMode);
-  if(isSSB()) freq += currentBFO;
-  if(findMemoryName(freq, currentMode, bandIdx, memoryIdx, memoryName))
+  if(findMemoryName(currentFrequency, currentMode, bandIdx, memoryIdx, memoryName))
     return(memoryName);
 
   return(station);
@@ -238,10 +236,10 @@ bool checkRds()
   return(needRedraw);
 }
 
-static const char *findCBChannelByFreq(uint16_t freq)
+static const char *findCBChannelByFreq(uint32_t freq)
 {
-  const int column_step = 450; // In kHz
-  const int row_step    = 10;
+  const int column_step = 450000; // In Hz
+  const int row_step    = 10000;
   const int max_columns = 8;   // A-H
   const int max_rows    = 45;
   static char buf[50];
@@ -250,10 +248,10 @@ static const char *findCBChannelByFreq(uint16_t freq)
 
   int offset = freq - MIN_CB_FREQUENCY;
   char type  = 'R';
-  if((offset%10) == 5)
+  if((offset%row_step) == 5000)
   {
     type = 'E';
-    offset -= 5;
+    offset -= 5000;
   }
 
   int column_index = offset / column_step;
@@ -267,7 +265,7 @@ static const char *findCBChannelByFreq(uint16_t freq)
   return(buf);
 }
 
-static const char *findNameByFreq(uint16_t freq, const NamedFreq *db, uint16_t dbSize)
+static const char *findNameByFreq(uint32_t freq, const NamedFreq *db, uint16_t dbSize)
 {
   int r, l;
 
@@ -324,10 +322,10 @@ static const char *findScheduleByFreq(uint16_t freq, bool periodic)
   return(entry? entry->name : 0);
 }
 
-bool identifyFrequency(uint16_t freq, bool periodic)
+bool identifyFrequency(uint32_t freq, bool periodic)
 {
   const char *name;
-  static uint16_t last_freq = 0;
+  static uint32_t last_freq = 0;
   static bool name_found = false;
 
   // RDS has priority on FM
@@ -358,7 +356,7 @@ bool identifyFrequency(uint16_t freq, bool periodic)
     }
   }
 
-  // Try EIBI schedule
-  name = findScheduleByFreq(freq, periodic);
+  // EIBI schedules use whole kHz.
+  name = findScheduleByFreq(freq / 1000, periodic);
   return(showStationName(name? name : "", true));
 }

@@ -426,7 +426,7 @@ bool clockUTCDateTimeToEpoch(int year, int month, int day, int hour, int minute,
 void clockTimeSynchronized()
 {
   clockHasBeenSet = true;
-  identifyFrequency(currentFrequency + currentBFO / 1000);
+  identifyFrequency(currentFrequency);
 }
 
 void clockReset()
@@ -456,22 +456,21 @@ bool clockSetEpoch(uint32_t epoch)
   clockHasBeenSet = true;
 
   if(changed)
-    identifyFrequency(currentFrequency + currentBFO / 1000);
+    identifyFrequency(currentFrequency);
 
   return(changed);
 }
 
 //
-// Check if given frequency belongs to given band
+// Check if given frequency in Hz belongs to given band
 //
-bool isFreqInBand(const Band *band, uint16_t freq)
+bool isFreqInBand(const Band *band, uint32_t freqHz)
 {
-  return((freq>=band->minimumFreq) && (freq<=band->maximumFreq));
+  return((freqHz>=band->minimumFreq) && (freqHz<=band->maximumFreq));
 }
 
 //
 // Convert a frequency from Hz to mode-specific units
-// (TODO: use Hz across the whole codebase)
 //
 uint16_t freqFromHz(uint32_t freq, uint8_t mode)
 {
@@ -484,14 +483,6 @@ uint16_t freqFromHz(uint32_t freq, uint8_t mode)
 uint32_t freqToHz(uint16_t freq, uint8_t mode)
 {
   return(mode == FM ? freq * 10000 : freq * 1000);
-}
-
-//
-// Extract BFO from a frequency in Hz
-//
-uint16_t bfoFromHz(uint32_t freq)
-{
-  return(freq % 1000);
 }
 
 //

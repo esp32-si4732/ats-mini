@@ -28,48 +28,49 @@
 
 int bandIdx = 0;
 
+// All band frequencies are in Hz.
 // Band limits are expanded to align with the nearest tuning scale mark
 // Do not forget to update the bands table in the manual.md
 Band bands[] =
 {
-  {"VHF",  FM_BAND_TYPE, FM,   6400, 10800, 10390, 2, 0, 0, 0},
+  {"VHF",  FM_BAND_TYPE, FM,  64000000, 108000000, 103900000, 2, 0, 0, 0},
   // All band. LW, MW and SW (from 150kHz to 30MHz)
-  {"ALL",  SW_BAND_TYPE, AM,    150, 30000, 15000, 1, 4, 0, 0},
-  {"11M",  SW_BAND_TYPE, AM,  25600, 26100, 25850, 1, 4, 0, 0},
-  {"13M",  SW_BAND_TYPE, AM,  21500, 21900, 21650, 1, 4, 0, 0},
-  {"15M",  SW_BAND_TYPE, AM,  18900, 19100, 18950, 1, 4, 0, 0},
-  {"16M",  SW_BAND_TYPE, AM,  17400, 18100, 17650, 1, 4, 0, 0},
-  {"19M",  SW_BAND_TYPE, AM,  15100, 15900, 15450, 1, 4, 0, 0},
-  {"22M",  SW_BAND_TYPE, AM,  13500, 13900, 13650, 1, 4, 0, 0},
-  {"25M",  SW_BAND_TYPE, AM,  11000, 13000, 11850, 1, 4, 0, 0},
-  {"31M",  SW_BAND_TYPE, AM,   9000, 11000,  9650, 1, 4, 0, 0},
-  {"41M",  SW_BAND_TYPE, AM,   7000,  9000,  7300, 1, 4, 0, 0},
-  {"49M",  SW_BAND_TYPE, AM,   5000,  7000,  6000, 1, 4, 0, 0},
-  {"60M",  SW_BAND_TYPE, AM,   4000,  5100,  4950, 1, 4, 0, 0},
-  {"75M",  SW_BAND_TYPE, AM,   3500,  4000,  3950, 1, 4, 0, 0},
-  {"90M",  SW_BAND_TYPE, AM,   3000,  3500,  3300, 1, 4, 0, 0},
-//  {"25M",  SW_BAND_TYPE, AM,  11600, 12100, 11850, 1, 4, 0},
-//  {"31M",  SW_BAND_TYPE, AM,   9400,  9900,  9650, 1, 4, 0},
-//  {"41M",  SW_BAND_TYPE, AM,   7200,  7500,  7300, 1, 4, 0},
-//  {"49M",  SW_BAND_TYPE, AM,   5900,  6200,  6000, 1, 4, 0},
-//  {"60M",  SW_BAND_TYPE, AM,   4700,  5100,  4950, 1, 4, 0},
-//  {"75M",  SW_BAND_TYPE, AM,   3900,  4000,  3950, 1, 4, 0},
-//  {"90M",  SW_BAND_TYPE, AM,   3200,  3400,  3300, 1, 4, 0},
-  {"MW3",  MW_BAND_TYPE, AM,   1700,  3500,  2500, 1, 4, 0, 0},
-  {"MW2",  MW_BAND_TYPE, AM,    495,  1701,   783, 2, 4, 0, 0},
-  {"MW1",  MW_BAND_TYPE, AM,    150,  1800,   810, 3, 4, 0, 0},
-  {"160M", MW_BAND_TYPE, LSB,  1800,  2000,  1900, 5, 4, 0, 0},
-  {"80M",  SW_BAND_TYPE, LSB,  3500,  4000,  3800, 5, 4, 0, 0},
-  {"40M",  SW_BAND_TYPE, LSB,  7000,  7300,  7150, 5, 4, 0, 0},
-  {"30M",  SW_BAND_TYPE, LSB, 10000, 10200, 10125, 5, 4, 0, 0},
-  {"20M",  SW_BAND_TYPE, USB, 14000, 14400, 14100, 5, 4, 0, 0},
-  {"17M",  SW_BAND_TYPE, USB, 18000, 18200, 18115, 5, 4, 0, 0},
-  {"15M",  SW_BAND_TYPE, USB, 21000, 21500, 21225, 5, 4, 0, 0},
-  {"12M",  SW_BAND_TYPE, USB, 24800, 25000, 24940, 5, 4, 0, 0},
-  {"10M",  SW_BAND_TYPE, USB, 28000, 29700, 28500, 5, 4, 0, 0},
+  {"ALL",  SW_BAND_TYPE, AM,    150000,  30000000,  15000000, 1, 4, 0, 0},
+  {"11M",  SW_BAND_TYPE, AM,  25600000,  26100000,  25850000, 1, 4, 0, 0},
+  {"13M",  SW_BAND_TYPE, AM,  21500000,  21900000,  21650000, 1, 4, 0, 0},
+  {"15M",  SW_BAND_TYPE, AM,  18900000,  19100000,  18950000, 1, 4, 0, 0},
+  {"16M",  SW_BAND_TYPE, AM,  17400000,  18100000,  17650000, 1, 4, 0, 0},
+  {"19M",  SW_BAND_TYPE, AM,  15100000,  15900000,  15450000, 1, 4, 0, 0},
+  {"22M",  SW_BAND_TYPE, AM,  13500000,  13900000,  13650000, 1, 4, 0, 0},
+  {"25M",  SW_BAND_TYPE, AM,  11000000,  13000000,  11850000, 1, 4, 0, 0},
+  {"31M",  SW_BAND_TYPE, AM,   9000000,  11000000,   9650000, 1, 4, 0, 0},
+  {"41M",  SW_BAND_TYPE, AM,   7000000,   9000000,   7300000, 1, 4, 0, 0},
+  {"49M",  SW_BAND_TYPE, AM,   5000000,   7000000,   6000000, 1, 4, 0, 0},
+  {"60M",  SW_BAND_TYPE, AM,   4000000,   5100000,   4950000, 1, 4, 0, 0},
+  {"75M",  SW_BAND_TYPE, AM,   3500000,   4000000,   3950000, 1, 4, 0, 0},
+  {"90M",  SW_BAND_TYPE, AM,   3000000,   3500000,   3300000, 1, 4, 0, 0},
+//  {"25M",  SW_BAND_TYPE, AM,  11600000,  12100000,  11850000, 1, 4, 0},
+//  {"31M",  SW_BAND_TYPE, AM,   9400000,   9900000,   9650000, 1, 4, 0},
+//  {"41M",  SW_BAND_TYPE, AM,   7200000,   7500000,   7300000, 1, 4, 0},
+//  {"49M",  SW_BAND_TYPE, AM,   5900000,   6200000,   6000000, 1, 4, 0},
+//  {"60M",  SW_BAND_TYPE, AM,   4700000,   5100000,   4950000, 1, 4, 0},
+//  {"75M",  SW_BAND_TYPE, AM,   3900000,   4000000,   3950000, 1, 4, 0},
+//  {"90M",  SW_BAND_TYPE, AM,   3200000,   3400000,   3300000, 1, 4, 0},
+  {"MW3",  MW_BAND_TYPE, AM,   1700000,   3500000,   2500000, 1, 4, 0, 0},
+  {"MW2",  MW_BAND_TYPE, AM,    495000,   1701000,    783000, 2, 4, 0, 0},
+  {"MW1",  MW_BAND_TYPE, AM,    150000,   1800000,    810000, 3, 4, 0, 0},
+  {"160M", MW_BAND_TYPE, LSB,   1800000,   2000000,   1900000, 5, 4, 0, 0},
+  {"80M",  SW_BAND_TYPE, LSB,   3500000,   4000000,   3800000, 5, 4, 0, 0},
+  {"40M",  SW_BAND_TYPE, LSB,   7000000,   7300000,   7150000, 5, 4, 0, 0},
+  {"30M",  SW_BAND_TYPE, LSB,  10000000,  10200000,  10125000, 5, 4, 0, 0},
+  {"20M",  SW_BAND_TYPE, USB,  14000000,  14400000,  14100000, 5, 4, 0, 0},
+  {"17M",  SW_BAND_TYPE, USB,  18000000,  18200000,  18115000, 5, 4, 0, 0},
+  {"15M",  SW_BAND_TYPE, USB,  21000000,  21500000,  21225000, 5, 4, 0, 0},
+  {"12M",  SW_BAND_TYPE, USB,  24800000,  25000000,  24940000, 5, 4, 0, 0},
+  {"10M",  SW_BAND_TYPE, USB,  28000000,  29700000,  28500000, 5, 4, 0, 0},
   // https://www.hfunderground.com/wiki/CB
   // Also see MIN_CB_FREQUENCY and MAX_CB_FREQUENCY
-  {"CB",   SW_BAND_TYPE, AM,  25000, 28000, 27135, 0, 4, 0, 0},
+  {"CB",   SW_BAND_TYPE, AM,  25000000,  28000000,  27135000, 0, 4, 0, 0},
 };
 
 int getTotalBands() { return(ITEM_COUNT(bands)); }
@@ -352,14 +353,14 @@ static const char *wifiModeDesc[] =
 // Step Menu
 //
 
-// FM (kHz * 10)
+// FM (Hz)
 static const Step fmSteps[] =
 {
-  {   1, "10k",   1 },
-  {   5, "50k",   5 },
-  {  10, "100k", 10 },
-  {  20, "200k", 20 },
-  { 100, "1M",   10 },
+  {   10000, "10k",   1 },
+  {   50000, "50k",   5 },
+  {  100000, "100k", 10 },
+  {  200000, "200k", 20 },
+  { 1000000, "1M",   10 },
 };
 
 // SSB (Hz)
@@ -376,16 +377,16 @@ static const Step ssbSteps[] =
   { 10000, "10k", 10 },
 };
 
-// AM (kHz)
+// AM (Hz)
 static const Step amSteps[] =
 {
-  {    1, "1k",    1 },
-  {    5, "5k",    5 },
-  {    9, "9k",    9 },
-  {   10, "10k",  10 },
-  {   50, "50k",  10 },
-  {  100, "100k", 10 },
-  { 1000, "1M",   10 },
+  {    1000, "1k",    1 },
+  {    5000, "5k",    5 },
+  {    9000, "9k",    9 },
+  {   10000, "10k",  10 },
+  {   50000, "50k",  10 },
+  {  100000, "100k", 10 },
+  { 1000000, "1M",   10 },
 };
 
 static const Step *steps[4] = { fmSteps, ssbSteps, ssbSteps, amSteps };
@@ -412,36 +413,35 @@ const Step *getCurrentStep()
 
 static uint8_t freqInputPos = 0;
 
-static uint8_t getDefaultFreqInputPos(int mode, int step)
+static uint8_t getDefaultFreqInputPos(int step)
 {
-  return (uint8_t)(log10(step) * 2) + (mode == AM ? 6 : 0);
+  return (uint8_t)(log10(step) * 2);
 }
 
 void resetFreqInputPos()
 {
-  freqInputPos = getDefaultFreqInputPos(currentMode, getCurrentStep()->step);
+  freqInputPos = getDefaultFreqInputPos(getCurrentStep()->step);
 }
 
 uint8_t getFreqInputPos()
 {
-  return freqInputPos;
+  // FM highlighting starts at 10 kHz; AM/SSB highlighting starts at 1 Hz.
+  return freqInputPos - (currentMode == FM ? 8 : 0);
 }
 
 int getFreqInputStep()
 {
-  return freqInputPos % 2 ?
-    5 * pow(10, (freqInputPos - (currentMode == AM ? 6 : 0) - 1) / 2) :
-            pow(10, (freqInputPos - (currentMode == AM ? 6 : 0)) / 2);
+  return (freqInputPos % 2 ? 5 : 1) * pow(10, freqInputPos / 2);
 }
 
 static uint8_t getMinFreqInputPos()
 {
-  return getDefaultFreqInputPos(currentMode, steps[currentMode][0].step);
+  return getDefaultFreqInputPos(steps[currentMode][0].step);
 }
 
 static uint8_t getMaxFreqInputPos()
 {
-  return (uint8_t)log10(getCurrentBand()->maximumFreq) * 2 + (currentMode != FM ? 6 : -2);
+  return (uint8_t)log10(getCurrentBand()->maximumFreq) * 2 - (currentMode == FM ? 2 : 0);
 }
 
 //
@@ -693,7 +693,7 @@ static void clickScan(bool shortPress)
     rssi = snr = 0;
     drawScreen();
     drawMessage("Scanning...");
-    scanRun(currentFrequency, 10);
+    scanRun(currentFrequency, currentMode == FM ? 100000 : 10000);
   }
   else currentCmd = CMD_NONE;
 }
@@ -809,7 +809,7 @@ void doCal(int16_t enc)
   // This adjusts the BFO while in the calibration menu
   if(isSSB())
   {
-    updateBFO(currentBFO, true);
+    updateFrequency(currentFrequency, true);
     if(enc) prefsRequestSave(SAVE_CUR_BAND);
   }
 }
@@ -912,9 +912,6 @@ uint8_t doAbout(int16_t enc)
 
 bool tuneToMemory(const Memory *memory)
 {
-  uint16_t freq = freqFromHz(memory->freq, memory->mode);
-  int bfo = bfoFromHz(memory->freq);
-
   // Must have frequency
   if(!memory->freq) return(false);
 
@@ -925,27 +922,19 @@ bool tuneToMemory(const Memory *memory)
   if(!isMemoryInBand(&bands[memory->band], memory)) return(false);
 
   // Must differ from the current band, frequency and modulation
-  // FIXME: bands should store frequency in Hz (otherwise sub-kHz
-  // digits are lost after a power cycle)
-  if(memory->band==bandIdx && freq==bands[bandIdx].currentFreq && memory->mode==bands[bandIdx].bandMode)
+  if(memory->band==bandIdx && memory->freq==bands[bandIdx].currentFreq && memory->mode==bands[bandIdx].bandMode)
     return(true);
-
-  // Save current band settings
-  bands[bandIdx].currentFreq = currentFrequency + currentBFO / 1000;
 
   // Use default step when changing modes
   if(bands[memory->band].bandMode != memory->mode)
     bands[memory->band].currentStepIdx = defaultStepIdx[memory->mode];
 
   // Load frequency and modulation from memory slot
-  bands[memory->band].currentFreq = freq;
+  bands[memory->band].currentFreq = memory->freq;
   bands[memory->band].bandMode    = memory->mode;
 
   // Enable the new band
   selectBand(memory->band);
-
-  // Update BFO if present in memory slot
-  if(bfo) updateBFO(bfo);
 
   // Switching bands must also save pending edits to the previous band.
   prefsRequestSave(SAVE_SETTINGS | SAVE_BANDS);
@@ -985,7 +974,7 @@ void doStep(int16_t enc)
   idx = wrap_range(idx, enc, 0, getLastStep(currentMode));
   bands[bandIdx].currentStepIdx = idx;
 
-  rx.setFrequencyStep(steps[currentMode][idx].step);
+  rx.setFrequencyStep(isSSB()? 0 : freqFromHz(steps[currentMode][idx].step, currentMode));
 
   // Set seek spacing
   if(currentMode==FM)
@@ -1032,7 +1021,6 @@ void doMode(int16_t enc)
   while(currentMode==FM);
 
   // Save current band settings
-  bands[bandIdx].currentFreq = currentFrequency + currentBFO / 1000;
   bands[bandIdx].currentStepIdx = defaultStepIdx[currentMode];
   bands[bandIdx].bandwidthIdx = defaultBwIdx[currentMode];
   bands[bandIdx].bandMode = currentMode;
@@ -1067,7 +1055,6 @@ void doSoftMute(int16_t enc)
 void doBand(int16_t enc)
 {
   // Save current band settings
-  bands[bandIdx].currentFreq = currentFrequency + currentBFO / 1000;
   bands[bandIdx].bandMode = currentMode;
 
   // Change band
@@ -1116,7 +1103,7 @@ static void clickMenu(int cmd, bool shortPress)
 
     case MENU_MEMORY:
       currentCmd = CMD_MEMORY;
-      newMemory.freq  = freqToHz(currentFrequency, currentMode) + currentBFO;
+      newMemory.freq  = currentFrequency;
       newMemory.mode  = currentMode;
       newMemory.band  = bandIdx;
       doMemory(0);
@@ -1300,7 +1287,7 @@ void selectBand(uint8_t idx, bool drawLoadingPatch)
   clearStationInfo();
 
   // Check for named frequencies
-  identifyFrequency(currentFrequency + currentBFO / 1000);
+  identifyFrequency(currentFrequency);
 
   // Set default digit position based on the current step
   resetFreqInputPos();

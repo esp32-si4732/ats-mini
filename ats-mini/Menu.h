@@ -69,9 +69,9 @@ typedef struct
 
 typedef struct
 {
-  int step;         // Step
+  int step;         // Tuning step in Hz
   const char *desc; // Step description
-  uint8_t spacing;  // Seek spacing
+  uint8_t spacing;  // Receiver seek spacing: 10 kHz for FM, 1 kHz for AM/SSB
 } Step;
 
 typedef struct

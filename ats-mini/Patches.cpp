@@ -88,10 +88,7 @@ static void patchApplySelection(uint8_t slot)
     if(slot == dspPatchesIdx) return;
     dspPatchesIdx = slot;
   }
-  // The saved band frequency already includes the whole-kHz BFO offset.
-  int16_t bfo = currentBFO % 1000;
   selectBand(bandIdx);
-  if(isSSB()) updateBFO(bfo, true);
   prefsSave(SAVE_SETTINGS);
 }
 

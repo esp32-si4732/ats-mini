@@ -110,8 +110,7 @@ bool findMemoryName(uint32_t freq, uint8_t mode, uint8_t band, uint8_t preferred
 bool isMemoryInBand(const Band *band, const Memory *memory)
 {
   // Validate Hz before conversion can truncate or wrap the frequency.
-  if(memory->freq<freqToHz(band->minimumFreq, memory->mode)) return(false);
-  if(memory->freq>freqToHz(band->maximumFreq, memory->mode)) return(false);
+  if(!isFreqInBand(band, memory->freq)) return(false);
   if(memory->mode==FM && band->bandMode!=FM) return(false);
   if(memory->mode!=FM && band->bandMode==FM) return(false);
   return(true);

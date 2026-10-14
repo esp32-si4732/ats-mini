@@ -63,7 +63,7 @@ void drawLayoutDefault()
 
   if(currentCmd == CMD_SCAN)
   {
-    drawScanGraphs(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency);
+    drawScanGraphs(currentFrequency);
   }
   else if(!drawStatus(STATUS_OFFSET_X, STATUS_OFFSET_Y))
   {
@@ -71,6 +71,6 @@ void drawLayoutDefault()
     if(*getRadioText() || *getProgramInfo())
       drawRadioText(STATUS_OFFSET_Y, STATUS_OFFSET_Y + 25);
     else
-      drawScale(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency);
+      drawScale(currentFrequency);
   }
 }

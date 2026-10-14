@@ -62,8 +62,8 @@ void prefsInvalidate()
 
 struct SavedBand
 {
+  uint32_t currentFreq;   // Current frequency in Hz
   uint8_t bandMode;       // Band mode (FM, AM, LSB, or USB)
-  uint16_t currentFreq;   // Current frequency
   int8_t currentStepIdx;  // Current frequency step
   int8_t bandwidthIdx;    // Index of the table bandwidthFM, bandwidthAM or bandwidthSSB;
   int16_t usbCal;         // USB calibration value
@@ -106,7 +106,7 @@ bool prefsLoadBand(uint8_t idx, bool openPrefs)
   sprintf(name, "Band-%d", idx);
 
   // Read preference
-  bool result = !!prefs.getBytes(name, &value, sizeof(value));
+  bool result = prefs.getBytes(name, &value, sizeof(value))==sizeof(value);
   if(result)
   {
     bands[idx].currentFreq    = value.currentFreq;    // Frequency

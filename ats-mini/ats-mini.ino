@@ -54,7 +54,7 @@ long lastScheduleCheck = millis();
 long elapsedCommand = millis();
 volatile int16_t encoderCount = 0;
 volatile int16_t encoderCountAccel = 0;
-uint16_t currentFrequency;
+uint32_t currentFrequency;
 
 // AGC/ATTN index per mode (FM/AM/SSB)
 int8_t FmAgcIdx = 0;                    // Default FM  AGGON  : Range = 0 to 37, 0 = AGCON, 1 - 27 = ATTN 0 to 26
@@ -94,7 +94,6 @@ uint32_t background_timer = millis();   // Background screen refresh timer.
 //
 uint16_t currentCmd  = CMD_NONE;
 uint8_t  currentMode = FM;
-int16_t  currentBFO  = 0;
 
 uint8_t  rssi = 0;
 uint8_t  snr  = 0;
@@ -356,23 +355,53 @@ uint32_t consumeEncoderCounts()
   return ((uint32_t)encCountAccel << 16) | ((uint16_t)encCount & 0xFFFF);
 }
 
+// Select the nearest point on the 28 kHz SSB tuning grid within the band.
+// Return receiver units: 10 kHz for FM, 1 kHz for AM/SSB.
+uint16_t getReceiverFrequency(uint32_t freq)
+{
+  if(isSSB())
+  {
+    const Band *band = getCurrentBand();
+    const uint32_t spacing = 2 * MAX_BFO;
+    freq = ((freq + MAX_BFO) / spacing) * spacing;
+    freq = constrain(freq, band->minimumFreq, band->maximumFreq);
+  }
+  return freqFromHz(freq, currentMode);
+}
+
+int getCurrentBFO()
+{
+  return isSSB()? (int32_t)currentFrequency - (int32_t)freqToHz(getReceiverFrequency(currentFrequency), currentMode) : 0;
+}
+
+static void applyBFO()
+{
+  const Band *band = getCurrentBand();
+  int calibration = currentMode == USB? band->usbCal : currentMode == LSB? band->lsbCal : 0;
+  rx.setSSBBfo(-(getCurrentBFO() + calibration));
+}
+
 //
 // Switch radio to given band
 //
-void useBand(const Band *band)
+void useBand(Band *band)
 {
-  // Set current frequency and mode, reset BFO
-  currentFrequency = band->currentFreq;
+  // Convert the saved Hz frequency to receiver units and restore SSB fine tuning.
   currentMode = band->bandMode;
-  currentBFO = 0;
+  uint16_t receiverFreq = getReceiverFrequency(band->currentFreq);
+  currentFrequency = isSSB()? band->currentFreq : freqToHz(receiverFreq, currentMode);
+  // AM/FM discard fractions smaller than a receiver unit.
+  band->currentFreq = currentFrequency;
+  uint16_t minFreq = freqFromHz(band->minimumFreq, currentMode);
+  uint16_t maxFreq = freqFromHz(band->maximumFreq, currentMode);
   ssbAvcHold = false;
 
   if(band->bandMode==FM)
   {
     // rx.setMaxDelaySetFrequency(60);
-    rx.setFM(band->minimumFreq, band->maximumFreq, band->currentFreq, getCurrentStep()->step);
+    rx.setFM(minFreq, maxFreq, receiverFreq, freqFromHz(getCurrentStep()->step, currentMode));
     // rx.setTuneFrequencyAntennaCapacitor(0);
-    rx.setSeekFmLimits(band->minimumFreq, band->maximumFreq);
+    rx.setSeekFmLimits(minFreq, maxFreq);
 
     // More sensitive seek thresholds
     // https://github.com/pu2clr/SI4735/issues/7#issuecomment-810963604
@@ -391,7 +420,7 @@ void useBand(const Band *band)
     // rx.setMaxDelaySetFrequency(80);
     if(band->bandMode==AM)
     {
-      rx.setAM(band->minimumFreq, band->maximumFreq, band->currentFreq, getCurrentStep()->step);
+      rx.setAM(minFreq, maxFreq, receiverFreq, freqFromHz(getCurrentStep()->step, currentMode));
       // More sensitive seek thresholds
       // https://github.com/pu2clr/SI4735/issues/7#issuecomment-810963604
       rx.setSeekAmRssiThreshold(10); // default is 25
@@ -400,18 +429,12 @@ void useBand(const Band *band)
     else
     {
       // Configure SI4732 for SSB (SI4732 step not used, set to 0)
-      rx.setSSB(band->minimumFreq, band->maximumFreq, band->currentFreq, 0, currentMode);
+      rx.setSSB(minFreq, maxFreq, receiverFreq, 0, currentMode);
       // Initialize SSB with automatic AVC and AFC disabled
       rx.setSSBConfig(getCurrentBandwidth()->idx, 1, 0, 1, 0, 1);
       // G8PTN: Commented out
       //rx.setSsbSoftMuteMaxAttenuation(softMuteMaxAttIdx);
-      // To move frequency forward, need to move the BFO backwards
-      if (currentMode == USB)
-        rx.setSSBBfo(-(currentBFO + band->usbCal));
-      else if (currentMode == LSB)
-        rx.setSSBBfo(-(currentBFO + band->lsbCal));
-      else
-        rx.setSSBBfo(-currentBFO);  // No calibration if not USB/LSB
+      applyBFO();
     }
 
     // Set the tuning capacitor for SW or MW/LW
@@ -422,7 +445,7 @@ void useBand(const Band *band)
     // G8PTN: Set GPIO1 = 1
     rx.setGpio(1, 0, 0);
     // Consider the range all defined current band
-    rx.setSeekAmLimits(band->minimumFreq, band->maximumFreq);
+    rx.setSeekAmLimits(minFreq, maxFreq);
   }
 
   // Set step and spacing based on mode (FM, AM, SSB)
@@ -441,77 +464,11 @@ void useBand(const Band *band)
 }
 
 //
-// Tune using BFO, using algorithm from Goshante's ATS-20_EX firmware
+// Tune to a frequency in Hz. SSB uses a fixed tuning grid and a derived BFO.
 //
-bool updateBFO(int newBFO, bool wrap)
+bool updateFrequency(int64_t newFreq, bool wrap)
 {
   Band *band = getCurrentBand();
-  int newFreq = currentFrequency;
-
-  // No BFO outside SSB modes
-  if(!isSSB()) newBFO = 0;
-
-  // If new BFO exceeds allowed bounds...
-  if(newBFO > MAX_BFO || newBFO < -MAX_BFO)
-  {
-    // Compute correction
-    int fCorrect = (newBFO / MAX_BFO) * MAX_BFO;
-    // Correct new frequency and BFO
-    newFreq += fCorrect / 1000;
-    newBFO  -= fCorrect;
-  }
-
-  // Do not let new frequency exceed band limits
-  int f = newFreq * 1000 + newBFO;
-  if(f < band->minimumFreq * 1000)
-  {
-    if(!wrap) return false;
-    newFreq = band->maximumFreq;
-    newBFO  = 0;
-  }
-  else if(f > band->maximumFreq * 1000)
-  {
-    if(!wrap) return false;
-    newFreq = band->minimumFreq;
-    newBFO  = 0;
-  }
-
-  // If need to change frequency...
-  if(newFreq != currentFrequency)
-  {
-    // Apply new frequency
-    rx.setFrequency(newFreq);
-
-    // Re-apply to remove noise
-    doAgc(0);
-    // Update current frequency
-    currentFrequency = rx.getFrequency();
-  }
-
-  // Update current BFO
-  currentBFO = newBFO;
-
-  // To move frequency forward, need to move the BFO backwards
-  if (currentMode == USB)
-    rx.setSSBBfo(-(currentBFO + band->usbCal));
-  else if (currentMode == LSB)
-    rx.setSSBBfo(-(currentBFO + band->lsbCal));
-  else
-    rx.setSSBBfo(-currentBFO);  // No calibration if not USB/LSB
-
-  // Save current band frequency, w.r.t. new BFO value
-  band->currentFreq = currentFrequency + currentBFO / 1000;
-  return true;
-}
-
-//
-// Tune to a new frequency, resetting BFO if present
-//
-bool updateFrequency(int newFreq, bool wrap)
-{
-  Band *band = getCurrentBand();
-
-  // Do not let new frequency exceed band limits
   if(newFreq < band->minimumFreq)
   {
     if(!wrap) return false; else newFreq = band->maximumFreq;
@@ -521,17 +478,16 @@ bool updateFrequency(int newFreq, bool wrap)
     if(!wrap) return false; else newFreq = band->minimumFreq;
   }
 
-  // Set new frequency
-  rx.setFrequency(newFreq);
+  uint16_t receiverFreq = getReceiverFrequency(newFreq);
+  if(!isSSB() || receiverFreq != getReceiverFrequency(currentFrequency))
+  {
+    rx.setFrequency(receiverFreq);
+    if(isSSB()) doAgc(0);
+  }
 
-  // Clear BFO, if present
-  if(currentBFO) updateBFO(0, true);
-
-  // Update current frequency
-  currentFrequency = rx.getFrequency();
-
-  // Save current band frequency
-  band->currentFreq = currentFrequency + currentBFO / 1000;
+  currentFrequency = isSSB()? newFreq : freqToHz(rx.getFrequency(), currentMode);
+  if(isSSB()) applyBFO();
+  band->currentFreq = currentFrequency;
   return true;
 }
 
@@ -563,7 +519,7 @@ bool consumeAbortPending()
 // This function is called by the seek function process.
 void showFrequencySeek(uint16_t freq)
 {
-  currentFrequency = freq;
+  currentFrequency = freqToHz(freq, currentMode);
   drawScreen();
 }
 
@@ -578,7 +534,7 @@ bool doSeek(int16_t enc, int16_t enca)
   {
     if(isSSB())
     {
-      updateBFO(currentBFO + enca * getCurrentStep()->step, true);
+      updateFrequency(currentFrequency + (int64_t)enca * getCurrentStep()->step, true);
     }
     else
     {
@@ -591,7 +547,7 @@ bool doSeek(int16_t enc, int16_t enca)
       seekStop = false;
       if(!consumeAbortPending())
         rx.seekStationProgress(showFrequencySeek, consumeAbortPending, enc>0? 1 : 0);
-      updateFrequency(rx.getFrequency(), true);
+      updateFrequency(freqToHz(rx.getFrequency(), currentMode), true);
     }
   }
   else if(seekMode() == SEEK_SCHEDULE && enc)
@@ -602,16 +558,16 @@ bool doSeek(int16_t enc, int16_t enca)
 
     size_t offset = -1;
     const StationSchedule *schedule = enc > 0 ?
-      eibiNext(currentFrequency + currentBFO / 1000, hour, minute, &offset) :
-      eibiPrev(currentFrequency + currentBFO / 1000, hour, minute, &offset);
+      eibiNext(freqFromHz(currentFrequency, currentMode), hour, minute, &offset) :
+      eibiPrev(freqFromHz(currentFrequency, currentMode), hour, minute, &offset);
 
-    if(schedule) updateFrequency(schedule->freq, false);
+    if(schedule) updateFrequency(schedule->freq * 1000, false);
   }
 
   // Clear current station name and information
   clearStationInfo();
   // Check for named frequencies
-  identifyFrequency(currentFrequency + currentBFO / 1000);
+  identifyFrequency(currentFrequency);
   // Will need a redraw
   // enable amp
   muteOn(MUTE_TEMP, false);
@@ -623,36 +579,16 @@ bool doSeek(int16_t enc, int16_t enca)
 //
 bool doTune(int16_t enc)
 {
-  //
-  // SSB tuning
-  //
-  if(isSSB())
-  {
-    uint32_t step = getCurrentStep()->step;
-    uint32_t stepAdjust = (currentFrequency * 1000 + currentBFO) % step;
-    step = !stepAdjust? step : enc>0? step - stepAdjust : stepAdjust;
-
-    updateBFO(currentBFO + enc * step, true);
-  }
-
-  //
-  // Normal tuning
-  //
-  else
-  {
-    uint16_t step = getCurrentStep()->step;
-    uint16_t stepAdjust = currentFrequency % step;
-    stepAdjust = (currentMode==FM) && (step==20)? (stepAdjust+10) % step : stepAdjust;
-    step = !stepAdjust? step : enc>0? step - stepAdjust : stepAdjust;
-
-    // Tune to a new frequency
-    updateFrequency(currentFrequency + step * enc, true);
-  }
+  int32_t step = getCurrentStep()->step;
+  int32_t stepAdjust = currentFrequency % step;
+  if(currentMode == FM && step == 200000) stepAdjust = (stepAdjust + 100000) % step;
+  step = !stepAdjust? step : enc>0? step - stepAdjust : stepAdjust;
+  updateFrequency(currentFrequency + (int64_t)step * enc, true);
 
   // Clear current station name and information
   clearStationInfo();
   // Check for named frequencies
-  identifyFrequency(currentFrequency + currentBFO / 1000);
+  identifyFrequency(currentFrequency);
   // Will need a redraw
   return(true);
 }
@@ -662,28 +598,13 @@ bool doTune(int16_t enc)
 //
 bool doDigit(int16_t enc)
 {
-  bool updated = false;
-
-  // SSB tuning
-  if(isSSB())
-  {
-    updated = updateBFO(currentBFO + enc * getFreqInputStep(), false);
-  }
-
-  //
-  // Normal tuning
-  //
-  else
-  {
-    // Tune to a new frequency
-    updated = updateFrequency(currentFrequency + enc * getFreqInputStep(), false);
-  }
+  bool updated = updateFrequency(currentFrequency + (int64_t)enc * getFreqInputStep(), false);
 
   if (updated) {
     // Clear current station name and information
     clearStationInfo();
     // Check for named frequencies
-    identifyFrequency(currentFrequency + currentBFO / 1000);
+    identifyFrequency(currentFrequency);
   }
 
   // Will need a redraw
@@ -694,24 +615,16 @@ bool doDigit(int16_t enc)
 bool clickFreq(bool shortPress)
 {
   if (shortPress) {
-    bool updated = false;
+    bool updated = updateFrequency(currentFrequency - currentFrequency % getFreqInputStep(), false);
 
-     // SSB tuning
-     if(isSSB()) {
-       updated = updateBFO(currentBFO - (currentFrequency * 1000 + currentBFO) % getFreqInputStep(), false);
-     } else {
-       // Normal tuning
-       updated = updateFrequency(currentFrequency - currentFrequency % getFreqInputStep(), false);
-     }
-
-     if (updated) {
-       prefsRequestSave(SAVE_CUR_BAND);
-       // Clear current station name and information
-       clearStationInfo();
-       // Check for named frequencies
-       identifyFrequency(currentFrequency + currentBFO / 1000);
-     }
-     return true;
+    if (updated) {
+      prefsRequestSave(SAVE_CUR_BAND);
+      // Clear current station name and information
+      clearStationInfo();
+      // Check for named frequencies
+      identifyFrequency(currentFrequency);
+    }
+    return true;
   }
   return false;
 }
@@ -918,7 +831,7 @@ void loop()
   // Periodically check schedule
   if((currentTime - lastScheduleCheck) > SCHEDULE_CHECK_TIME)
   {
-    needRedraw |= identifyFrequency(currentFrequency + currentBFO / 1000, true);
+    needRedraw |= identifyFrequency(currentFrequency, true);
     lastScheduleCheck = currentTime;
   }
 

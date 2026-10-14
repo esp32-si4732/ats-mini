@@ -483,8 +483,8 @@ static const String webRadioPage()
   snprintf(utcOffset, sizeof(utcOffset), "UTC%c%02d:%02d",
            offsetMinutes < 0? '-' : '+', offsetMagnitude / 60, offsetMagnitude % 60);
   String freq = currentMode == FM?
-    String(currentFrequency / 100.0) + "MHz "
-  : String(currentFrequency + currentBFO / 1000.0) + "kHz ";
+    String(currentFrequency / 1000000.0) + "MHz "
+  : String(currentFrequency / 1000.0) + "kHz ";
 
   if(clockAvailable())
   {
@@ -585,12 +585,8 @@ static void webSetMemories(AsyncWebServerRequest *request)
     for(int i=0 ; i<getTotalBands() ; i++)
     {
       if(band->value() != bands[i].bandName) continue;
-      // Resolve duplicate band names using the frequency and mode. Check Hz
-      // before converting to the receiver's narrower frequency representation.
-      uint32_t unit = mem.mode == FM? 10000 : 1000;
-      if(mem.freq && (hz < (uint32_t)bands[i].minimumFreq * unit ||
-                     hz > (uint32_t)bands[i].maximumFreq * unit ||
-                     !isMemoryInBand(&bands[i], &mem))) continue;
+      // Resolve duplicate band names using the frequency and mode.
+      if(mem.freq && !isMemoryInBand(&bands[i], &mem)) continue;
       mem.band = i;
       break;
     }

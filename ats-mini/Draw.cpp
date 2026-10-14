@@ -200,7 +200,7 @@ void drawFrequency(uint32_t freq, int x, int y, int ux, int uy, uint8_t hl)
     li = hl<ITEM_COUNT(hlDigitsFM)? &hlDigitsFM[hl] : 0;
 
     // FM frequency
-    spr.drawFloat(freq/100.00, 2, x, y, FONT_DIGITS);
+    spr.drawFloat(freq/1000000.0, 2, x, y, FONT_DIGITS);
     spr.setTextDatum(L_BASELINE);
     spr.setTextColor(TH.funit_text);
     // Orbitron's M/H extend 17 pixels above the baseline.
@@ -215,7 +215,6 @@ void drawFrequency(uint32_t freq, int x, int y, int ux, int uy, uint8_t hl)
     {
       // SSB frequency
       char text[32];
-      freq = freq * 1000 + currentBFO;
       sprintf(text, "%3.3lu", freq / 1000);
       spr.drawString(text, x, y, FONT_DIGITS);
       spr.setTextDatum(ML_DATUM);
@@ -225,7 +224,7 @@ void drawFrequency(uint32_t freq, int x, int y, int ux, int uy, uint8_t hl)
     else
     {
       // AM frequency
-      spr.drawNumber(freq, x, y, FONT_DIGITS);
+      spr.drawNumber(freq / 1000, x, y, FONT_DIGITS);
       spr.setTextDatum(ML_DATUM);
       spr.drawString(".000", 4+x, 17+y, FONT_LARGE);
     }
@@ -270,36 +269,37 @@ void drawScale(uint32_t freq)
   int16_t slack = 3;
 
   // Scale offset
-  int16_t offset = ((freq % 10) / 10.0 + slack) * 8;
+  const uint32_t step = currentMode == FM ? 100000 : 10000;
+  int16_t offset = (uint64_t)(freq % step) * 8 / step + slack * 8;
 
   // Start drawing frequencies from the left
-  freq = freq / 10 - 20 - slack;
+  int64_t tickFreq = ((int64_t)(freq / step) - 20 - slack) * step;
 
   // Get band edges
   const Band *band = getCurrentBand();
-  uint32_t minFreq = band->minimumFreq / 10;
-  uint32_t maxFreq = band->maximumFreq / 10;
+  uint32_t minFreq = band->minimumFreq;
+  uint32_t maxFreq = band->maximumFreq;
 
-  for(int i=0 ; i<(slack + 41 + slack) ; i++, freq++)
+  for(int i=0 ; i<(slack + 41 + slack) ; i++, tickFreq+=step)
   {
     int16_t x = i * 8 - offset;
-    if(freq >= minFreq && freq <= maxFreq)
+    if(tickFreq >= minFreq && tickFreq <= maxFreq)
     {
-      uint16_t lineColor = (i==20) && (!offset || (!(freq%5) && offset==1))?
+      uint16_t lineColor = (i==20) && (!offset || (!(tickFreq % (5 * step)) && offset==1))?
         TH.scale_pointer : TH.scale_line;
 
-      if((freq % 10) == 0)
+      if((tickFreq % (10 * step)) == 0)
       {
         spr.drawLine(x, 169, x, 150, lineColor);
         spr.drawLine(x + 1, 169, x + 1, 150, lineColor);
         if(currentMode == FM)
-          spr.drawFloat(freq / 10.0, 1, x, 140, FONT_SMALL);
-        else if(freq >= 100)
-          spr.drawFloat(freq / 100.0, 3, x, 140, FONT_SMALL);
+          spr.drawFloat(tickFreq / 1000000.0, 1, x, 140, FONT_SMALL);
+        else if(tickFreq >= 1000000)
+          spr.drawFloat(tickFreq / 1000000.0, 3, x, 140, FONT_SMALL);
         else
-          spr.drawNumber(freq * 10, x, 140, FONT_SMALL);
+          spr.drawNumber(tickFreq / 1000, x, 140, FONT_SMALL);
       }
-      else if((freq % 5) == 0 && (freq % 10) != 0)
+      else if((tickFreq % (5 * step)) == 0 && (tickFreq % (10 * step)) != 0)
       {
         spr.drawLine(x, 169, x, 155, lineColor);
         spr.drawLine(x + 1, 169, x + 1, 155, lineColor);
@@ -385,29 +385,30 @@ void drawLongStationName(const char *name, int x, int y)
 void drawScanGraphs(uint32_t freq)
 {
   // Scale offset
-  int16_t offset = (freq % 10) / 10.0 * 8;
+  const uint32_t step = currentMode == FM ? 100000 : 10000;
+  int16_t offset = (uint64_t)(freq % step) * 8 / step;
 
   // Start drawing frequencies from the left
-  freq = freq / 10 - 20;
+  int64_t tickFreq = ((int64_t)(freq / step) - 20) * step;
 
   // Get band edges
   const Band *band = getCurrentBand();
-  uint32_t minFreq = band->minimumFreq / 10;
-  uint32_t maxFreq = band->maximumFreq / 10;
+  uint32_t minFreq = band->minimumFreq;
+  uint32_t maxFreq = band->maximumFreq;
 
-  for(int i=0 ; i<41 ; i++, freq++)
+  for(int i=0 ; i<41 ; i++, tickFreq+=step)
   {
     int16_t x = i * 8 - offset;
 
-    if(freq >= minFreq && freq <= maxFreq)
+    if(tickFreq >= minFreq && tickFreq <= maxFreq)
     {
-      if((freq % 5) == 0) {
+      if((tickFreq % (5 * step)) == 0) {
         for(int y=0; y<42; y+=2) {
           spr.drawPixel(x, 169-y, TH.scan_grid);
         }
       }
 
-      if((freq+1) <= maxFreq) {
+      if((tickFreq+step) <= maxFreq) {
         for(int xd=x; xd<(x+8); xd+=2) {
           spr.drawPixel(xd, 169-40, TH.scan_grid);
           spr.drawPixel(xd, 169-30, TH.scan_grid);
@@ -415,11 +416,11 @@ void drawScanGraphs(uint32_t freq)
           spr.drawPixel(xd, 169-10, TH.scan_grid);
           spr.drawPixel(xd, 169-0, TH.scan_grid);
         }
-        int snr1 = 40 * scanGetSNR(freq * 10);
-        int snr2 = 40 * scanGetSNR((freq+1) * 10);
+        int snr1 = 40 * scanGetSNR(tickFreq);
+        int snr2 = 40 * scanGetSNR(tickFreq+step);
         spr.drawLine(x, 169-snr1, x+8, 169-snr2, TH.scan_snr);
-        int rssi1 = 40 * scanGetRSSI(freq * 10);
-        int rssi2 = 40 * scanGetRSSI((freq+1) * 10);
+        int rssi1 = 40 * scanGetRSSI(tickFreq);
+        int rssi2 = 40 * scanGetRSSI(tickFreq+step);
         spr.drawLine(x, 169-rssi1, x+8, 169-rssi2, TH.scan_rssi);
       }
     }

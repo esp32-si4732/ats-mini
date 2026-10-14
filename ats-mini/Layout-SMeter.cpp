@@ -48,26 +48,28 @@ static int getInterpolatedStrength(int rssi)
 static void drawSmallScale(uint32_t freq, int y)
 {
   const Band *band = getCurrentBand();
+  uint32_t minFreq = band->minimumFreq;
+  uint32_t maxFreq = band->maximumFreq;
   const uint16_t scaleStart = 51;
   const uint16_t scaleEnd = 269;
 
   for(int i=scaleStart+3; i<=scaleEnd-3; i+=2) spr.drawPixel(i, y, TH.scale_line);
   spr.drawCircle(scaleStart, y, 3, TH.scale_line);
   spr.drawCircle(scaleEnd, y, 3, TH.scale_line);
-  spr.fillCircle(scaleStart + (scaleEnd-scaleStart) * (freq - band->minimumFreq) / (band->maximumFreq - band->minimumFreq), y, 3, TH.scale_pointer);
+  spr.fillCircle(scaleStart + (uint64_t)(scaleEnd-scaleStart) * (freq - minFreq) / (maxFreq - minFreq), y, 3, TH.scale_pointer);
 
   char lim[8];
   spr.setTextColor(TH.scale_text);
   spr.setTextDatum(MC_DATUM);
   if(band->bandType==FM_BAND_TYPE)
-    sprintf(lim, "%0.2f", band->minimumFreq/100.00);
+    sprintf(lim, "%0.2f", minFreq/1000000.0);
   else
-    sprintf(lim, "%u", band->minimumFreq);
+    sprintf(lim, "%lu", (unsigned long)(minFreq / 1000));
   spr.drawString(lim, scaleStart-27, y, FONT_SMALL);
   if(band->bandType==FM_BAND_TYPE)
-    sprintf(lim, "%0.2f", band->maximumFreq/100.00);
+    sprintf(lim, "%0.2f", maxFreq/1000000.0);
   else
-    sprintf(lim, "%u", band->maximumFreq);
+    sprintf(lim, "%lu", (unsigned long)(maxFreq / 1000));
   spr.drawString(lim, scaleEnd+27, y, FONT_SMALL);
 }
 
@@ -197,7 +199,7 @@ void drawLayoutSmeter()
     drawStationName(stationName, RDS_OFFSET_X, RDS_OFFSET_Y);
 
   // Draw band scale
-  drawSmallScale(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency, 120);
+  drawSmallScale(currentFrequency, 120);
 
   // Draw left-side menu/info bar
   // @@@ FIXME: Frequency display (above) intersects the side bar!
@@ -209,7 +211,7 @@ void drawLayoutSmeter()
 
   if(currentCmd == CMD_SCAN)
   {
-    drawScanGraphs(isSSB()? (currentFrequency + currentBFO/1000) : currentFrequency);
+    drawScanGraphs(currentFrequency);
   }
   else if(!drawStatus(STATUS_OFFSET_X, STATUS_OFFSET_Y))
   {

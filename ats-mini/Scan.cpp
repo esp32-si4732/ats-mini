@@ -25,8 +25,8 @@ static ScanPoint *scanData = nullptr;
 static uint32_t scanTime = millis();
 static uint8_t  scanStatus = SCAN_OFF;
 
-static uint16_t scanStartFreq;
-static uint16_t scanStep;
+static uint32_t scanStartFreq; // Hz
+static uint32_t scanStep;      // Hz
 static uint16_t scanCount;
 static uint8_t  scanMinRSSI;
 static uint8_t  scanMaxRSSI;
@@ -36,27 +36,27 @@ static uint8_t  scanMaxSNR;
 static inline uint8_t min(uint8_t a, uint8_t b) { return(a<b? a:b); }
 static inline uint8_t max(uint8_t a, uint8_t b) { return(a>b? a:b); }
 
-float scanGetRSSI(uint16_t freq)
+float scanGetRSSI(uint32_t freq)
 {
   // Input frequency must be in range of existing data
-  if((scanStatus!=SCAN_DONE) || (freq<scanStartFreq) || (freq>=scanStartFreq+scanStep*scanCount))
+  if((scanStatus!=SCAN_DONE) || (freq<scanStartFreq) || ((freq-scanStartFreq)/scanStep>=scanCount))
     return(0.0);
 
   uint8_t result = scanData[(freq - scanStartFreq) / scanStep].rssi;
   return((result - scanMinRSSI) / (float)(scanMaxRSSI - scanMinRSSI + 1));
 }
 
-float scanGetSNR(uint16_t freq)
+float scanGetSNR(uint32_t freq)
 {
   // Input frequency must be in range of existing data
-  if((scanStatus!=SCAN_DONE) || (freq<scanStartFreq) || (freq>=scanStartFreq+scanStep*scanCount))
+  if((scanStatus!=SCAN_DONE) || (freq<scanStartFreq) || ((freq-scanStartFreq)/scanStep>=scanCount))
     return(0.0);
 
   uint8_t result = scanData[(freq - scanStartFreq) / scanStep].snr;
   return((result - scanMinSNR) / (float)(scanMaxSNR - scanMinSNR + 1));
 }
 
-static void scanInit(uint16_t centerFreq, uint16_t step)
+static void scanInit(uint32_t centerFreq, uint32_t step)
 {
   scanStep    = step;
   scanCount   = 0;
@@ -68,11 +68,12 @@ static void scanInit(uint16_t centerFreq, uint16_t step)
   scanTime    = millis();
 
   const Band *band = getCurrentBand();
-  int freq = scanStep * (centerFreq / scanStep - SCAN_POINTS / 2);
+  int64_t freq = ((int64_t)(centerFreq / scanStep) - SCAN_POINTS / 2) * scanStep;
+  int64_t span = (int64_t)scanStep * (SCAN_POINTS - 1);
 
   // Adjust to band boundaries
-  if(freq + scanStep * (SCAN_POINTS - 1) > band->maximumFreq)
-    freq = band->maximumFreq - scanStep * (SCAN_POINTS - 1);
+  if(freq + span > band->maximumFreq)
+    freq = band->maximumFreq - span;
   if(freq < band->minimumFreq)
     freq = band->minimumFreq;
   scanStartFreq = freq;
@@ -90,7 +91,7 @@ static bool scanTickTime()
   if(millis() - scanTime < SCAN_POLL_TIME) return(true);
 
   // This is our current frequency to scan
-  uint16_t freq = scanStartFreq + scanStep * scanCount;
+  uint32_t freq = scanStartFreq + scanStep * scanCount;
 
   // Poll for the tuning status
   rx.getStatus(0, 0);
@@ -101,9 +102,9 @@ static bool scanTickTime()
   }
 
   // If frequency not yet set, set it and wait until next call to measure
-  if(rx.getCurrentFrequency() != freq)
+  if(rx.getCurrentFrequency() != freqFromHz(freq, currentMode))
   {
-    rx.setFrequency(freq); // Implies tuning delay
+    rx.setFrequency(freqFromHz(freq, currentMode)); // Implies tuning delay
     scanTime = millis() - SCAN_POLL_TIME;
     return(true);
   }
@@ -126,7 +127,7 @@ static bool scanTickTime()
   if((++scanCount >= SCAN_POINTS) || !isFreqInBand(getCurrentBand(), freq) || consumeAbortPending())
     scanStatus = SCAN_DONE;
   else
-    rx.setFrequency(freq); // Implies tuning delay
+    rx.setFrequency(freqFromHz(freq, currentMode)); // Implies tuning delay
 
   // Save last scan time
   scanTime = millis() - SCAN_POLL_TIME;
@@ -138,7 +139,7 @@ static bool scanTickTime()
 //
 // Run entire scan once
 //
-void scanRun(uint16_t centerFreq, uint16_t step)
+void scanRun(uint32_t centerFreq, uint32_t step)
 {
   // Allocate once and retain the samples for drawing after the scan.
   if(!scanData)
@@ -155,11 +156,15 @@ void scanRun(uint16_t centerFreq, uint16_t step)
   // Flag is set by rotary encoder and cleared on seek/scan entry
   seekStop = false;
   // Save current frequency
-  uint16_t curFreq = rx.getFrequency();
+  uint32_t curFreq = freqToHz(rx.getFrequency(), currentMode);
+  // Scan receiver frequencies without the SSB tuning or calibration offset.
+  if(isSSB()) rx.setSSBBfo(0);
   // Scan the whole range
   for(scanInit(centerFreq, step) ; scanTickTime(););
   // Restore current frequency
-  rx.setFrequency(curFreq);
+  rx.setFrequency(freqFromHz(curFreq, currentMode));
+  // Restore the derived BFO and calibration before unmuting.
+  if(isSSB()) updateFrequency(currentFrequency, false);
   // Unmute the audio
   muteOn(MUTE_TEMP, false);
   // Restore tuning delay
