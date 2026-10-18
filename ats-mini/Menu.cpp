@@ -1232,7 +1232,10 @@ static void clickSettings(int cmd, bool shortPress)
       break;
     case MENU_ZOOM:       currentCmd = CMD_ZOOM;       break;
     case MENU_SCROLL:     currentCmd = CMD_SCROLL;     break;
-    case MENU_OFFTIMER:   currentCmd = CMD_OFFTIMER;   break;
+    case MENU_OFFTIMER:
+      if(shortPress) receiverShutdown();
+      else currentCmd = CMD_OFFTIMER;
+      break;
     case MENU_SLEEP:      currentCmd = CMD_SLEEP;      break;
     case MENU_SLEEPMODE:  currentCmd = CMD_SLEEPMODE;  break;
     case MENU_UTCOFFSET:  currentCmd = CMD_UTCOFFSET;  break;

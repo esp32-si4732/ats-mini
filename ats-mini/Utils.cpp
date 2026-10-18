@@ -46,7 +46,7 @@ static void holdOutputLow(int pin)
   gpio_hold_en((gpio_num_t)pin);
 }
 
-static void offTimerShutdown()
+void receiverShutdown()
 {
   muteOn(MUTE_FORCE, true, true);
   netStop();
@@ -78,7 +78,7 @@ static void offTimerShutdown()
 
 void offTimerTick()
 {
-  if(offTimerDeadline && !offTimerRemainingUs()) offTimerShutdown();
+  if(offTimerDeadline && !offTimerRemainingUs()) receiverShutdown();
 }
 
 // Time

@@ -79,7 +79,7 @@ Some of the ESP32-SI4732 receivers do not have the BOOT and RESET buttons solder
 
 Impressions so far:
 
-- Due to the lack of a power switch, the stock firmware uses deep sleep, triggered by a long press, but it still drains the battery. The ATS Mini firmware already uses the long-press gesture for other purposes, so there is no way to turn the receiver off.
+- Due to the lack of a power switch, the stock firmware uses deep sleep, triggered by a long press, but it still drains the battery. In the ATS Mini firmware, short press the **Off Timer** menu option to enter deep sleep, then press reset to restart the receiver.
 - The reset button is external, and the boot button is combined with the encoder button. This makes triggering bootloader mode much easier, but it also means that to reset the receiver settings, you have to press and hold the encoder button right after powering the receiver on, not before.
 - The display is connected via SPI without a separate MISO pin. Display controller registers are read through the bidirectional MOSI/SDA line.
 - The display color palette is a bit off, so the themes look different.
