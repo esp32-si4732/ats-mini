@@ -9,14 +9,16 @@ static const char pageConfig[] PROGMEM = R"HTML(<H1>{{title}}</H1>
 {{{navigation}}}
 <FORM ACTION="/setconfig" METHOD="POST" ENCTYPE="multipart/form-data" ONSUBMIT="browserDateTime(true)">
   <TABLE COLUMNS="2">
-    <TR><TH COLSPAN="2" CLASS="HEADING">Settings</TH></TR>
+    <TR><TH COLSPAN="2" CLASS="HEADING">Date/Time</TH></TR>
     <TR><TD CLASS="LABEL">Use Browser Date/Time</TD><TD><INPUT TYPE="CHECKBOX" ID="browserdatetime" ONCHANGE="browserDateTime()"></TD></TR>
     <TR><TD CLASS="LABEL">UTC Date/Time</TD><TD><INPUT TYPE="TEXT" ID="datetime" NAME="datetime" PLACEHOLDER="YYYY-mm-dd HH:MM:SS"></TD></TR>
     <TR><TD CLASS="LABEL">Time Zone</TD><TD><SELECT ID="utcoffset" NAME="utcoffset">{{{utc_options}}}</SELECT></TD></TR>
+    <TR><TH COLSPAN="2" CLASS="HEADING">UI</TH></TR>
     <TR><TD CLASS="LABEL">Theme</TD><TD><SELECT NAME="theme">{{{theme_options}}}</SELECT></TD></TR>
     <TR><TD CLASS="LABEL">Reverse Scrolling</TD><TD><INPUT TYPE="CHECKBOX" NAME="scroll" VALUE="on" {{scroll}}></TD></TR>
-    <TR><TD CLASS="LABEL">Half-step Encoder</TD><TD><INPUT TYPE="CHECKBOX" NAME="encoderhalfstep" VALUE="on" {{half_step}}></TD></TR>
     <TR><TD CLASS="LABEL">Zoomed Menu</TD><TD><INPUT TYPE="CHECKBOX" NAME="zoom" VALUE="on" {{zoom}}></TD></TR>
+    <TR><TH COLSPAN="2" CLASS="HEADING">Hardware</TH></TR>
+    <TR><TD CLASS="LABEL">Half-step Encoder</TD><TD><INPUT TYPE="CHECKBOX" NAME="encoderhalfstep" VALUE="on" {{half_step}}></TD></TR>
     <TR><TH COLSPAN="2" CLASS="HEADING">Splash Screen</TH></TR>
     <TR><TD CLASS="LABEL">Current Image</TD><TD>{{{splash}}}</TD></TR>
     <TR>
