@@ -221,6 +221,8 @@ bool checkRds()
   bool needRedraw = false;
   uint8_t mode = getRDSMode();
 
+  if(mode==RDS_OFF) return(false);
+
   rx.getRdsStatus();
 
   if(rx.getRdsReceived() && rx.getRdsSync() && rx.getRdsSyncFound())
