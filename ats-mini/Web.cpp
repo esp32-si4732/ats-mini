@@ -15,6 +15,7 @@
 #include "PageStatus.h"
 #include "PageMemory.h"
 #include "PageConfig.h"
+#include "PageWiFi.h"
 #include "PageUpdate.h"
 #include "PagePatches.h"
 
@@ -34,6 +35,7 @@ static String loginPassword = "";
 static AsyncWebServer server(80);
 
 static void webSetConfig(AsyncWebServerRequest *request);
+static void webSetWiFi(AsyncWebServerRequest *request);
 static void webSetMemories(AsyncWebServerRequest *request);
 static void webUploadSplash(AsyncWebServerRequest *request, const String &filename,
                             size_t index, uint8_t *data, size_t len, bool final);
@@ -53,6 +55,7 @@ static String webPage(const char *body, const char *title, std::initializer_list
 static const String webRadioPage();
 static const String webMemoryPage();
 static const String webConfigPage();
+static const String webWiFiPage();
 
 struct SplashUploadState
 {
@@ -165,6 +168,12 @@ void webInit()
     if(!webIsAuthenticated(request)) return request->requestAuthentication();
     request->send(200, "text/html", webConfigPage());
   });
+
+  server.on("/wifi", HTTP_GET, [] (AsyncWebServerRequest *request) {
+    if(!webIsAuthenticated(request)) return request->requestAuthentication();
+    request->send(200, "text/html", webWiFiPage());
+  });
+  server.on("/wifi", HTTP_POST, webSetWiFi);
 
   server.on("/screenshot.bmp", HTTP_GET, [] (AsyncWebServerRequest *request) {
     if(!webIsAuthenticated(request)) return request->requestAuthentication();
@@ -363,7 +372,44 @@ void webSetConfig(AsyncWebServerRequest *request)
     }
   }
 
-  // Start modifying preferences
+  // Save time zone
+  if(request->hasParam("utcoffset", true))
+  {
+    int idx = request->getParam("utcoffset", true)->value().toInt();
+    if(idx >= 0 && idx < getTotalUTCOffsets())
+    {
+      utcOffsetIdx = idx;
+      prefsSave |= SAVE_SETTINGS;
+    }
+  }
+
+  // Save theme
+  if(request->hasParam("theme", true))
+  {
+    String theme = request->getParam("theme", true)->value();
+    themeIdx = theme.toInt();
+    prefsSave |= SAVE_SETTINGS;
+  }
+
+  // Save scroll direction and menu zoom
+  scrollDirection = request->hasParam("scroll", true)? -1 : 1;
+  zoomMenu        = request->hasParam("zoom", true);
+  setEncoderHalfStep(request->hasParam("encoderhalfstep", true));
+  prefsSave |= SAVE_SETTINGS;
+
+  // Save preferences immediately
+  prefsRequestSave(prefsSave, true);
+
+  if(setClock) clockSetEpoch(epoch);
+
+  // Show config page again
+  request->redirect("/config");
+}
+
+static void webSetWiFi(AsyncWebServerRequest *request)
+{
+  if(!webIsAuthenticated(request)) return request->requestAuthentication();
+
   prefs.begin("network", false, STORAGE_PARTITION);
 
   // Save user name and password
@@ -400,41 +446,9 @@ void webSetConfig(AsyncWebServerRequest *request)
   netSetScanHidden(wifiScanHidden);
   prefs.putBool("wifiscanhidden", wifiScanHidden);
 
-  // Save time zone
-  if(request->hasParam("utcoffset", true))
-  {
-    int idx = request->getParam("utcoffset", true)->value().toInt();
-    if(idx >= 0 && idx < getTotalUTCOffsets())
-    {
-      utcOffsetIdx = idx;
-      prefsSave |= SAVE_SETTINGS;
-    }
-  }
-
-  // Save theme
-  if(request->hasParam("theme", true))
-  {
-    String theme = request->getParam("theme", true)->value();
-    themeIdx = theme.toInt();
-    prefsSave |= SAVE_SETTINGS;
-  }
-
-  // Save scroll direction and menu zoom
-  scrollDirection = request->hasParam("scroll", true)? -1 : 1;
-  zoomMenu        = request->hasParam("zoom", true);
-  setEncoderHalfStep(request->hasParam("encoderhalfstep", true));
-  prefsSave |= SAVE_SETTINGS;
-
-  // Done with the preferences
   prefs.end();
 
-  // Save preferences immediately
-  prefsRequestSave(prefsSave, true);
-
-  if(setClock) clockSetEpoch(epoch);
-
-  // Show config page again
-  request->redirect("/config");
+  request->redirect("/wifi");
 
   // If we are currently in AP mode, and infrastructure mode requested,
   // and there is at least one SSID / PASS pair, request network connection
@@ -660,23 +674,10 @@ static const String webMemoryPage()
 
 const String webConfigPage()
 {
-  prefs.begin("network", true, STORAGE_PARTITION);
-  String ssid1 = prefs.getString("wifissid1", "");
-  String pass1 = prefs.getString("wifipass1", "");
-  String ssid2 = prefs.getString("wifissid2", "");
-  String pass2 = prefs.getString("wifipass2", "");
-  String ssid3 = prefs.getString("wifissid3", "");
-  String pass3 = prefs.getString("wifipass3", "");
-  bool scanHidden = prefs.getBool("wifiscanhidden", false);
-  prefs.end();
-
   String splashResolution = String(spr.width()) + "x" + String(spr.height());
 
   return webPage(pageConfig, pageConfigTitle, {
     {"title", pageConfigTitle},
-    {"ssid1", ssid1}, {"pass1", pass1}, {"ssid2", ssid2}, {"pass2", pass2},
-    {"ssid3", ssid3}, {"pass3", pass3}, {"username", loginUsername}, {"password", loginPassword},
-    {"scan_hidden", scanHidden? "CHECKED" : ""},
     {"scroll", scrollDirection<0? "CHECKED" : ""},
     {"half_step", encoderHalfStep? "CHECKED" : ""}, {"zoom", zoomMenu? "CHECKED" : ""},
     {"resolution", splashResolution}
@@ -699,6 +700,28 @@ const String webConfigPage()
       if(LittleFS.exists(SPLASH_PATH)) pageAppend(out, pageSplash, {{"version", String(millis())}});
       else out += "Not installed";
     }}
+  });
+}
+
+static const String webWiFiPage()
+{
+  prefs.begin("network", true, STORAGE_PARTITION);
+  String ssid1 = prefs.getString("wifissid1", "");
+  String pass1 = prefs.getString("wifipass1", "");
+  String ssid2 = prefs.getString("wifissid2", "");
+  String pass2 = prefs.getString("wifipass2", "");
+  String ssid3 = prefs.getString("wifissid3", "");
+  String pass3 = prefs.getString("wifipass3", "");
+  bool scanHidden = prefs.getBool("wifiscanhidden", false);
+  prefs.end();
+
+  return webPage(pageWiFi, pageWiFiTitle, {
+    {"title", pageWiFiTitle},
+    {"username", loginUsername}, {"password", loginPassword},
+    {"ssid1", ssid1}, {"pass1", pass1}, {"ssid2", ssid2}, {"pass2", pass2},
+    {"ssid3", ssid3}, {"pass3", pass3}, {"scan_hidden", scanHidden? "CHECKED" : ""}
+  }, {
+    {"navigation", [](String &out) { webNavigation(out, "/wifi"); }}
   });
 }
 

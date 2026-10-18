@@ -41,6 +41,7 @@ static void webNavigation(String &out, const char *activePage)
     {"Status", "/"},
     {"Memory", "/memory"},
     {"Config", "/config"},
+    {"Wi-Fi", "/wifi"},
     {"Update", "/update"},
     {"Patches", "/patches"},
   };
