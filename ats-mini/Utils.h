@@ -24,7 +24,7 @@ int getStrength(int rssi);
 
 // Set, reset, toggle, or query switches
 bool sleepOn(int x = 2);
-bool muteOn(uint8_t mode, int x = 2);
+bool muteOn(uint8_t mode, int x = 2, bool muteAmp = false);
 
 // Configured duration is saved; a fresh countdown starts on power-up.
 extern uint16_t offTimerMinutes;

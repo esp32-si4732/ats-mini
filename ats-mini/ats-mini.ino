@@ -134,7 +134,7 @@ void setup()
 
   // Firmware owns the mute pin so library power-up cannot release it
   pinMode(AUDIO_MUTE, OUTPUT);
-  digitalWrite(AUDIO_MUTE, HIGH);
+  digitalWrite(AUDIO_MUTE, LOW); // Keep inactive until the hardware setting is loaded.
 
   // Enable SI4732 VDD
   pinMode(PIN_POWER_ON, OUTPUT);
@@ -228,6 +228,8 @@ void setup()
     while(digitalRead(ENCODER_PUSH_BUTTON)!=LOW) delay(100);
     while(digitalRead(ENCODER_PUSH_BUTTON)==LOW) delay(100);
   }
+
+  digitalWrite(AUDIO_MUTE, audioClamp ? HIGH : LOW);
 
   // Start a fresh countdown using the configured duration.
   offTimerRestart();
@@ -528,8 +530,8 @@ void showFrequencySeek(uint16_t freq)
 //
 bool doSeek(int16_t enc, int16_t enca)
 {
-  // disable amp to avoid sound artifacts
-  muteOn(MUTE_TEMP, true);
+  // Silence seek audio using the configured hardware mute method.
+  muteOn(MUTE_TEMP, true, !audioClamp);
   if(seekMode() == SEEK_DEFAULT)
   {
     if(isSSB())
@@ -569,8 +571,7 @@ bool doSeek(int16_t enc, int16_t enca)
   // Check for named frequencies
   identifyFrequency(currentFrequency);
   // Will need a redraw
-  // enable amp
-  muteOn(MUTE_TEMP, false);
+  muteOn(MUTE_TEMP, false, !audioClamp);
   return(true);
 }
 

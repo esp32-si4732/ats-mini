@@ -48,7 +48,7 @@ static void holdOutputLow(int pin)
 
 static void offTimerShutdown()
 {
-  muteOn(MUTE_FORCE, true);
+  muteOn(MUTE_FORCE, true, true);
   netStop();
   bleStop();
   prefsSave();
@@ -165,10 +165,11 @@ const char *getMACAddress()
 
 //
 // Mute sound on (x=1) or off (x=0), or get current status (x=2)
+// With a hardware clamp, leave the amplifier powered to avoid an enable thump.
 // Do not call this too often because a short PIN_AMP_EN impulse can trigger amplifier mode D,
 // see the NS4160 datasheet https://esp32-si4732.github.io/ats-mini/hardware.html#datasheets
 //
-bool muteOn(uint8_t mode, int x)
+bool muteOn(uint8_t mode, int x, bool muteAmp)
 {
   // Current mute status
   static bool muted = false;
@@ -233,21 +234,18 @@ bool muteOn(uint8_t mode, int x)
   }
 
   if(mute) {
-    // Disable audio amplifier to silence speaker
-    if(PIN_AMP_EN >= 0) digitalWrite(PIN_AMP_EN, LOW);
-    // Activate the mute circuit
-    digitalWrite(AUDIO_MUTE, HIGH);
+    if(muteAmp && PIN_AMP_EN >= 0) digitalWrite(PIN_AMP_EN, LOW);
+    if(audioClamp) digitalWrite(AUDIO_MUTE, HIGH);
     delay(50);
     rx.setAudioMute(true);
   }
 
   if(unmute) {
-    // Deactivate the mute circuit
-    digitalWrite(AUDIO_MUTE, LOW);
+    if(audioClamp) digitalWrite(AUDIO_MUTE, LOW);
     delay(50);
     rx.setAudioMute(false);
     // Enable audio amplifier to restore speaker output
-    if(PIN_AMP_EN >= 0) digitalWrite(PIN_AMP_EN, HIGH);
+    if(muteAmp && PIN_AMP_EN >= 0) digitalWrite(PIN_AMP_EN, HIGH);
   }
 
   switch(mode) {

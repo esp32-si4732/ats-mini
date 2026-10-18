@@ -134,13 +134,14 @@ static const char *menu[] =
 #define MENU_FM_REGION    12
 #define MENU_CALIBRATION  13
 #define MENU_DSP_PATCHES  14
-#define MENU_LOADEIBI     15
-#define MENU_UPDATEFW     16
-#define MENU_USBMODE      17
-#define MENU_TCPMODE      18
-#define MENU_BLEMODE      19
-#define MENU_WIFIMODE     20
-#define MENU_ABOUT        21
+#define MENU_AUDIO_CLAMP  15
+#define MENU_LOADEIBI     16
+#define MENU_UPDATEFW     17
+#define MENU_USBMODE      18
+#define MENU_TCPMODE      19
+#define MENU_BLEMODE      20
+#define MENU_WIFIMODE     21
+#define MENU_ABOUT        22
 
 
 static uint8_t updateFwIdx = 0;
@@ -165,6 +166,7 @@ static const char *settings[] =
   "FM Region",
   "Calibration",
   "DSP Patches",
+  "Audio Clamp",
   "Load EiBi",
   "Update FW",
   "USB Port",
@@ -198,6 +200,9 @@ int getTotalModes() { return(ITEM_COUNT(bandModeDesc)); }
 
 uint8_t fmStereoIdx = FM_STEREO_AUTO;
 static const char *fmStereoDesc[] = { "Auto", "Mono" };
+
+bool audioClamp = true;
+static const char *audioClampDesc[] = { "Present", "Absent" };
 
 uint8_t dspPatchesIdx = DSP_PATCHES_DEFAULT;
 
@@ -899,6 +904,14 @@ static void doZoom(int16_t enc)
   prefsRequestSave(SAVE_SETTINGS);
 }
 
+static void doAudioClamp(int16_t enc)
+{
+  audioClamp = wrap_range(!audioClamp, enc, 0, LAST_ITEM(audioClampDesc)) == 0;
+  // Apply the clamp setting to the current mute state.
+  digitalWrite(AUDIO_MUTE, audioClamp && (muteOn(MUTE_MAIN) || muteOn(MUTE_SQUELCH)));
+  prefsRequestSave(SAVE_SETTINGS);
+}
+
 static void doScrollDir(int16_t enc)
 {
   scrollDirection = (scrollDirection == 1) ? -1 : 1;
@@ -1232,6 +1245,7 @@ static void clickSettings(int cmd, bool shortPress)
     case MENU_WIFIMODE:   currentCmd = CMD_WIFIMODE;   break;
     case MENU_FM_REGION:  currentCmd = CMD_FM_REGION; break;
     case MENU_FM_STEREO:  currentCmd = CMD_FM_STEREO; break;
+    case MENU_AUDIO_CLAMP: currentCmd = CMD_AUDIO_CLAMP; break;
     case MENU_DSP_PATCHES: currentCmd = CMD_DSP_PATCHES; break;
     case MENU_ABOUT:      currentCmd = CMD_ABOUT;     break;
     case MENU_UPDATEFW:
@@ -1264,6 +1278,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_AVC:        doAvc(enc);break;
     case CMD_FM_REGION:  doFmRegion(scrollDirection * enc);break;
     case CMD_FM_STEREO:  doFmStereo(scrollDirection * enc);break;
+    case CMD_AUDIO_CLAMP: doAudioClamp(scrollDirection * enc);break;
     case CMD_DSP_PATCHES: doDspPatches(scrollDirection * enc);break;
     case CMD_SETTINGS:   doSettings(scrollDirection * enc);break;
     case CMD_BRT:        doBrt(enca);break;
@@ -1332,9 +1347,9 @@ bool clickHandler(uint16_t cmd, bool shortPress)
 
 void selectBand(uint8_t idx, bool drawLoadingPatch)
 {
-  // Silence click on some hardware versions
+  // Silence clicks during reconfiguration using the configured hardware mute method.
   // https://github.com/esp32-si4732/ats-mini/discussions/103
-  muteOn(MUTE_TEMP, true);
+  muteOn(MUTE_TEMP, true, !audioClamp);
 
   // Set band and mode
   bandIdx = min(idx, LAST_ITEM(bands));
@@ -1358,8 +1373,7 @@ void selectBand(uint8_t idx, bool drawLoadingPatch)
   // Set default digit position based on the current step
   resetFreqInputPos();
 
-  // Unmute the sound
-  muteOn(MUTE_TEMP, false);
+  muteOn(MUTE_TEMP, false, !audioClamp);
 }
 
 //
@@ -2089,6 +2103,23 @@ static void drawZoom(int x, int y, int sx)
   spr.drawString(zoomMenu ? "On" : "Off", 40+x+(sx/2), 60+y, FONT_LARGE);
 }
 
+static void drawAudioClamp(int x, int y, int sx)
+{
+  drawCommon(settings[MENU_AUDIO_CLAMP], x, y, sx, true);
+  int selected = !audioClamp;
+  for(int item = 0; item < ITEM_COUNT(audioClampDesc); item++)
+  {
+    if(item == selected)
+    {
+      drawZoomedMenu(audioClampDesc[item]);
+      spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
+    }
+    else spr.setTextColor(TH.menu_item);
+    spr.setTextDatum(MC_DATUM);
+    spr.drawString(audioClampDesc[item], 40+x+(sx/2), 64+y+((item-selected)*16), FONT_SMALL);
+  }
+}
+
 static void drawScrollDir(int x, int y, int sx)
 {
   drawCommon(settings[MENU_SCROLL], x, y, sx);
@@ -2221,6 +2252,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_AVC:        drawAvc(x, y, sx);        break;
     case CMD_FM_REGION:  drawFmRegion(x, y, sx);   break;
     case CMD_FM_STEREO:  drawFmStereo(x, y, sx);   break;
+    case CMD_AUDIO_CLAMP: drawAudioClamp(x, y, sx); break;
     case CMD_DSP_PATCHES: drawDspPatches(x, y, sx); break;
     case CMD_BRT:        drawBrt(x, y, sx);        break;
     case CMD_RDS:        drawRDSMode(x, y, sx);    break;
