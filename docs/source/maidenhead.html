@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Receiver Maidenhead locator</title>
+<p id="status" role="status">Requesting your location…</p>
+<button id="close" type="button" hidden>Close window</button>
+<script>
+// Serve over HTTPS and open with #origin=<receiver origin>.
+// The receiver must check the reply's origin and source window.
+const statusElement = document.getElementById("status");
+const closeButton = document.getElementById("close");
+closeButton.onclick = () => window.close();
+
+function maidenhead({ latitude, longitude }) {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+      Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+    throw new Error("The browser returned invalid coordinates. Try again.");
+  }
+  // 18 fields × 10 squares × 24 subsquares on each axis.
+  // Keep the north/east endpoints inside the last subsquare.
+  const x = Math.min(4319, Math.floor((longitude + 180) * 12));
+  const y = Math.min(4319, Math.floor((latitude + 90) * 24));
+  return String.fromCharCode(65 + Math.floor(x / 240), 65 + Math.floor(y / 240))
+    + Math.floor(x / 24) % 10 + Math.floor(y / 24) % 10
+    + String.fromCharCode(97 + x % 24, 97 + y % 24);
+}
+
+async function locate() {
+  const receiver = new URLSearchParams(location.hash.slice(1)).get("origin");
+  const opener = window.opener;
+  if (!receiver || !opener || opener.closed) {
+    throw new Error("Open this page from the receiver.");
+  }
+  const url = new URL(receiver);
+  if (!["http:", "https:"].includes(url.protocol) || url.origin !== receiver) {
+    throw new Error("Invalid receiver origin.");
+  }
+  if (!window.isSecureContext || !navigator.geolocation) {
+    throw new Error("Geolocation requires HTTPS and a supported browser.");
+  }
+
+  statusElement.textContent = `Requesting your location to share a Maidenhead locator with ${receiver}…`;
+  const { coords } = await new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 15000 });
+  });
+  if (opener.closed) throw new Error("The receiver page was closed. Open it and try again.");
+  const locator = maidenhead(coords);
+  opener.postMessage({ type: "maidenhead", locator }, receiver);
+  statusElement.textContent = `Locator ${locator} sent. You can close this window.`;
+  closeButton.hidden = false;
+  // Let the geolocation callback finish before asking Safari to close.
+  setTimeout(() => window.close(), 0);
+}
+
+locate().catch(error => { statusElement.textContent = error.message; });
+</script>
+</html>
