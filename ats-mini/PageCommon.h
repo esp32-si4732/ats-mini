@@ -16,7 +16,7 @@ static const char pageStart[] PROGMEM = R"HTML(<!DOCTYPE HTML>
     TH, TD { padding: 0.5em; }
     .HEADING { background-color: #80A0FF; column-span: all; text-align: center; }
     TD.LABEL { text-align: right; }
-    INPUT[type=text], INPUT[type=password], SELECT { width: 95%; padding: 0.5em; }
+    INPUT[type=text], INPUT[type=password], INPUT[type=number], SELECT { width: 95%; padding: 0.5em; }
     INPUT[type=submit] { width: 50%; padding: 0.5em 0; }
     .CENTER { text-align: center; }
     .HEAP { color: #888; font-size: 0.75em; text-align: center; margin: 1.5em 0.5em; }

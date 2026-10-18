@@ -14,10 +14,25 @@ static const char pageConfig[] PROGMEM = R"HTML(<H1>{{title}}</H1>
     <TR><TD CLASS="LABEL">UTC Date/Time</TD><TD><INPUT TYPE="TEXT" ID="datetime" NAME="datetime" PLACEHOLDER="YYYY-mm-dd HH:MM:SS"></TD></TR>
     <TR><TD CLASS="LABEL">Time Zone</TD><TD><SELECT ID="utcoffset" NAME="utcoffset">{{{utc_options}}}</SELECT></TD></TR>
     <TR><TH COLSPAN="2" CLASS="HEADING">UI</TH></TR>
+    <TR><TD CLASS="LABEL">UI Layout</TD><TD><SELECT NAME="uilayout">{{{layout_options}}}</SELECT></TD></TR>
     <TR><TD CLASS="LABEL">Theme</TD><TD><SELECT NAME="theme">{{{theme_options}}}</SELECT></TD></TR>
     <TR><TD CLASS="LABEL">Reverse Scrolling</TD><TD><INPUT TYPE="CHECKBOX" NAME="scroll" VALUE="on" {{scroll}}></TD></TR>
     <TR><TD CLASS="LABEL">Zoomed Menu</TD><TD><INPUT TYPE="CHECKBOX" NAME="zoom" VALUE="on" {{zoom}}></TD></TR>
+    <TR><TH COLSPAN="2" CLASS="HEADING">Radio</TH></TR>
+    <TR><TD CLASS="LABEL">RDS</TD><TD><SELECT NAME="rds">{{{rds_options}}}</SELECT></TD></TR>
+    <TR><TD CLASS="LABEL">FM Region</TD><TD><SELECT NAME="fmregion">{{{region_options}}}</SELECT></TD></TR>
+    <TR><TD CLASS="LABEL">FM Stereo</TD><TD><SELECT NAME="fmstereo">{{{stereo_options}}}</SELECT></TD></TR>
+    <TR><TH COLSPAN="2" CLASS="HEADING">Power</TH></TR>
+    <TR><TD CLASS="LABEL">Brightness</TD><TD><INPUT TYPE="NUMBER" NAME="brightness" MIN="10" MAX="255" STEP="5" VALUE="{{brightness}}" REQUIRED></TD></TR>
+    <TR><TD CLASS="LABEL">Sleep Timer</TD><TD><INPUT TYPE="NUMBER" NAME="sleeptimer" MIN="0" MAX="255" STEP="5" VALUE="{{sleep_timer}}" REQUIRED><BR><SMALL>Seconds; 0 disables sleep</SMALL></TD></TR>
+    <TR><TD CLASS="LABEL">Sleep Mode</TD><TD><SELECT NAME="sleepmode">{{{sleep_options}}}</SELECT></TD></TR>
+    <TR><TD CLASS="LABEL">Off Timer</TD><TD><INPUT TYPE="NUMBER" NAME="offtimer" MIN="0" MAX="240" STEP="5" VALUE="{{off_timer}}" REQUIRED><BR><SMALL>Minutes; 0 disables shutdown. Changing the duration restarts the timer.</SMALL></TD></TR>
+    <TR><TH COLSPAN="2" CLASS="HEADING">Connectivity</TH></TR>
+    <TR><TD CLASS="LABEL">USB Mode</TD><TD><SELECT NAME="usbmode">{{{usb_options}}}</SELECT></TD></TR>
+    <TR><TD CLASS="LABEL">TCP Mode</TD><TD><SELECT NAME="tcpmode">{{{tcp_options}}}</SELECT><BR><SMALL>Listens on port 60000; requires Wi-Fi</SMALL></TD></TR>
+    <TR><TD CLASS="LABEL">Bluetooth Mode</TD><TD><SELECT NAME="blemode">{{{ble_options}}}</SELECT></TD></TR>
     <TR><TH COLSPAN="2" CLASS="HEADING">Hardware</TH></TR>
+    <TR><TD CLASS="LABEL">Audio Clamp</TD><TD><INPUT TYPE="CHECKBOX" NAME="audioclamp" VALUE="on" {{audio_clamp}}><BR><SMALL>Enable if the receiver has an audio clamp circuit</SMALL></TD></TR>
     <TR><TD CLASS="LABEL">Half-step Encoder</TD><TD><INPUT TYPE="CHECKBOX" NAME="encoderhalfstep" VALUE="on" {{half_step}}></TD></TR>
     <TR><TH COLSPAN="2" CLASS="HEADING">Splash Screen</TH></TR>
     <TR><TD CLASS="LABEL">Current Image</TD><TD>{{{splash}}}</TD></TR>

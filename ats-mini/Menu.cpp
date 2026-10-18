@@ -134,14 +134,13 @@ static const char *menu[] =
 #define MENU_FM_REGION    12
 #define MENU_CALIBRATION  13
 #define MENU_DSP_PATCHES  14
-#define MENU_AUDIO_CLAMP  15
-#define MENU_LOADEIBI     16
-#define MENU_UPDATEFW     17
-#define MENU_USBMODE      18
-#define MENU_TCPMODE      19
-#define MENU_BLEMODE      20
-#define MENU_WIFIMODE     21
-#define MENU_ABOUT        22
+#define MENU_LOADEIBI     15
+#define MENU_UPDATEFW     16
+#define MENU_USBMODE      17
+#define MENU_TCPMODE      18
+#define MENU_BLEMODE      19
+#define MENU_WIFIMODE     20
+#define MENU_ABOUT        21
 
 
 static uint8_t updateFwIdx = 0;
@@ -166,7 +165,6 @@ static const char *settings[] =
   "FM Region",
   "Calibration",
   "DSP Patches",
-  "Audio Clamp",
   "Load EiBi",
   "Update FW",
   "USB Port",
@@ -186,6 +184,8 @@ const FMRegion fmRegions[] = {
   { 0x2, "US" },
 };
 
+int getTotalFMRegions() { return(ITEM_COUNT(fmRegions)); }
+
 //
 // Mode Menu
 //
@@ -199,10 +199,11 @@ int getTotalModes() { return(ITEM_COUNT(bandModeDesc)); }
 //
 
 uint8_t fmStereoIdx = FM_STEREO_AUTO;
-static const char *fmStereoDesc[] = { "Auto", "Mono" };
+const char *const fmStereoDesc[] = { "Auto", "Mono" };
+
+int getTotalFMStereoModes() { return(ITEM_COUNT(fmStereoDesc)); }
 
 bool audioClamp = true;
-static const char *audioClampDesc[] = { "Present", "Absent" };
 
 uint8_t dspPatchesIdx = DSP_PATCHES_DEFAULT;
 
@@ -218,7 +219,7 @@ Memory newMemory;
 //
 
 uint8_t rdsModeIdx = 0;
-static const RDSMode rdsMode[] =
+const RDSMode rdsMode[] =
 {
   { RDS_PS, "PS"},
   { RDS_PS | RDS_CT, "PS+CT" },
@@ -231,14 +232,17 @@ static const RDSMode rdsMode[] =
 };
 
 uint8_t getRDSMode() { return(rdsMode[rdsModeIdx].mode); }
+int getTotalRDSModes() { return(ITEM_COUNT(rdsMode)); }
 
 //
 // Sleep Mode Menu
 //
 
 uint8_t sleepModeIdx = SLEEP_LOCKED;
-static const char *sleepModeDesc[] =
+const char *const sleepModeDesc[] =
 { "Locked", "Unlocked", "CPU Sleep" };
+
+int getTotalSleepModes() { return(ITEM_COUNT(sleepModeDesc)); }
 
 //
 // UTC Offset Menu
@@ -320,24 +324,30 @@ static uint8_t dateTimeSecond;
 // UI Layout Menu
 //
 uint8_t uiLayoutIdx = 0;
-static const char *uiLayoutDesc[] =
+const char *const uiLayoutDesc[] =
 { "Default", "S-Meter" };
+
+int getTotalUILayouts() { return(ITEM_COUNT(uiLayoutDesc)); }
 
 //
 // USB Port Mode Menu
 //
 
 uint8_t usbModeIdx = USB_OFF;
-static const char *usbModeDesc[] =
+const char *const usbModeDesc[] =
 { "Off", "Ad hoc" };
+
+int getTotalUSBModes() { return(ITEM_COUNT(usbModeDesc)); }
 
 //
 // TCP Port Mode Menu
 //
 
 uint8_t tcpModeIdx = TCP_OFF;
-static const char *tcpModeDesc[] =
+const char *const tcpModeDesc[] =
 { "Off", "Ad hoc" };
+
+int getTotalTCPModes() { return(ITEM_COUNT(tcpModeDesc)); }
 
 //
 // Bluetooth Mode Menu
@@ -345,16 +355,20 @@ static const char *tcpModeDesc[] =
 
 uint8_t bleModeIdx = BLE_OFF;
 static uint8_t bleModeMenuIdx = BLE_OFF;
-static const char *bleModeDesc[] =
+const char *const bleModeDesc[] =
 { "Off", "Ad hoc", "HID", "Unpair All" };
+
+int getTotalBluetoothModes() { return(ITEM_COUNT(bleModeDesc)); }
 
 //
 // WiFi Mode Menu
 //
 
 uint8_t wifiModeIdx = NET_OFF;
-static const char *wifiModeDesc[] =
+const char *const wifiModeDesc[] =
 { "Off", "AP Only", "AP+Connect", "Connect", "Sync Only" };
+
+int getTotalWiFiModes() { return(ITEM_COUNT(wifiModeDesc)); }
 
 //
 // Step Menu
@@ -885,7 +899,7 @@ static void clickWiFiMode(uint8_t mode, bool shortPress)
   netInit(mode);
 }
 
-static void doRDSMode(int16_t enc)
+void doRDSMode(int16_t enc)
 {
   rdsModeIdx = wrap_range(rdsModeIdx, enc, 0, LAST_ITEM(rdsMode));
   if(!(getRDSMode() & RDS_CT) && !ntpIsAvailable()) clockReset();
@@ -901,14 +915,6 @@ static void doUTCOffset(int16_t enc)
 static void doZoom(int16_t enc)
 {
   zoomMenu = !zoomMenu;
-  prefsRequestSave(SAVE_SETTINGS);
-}
-
-static void doAudioClamp(int16_t enc)
-{
-  audioClamp = wrap_range(!audioClamp, enc, 0, LAST_ITEM(audioClampDesc)) == 0;
-  // Apply the clamp setting to the current mute state.
-  digitalWrite(AUDIO_MUTE, audioClamp && (muteOn(MUTE_MAIN) || muteOn(MUTE_SQUELCH)));
   prefsRequestSave(SAVE_SETTINGS);
 }
 
@@ -1248,7 +1254,6 @@ static void clickSettings(int cmd, bool shortPress)
     case MENU_WIFIMODE:   currentCmd = CMD_WIFIMODE;   break;
     case MENU_FM_REGION:  currentCmd = CMD_FM_REGION; break;
     case MENU_FM_STEREO:  currentCmd = CMD_FM_STEREO; break;
-    case MENU_AUDIO_CLAMP: currentCmd = CMD_AUDIO_CLAMP; break;
     case MENU_DSP_PATCHES: currentCmd = CMD_DSP_PATCHES; break;
     case MENU_ABOUT:      currentCmd = CMD_ABOUT;     break;
     case MENU_UPDATEFW:
@@ -1281,7 +1286,6 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_AVC:        doAvc(enc);break;
     case CMD_FM_REGION:  doFmRegion(scrollDirection * enc);break;
     case CMD_FM_STEREO:  doFmStereo(scrollDirection * enc);break;
-    case CMD_AUDIO_CLAMP: doAudioClamp(scrollDirection * enc);break;
     case CMD_DSP_PATCHES: doDspPatches(scrollDirection * enc);break;
     case CMD_SETTINGS:   doSettings(scrollDirection * enc);break;
     case CMD_BRT:        doBrt(enca);break;
@@ -2106,23 +2110,6 @@ static void drawZoom(int x, int y, int sx)
   spr.drawString(zoomMenu ? "On" : "Off", 40+x+(sx/2), 60+y, FONT_LARGE);
 }
 
-static void drawAudioClamp(int x, int y, int sx)
-{
-  drawCommon(settings[MENU_AUDIO_CLAMP], x, y, sx, true);
-  int selected = !audioClamp;
-  for(int item = 0; item < ITEM_COUNT(audioClampDesc); item++)
-  {
-    if(item == selected)
-    {
-      drawZoomedMenu(audioClampDesc[item]);
-      spr.setTextColor(TH.menu_hl_text, TH.menu_hl_bg);
-    }
-    else spr.setTextColor(TH.menu_item);
-    spr.setTextDatum(MC_DATUM);
-    spr.drawString(audioClampDesc[item], 40+x+(sx/2), 64+y+((item-selected)*16), FONT_SMALL);
-  }
-}
-
 static void drawScrollDir(int x, int y, int sx)
 {
   drawCommon(settings[MENU_SCROLL], x, y, sx);
@@ -2255,7 +2242,6 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_AVC:        drawAvc(x, y, sx);        break;
     case CMD_FM_REGION:  drawFmRegion(x, y, sx);   break;
     case CMD_FM_STEREO:  drawFmStereo(x, y, sx);   break;
-    case CMD_AUDIO_CLAMP: drawAudioClamp(x, y, sx); break;
     case CMD_DSP_PATCHES: drawDspPatches(x, y, sx); break;
     case CMD_BRT:        drawBrt(x, y, sx);        break;
     case CMD_RDS:        drawRDSMode(x, y, sx);    break;

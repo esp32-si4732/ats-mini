@@ -8,6 +8,7 @@
 #include "Draw.h"
 #include "Splash.h"
 #include "Remote.h"
+#include "BleMode.h"
 #include "Ota.h"
 #include "Patches.h"
 #include "PageTemplate.h"
@@ -21,6 +22,7 @@
 
 #include <new>
 #include <mutex>
+#include <atomic>
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
@@ -56,6 +58,21 @@ static const String webRadioPage();
 static const String webMemoryPage();
 static const String webConfigPage();
 static const String webWiFiPage();
+
+// Apply Config settings on the main task, alongside receiver controls.
+static struct
+{
+  std::mutex mutex;
+  bool pending = false;
+  int layout, region, stereo, brightness, sleepTimer, sleepMode, offTimer;
+  int usbMode, tcpMode, bleMode, rds;
+  int utcOffset, themeIndex;
+  bool clamp, reverseScroll, halfStep, zoom;
+  bool setClock;
+  uint32_t epoch;
+} configSettings;
+
+static std::atomic<int> pendingWiFiMode{-1};
 
 struct SplashUploadState
 {
@@ -136,7 +153,56 @@ void webScreenshotTick()
 bool webTick()
 {
   otaTick();
-  return patchesTick();
+  bool redraw = patchesTick();
+  std::unique_lock<std::mutex> lock(configSettings.mutex);
+  if(configSettings.pending)
+  {
+    utcOffsetIdx = configSettings.utcOffset;
+    if(rdsModeIdx != configSettings.rds)
+      doRDSMode(configSettings.rds - rdsModeIdx);
+    if(configSettings.setClock) clockSetEpoch(configSettings.epoch);
+    themeIdx = configSettings.themeIndex;
+    scrollDirection = configSettings.reverseScroll? -1 : 1;
+    zoomMenu = configSettings.zoom;
+    setEncoderHalfStep(configSettings.halfStep);
+    uiLayoutIdx = configSettings.layout;
+    if(FmRegionIdx != configSettings.region)
+      doFmRegion(configSettings.region - FmRegionIdx);
+    if(fmStereoIdx != configSettings.stereo)
+      doFmStereo(configSettings.stereo - fmStereoIdx);
+    currentBrt = configSettings.brightness;
+    doBrt(0);
+    currentSleep = configSettings.sleepTimer;
+    sleepModeIdx = configSettings.sleepMode;
+    if(offTimerMinutes != configSettings.offTimer)
+    {
+      offTimerMinutes = configSettings.offTimer;
+      offTimerRestart();
+    }
+    usbModeIdx = configSettings.usbMode;
+    tcpModeIdx = configSettings.tcpMode;
+    if(configSettings.bleMode == BLE_UNPAIR_ALL || bleModeIdx != configSettings.bleMode)
+    {
+      bleModeIdx = configSettings.bleMode;
+      bleInit(bleModeIdx);
+    }
+    audioClamp = configSettings.clamp;
+    digitalWrite(AUDIO_MUTE, audioClamp && (muteOn(MUTE_MAIN) || muteOn(MUTE_SQUELCH)));
+    prefsRequestSave(SAVE_SETTINGS, true);
+    configSettings.pending = false;
+    redraw = true;
+  }
+  lock.unlock();
+
+  int wifiMode = pendingWiFiMode.exchange(-1);
+  if(wifiMode >= 0)
+  {
+    wifiModeIdx = wifiMode;
+    prefsRequestSave(SAVE_SETTINGS, true);
+    netInit(wifiModeIdx);
+    redraw = true;
+  }
+  return redraw;
 }
 
 //
@@ -314,11 +380,46 @@ static void webUploadSplash(AsyncWebServerRequest *request, const String &filena
     state->incomplete = false;
 }
 
+static bool webConfigNumber(AsyncWebServerRequest *request, const char *name, int &value,
+                            int minimum, int maximum, int step = 1)
+{
+  if(!request->hasParam(name, true)) return false;
+  const String &text = request->getParam(name, true)->value();
+  if(!text.length()) return false;
+  int number = 0;
+  for(size_t i = 0; i < text.length(); i++)
+  {
+    if(text[i] < '0' || text[i] > '9') return false;
+    number = number * 10 + text[i] - '0';
+    if(number > maximum) return false;
+  }
+  if(number < minimum || (number - minimum) % step) return false;
+  value = number;
+  return true;
+}
+
 void webSetConfig(AsyncWebServerRequest *request)
 {
   if(!webIsAuthenticated(request)) return request->requestAuthentication();
 
-  uint32_t prefsSave = 0;
+  int layout, region, stereo, brightness, sleepTimer, sleepMode, offTimer;
+  int usbMode, tcpMode, bleMode, rds;
+  int utcOffset, themeIndex;
+  if(!webConfigNumber(request, "uilayout", layout, 0, getTotalUILayouts() - 1) ||
+     !webConfigNumber(request, "fmregion", region, 0, getTotalFMRegions() - 1) ||
+     !webConfigNumber(request, "fmstereo", stereo, 0, getTotalFMStereoModes() - 1) ||
+     !webConfigNumber(request, "brightness", brightness, 10, 255, 5) ||
+     !webConfigNumber(request, "sleeptimer", sleepTimer, 0, 255, 5) ||
+     !webConfigNumber(request, "sleepmode", sleepMode, 0, getTotalSleepModes() - 1) ||
+     !webConfigNumber(request, "offtimer", offTimer, 0, 240, 5) ||
+     !webConfigNumber(request, "usbmode", usbMode, 0, getTotalUSBModes() - 1) ||
+     !webConfigNumber(request, "tcpmode", tcpMode, 0, getTotalTCPModes() - 1) ||
+     !webConfigNumber(request, "blemode", bleMode, 0, getTotalBluetoothModes() - 1) ||
+     !webConfigNumber(request, "rds", rds, 0, getTotalRDSModes() - 1) ||
+     !webConfigNumber(request, "utcoffset", utcOffset, 0, getTotalUTCOffsets() - 1) ||
+     !webConfigNumber(request, "theme", themeIndex, 0, getTotalThemes() - 1))
+    return request->send(400, "text/plain", "Invalid configuration value. Reload the Config page and try again.");
+
   uint32_t epoch;
   bool setClock = false;
 
@@ -372,35 +473,29 @@ void webSetConfig(AsyncWebServerRequest *request)
     }
   }
 
-  // Save time zone
-  if(request->hasParam("utcoffset", true))
   {
-    int idx = request->getParam("utcoffset", true)->value().toInt();
-    if(idx >= 0 && idx < getTotalUTCOffsets())
-    {
-      utcOffsetIdx = idx;
-      prefsSave |= SAVE_SETTINGS;
-    }
+    std::lock_guard<std::mutex> lock(configSettings.mutex);
+    configSettings.utcOffset = utcOffset;
+    configSettings.themeIndex = themeIndex;
+    configSettings.reverseScroll = request->hasParam("scroll", true);
+    configSettings.zoom = request->hasParam("zoom", true);
+    configSettings.halfStep = request->hasParam("encoderhalfstep", true);
+    configSettings.rds = rds;
+    configSettings.setClock = setClock;
+    configSettings.epoch = setClock? epoch : 0;
+    configSettings.layout = layout;
+    configSettings.region = region;
+    configSettings.stereo = stereo;
+    configSettings.brightness = brightness;
+    configSettings.sleepTimer = sleepTimer;
+    configSettings.sleepMode = sleepMode;
+    configSettings.offTimer = offTimer;
+    configSettings.usbMode = usbMode;
+    configSettings.tcpMode = tcpMode;
+    configSettings.bleMode = bleMode;
+    configSettings.clamp = request->hasParam("audioclamp", true);
+    configSettings.pending = true;
   }
-
-  // Save theme
-  if(request->hasParam("theme", true))
-  {
-    String theme = request->getParam("theme", true)->value();
-    themeIdx = theme.toInt();
-    prefsSave |= SAVE_SETTINGS;
-  }
-
-  // Save scroll direction and menu zoom
-  scrollDirection = request->hasParam("scroll", true)? -1 : 1;
-  zoomMenu        = request->hasParam("zoom", true);
-  setEncoderHalfStep(request->hasParam("encoderhalfstep", true));
-  prefsSave |= SAVE_SETTINGS;
-
-  // Save preferences immediately
-  prefsRequestSave(prefsSave, true);
-
-  if(setClock) clockSetEpoch(epoch);
 
   // Show config page again
   request->redirect("/config");
@@ -409,6 +504,10 @@ void webSetConfig(AsyncWebServerRequest *request)
 static void webSetWiFi(AsyncWebServerRequest *request)
 {
   if(!webIsAuthenticated(request)) return request->requestAuthentication();
+
+  int wifiMode;
+  if(!webConfigNumber(request, "wifimode", wifiMode, 0, getTotalWiFiModes() - 1))
+    return request->send(400, "text/plain", "Invalid Wi-Fi mode.");
 
   prefs.begin("network", false, STORAGE_PARTITION);
 
@@ -447,6 +546,18 @@ static void webSetWiFi(AsyncWebServerRequest *request)
   prefs.putBool("wifiscanhidden", wifiScanHidden);
 
   prefs.end();
+
+  if(wifiMode != wifiModeIdx)
+  {
+    // Finish the response before switching off or reconfiguring its network.
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain",
+      "Settings saved. Wi-Fi mode is changing. Reconnect to the receiver if needed. "
+      "Off and Sync Only do not provide a web interface.");
+    response->addHeader("Connection", "close");
+    request->onDisconnect([wifiMode]() { pendingWiFiMode.store(wifiMode); });
+    request->send(response);
+    return;
+  }
 
   request->redirect("/wifi");
 
@@ -672,28 +783,84 @@ static const String webMemoryPage()
   });
 }
 
+static void webConfigOptions(String &out, const char *const *labels, int count, int selected)
+{
+  for(int index = 0; index < count; index++)
+  {
+    pageAppend(out, pageConfigThemeOption, {
+      {"value", String(index)}, {"selected", index==selected? "SELECTED" : ""}, {"label", labels[index]}
+    });
+  }
+}
+
 const String webConfigPage()
 {
+  int layout, region, stereo, brightness, sleepTimer, sleepMode, offTimer;
+  int usbMode, tcpMode, bleMode, rds;
+  int utcOffset, themeIndex;
+  bool clamp, reverseScroll, halfStep, zoom;
+  {
+    // A redirect may arrive before the main task has applied the saved values.
+    std::lock_guard<std::mutex> lock(configSettings.mutex);
+    utcOffset = configSettings.pending ? configSettings.utcOffset : utcOffsetIdx;
+    themeIndex = configSettings.pending ? configSettings.themeIndex : themeIdx;
+    reverseScroll = configSettings.pending ? configSettings.reverseScroll : scrollDirection < 0;
+    zoom = configSettings.pending ? configSettings.zoom : zoomMenu;
+    halfStep = configSettings.pending ? configSettings.halfStep : encoderHalfStep;
+    rds = configSettings.pending ? configSettings.rds : rdsModeIdx;
+    layout = configSettings.pending ? configSettings.layout : uiLayoutIdx;
+    region = configSettings.pending ? configSettings.region : FmRegionIdx;
+    stereo = configSettings.pending ? configSettings.stereo : fmStereoIdx;
+    brightness = configSettings.pending ? configSettings.brightness : currentBrt;
+    sleepTimer = configSettings.pending ? configSettings.sleepTimer : currentSleep;
+    sleepMode = configSettings.pending ? configSettings.sleepMode : sleepModeIdx;
+    offTimer = configSettings.pending ? configSettings.offTimer : offTimerMinutes;
+    usbMode = configSettings.pending ? configSettings.usbMode : usbModeIdx;
+    tcpMode = configSettings.pending ? configSettings.tcpMode : tcpModeIdx;
+    bleMode = configSettings.pending ? configSettings.bleMode : bleModeIdx;
+    if(bleMode == BLE_UNPAIR_ALL) bleMode = BLE_OFF;
+    clamp = configSettings.pending ? configSettings.clamp : audioClamp;
+  }
   String splashResolution = String(spr.width()) + "x" + String(spr.height());
 
   return webPage(pageConfig, pageConfigTitle, {
     {"title", pageConfigTitle},
-    {"scroll", scrollDirection<0? "CHECKED" : ""},
-    {"half_step", encoderHalfStep? "CHECKED" : ""}, {"zoom", zoomMenu? "CHECKED" : ""},
+    {"brightness", String(brightness)}, {"sleep_timer", String(sleepTimer)},
+    {"off_timer", String(offTimer)}, {"audio_clamp", clamp? "CHECKED" : ""},
+    {"scroll", reverseScroll? "CHECKED" : ""},
+    {"half_step", halfStep? "CHECKED" : ""}, {"zoom", zoom? "CHECKED" : ""},
     {"resolution", splashResolution}
   }, {
     {"navigation", [](String &out) { webNavigation(out, "/config"); }},
-    {"utc_options", [](String &out) {
+    {"usb_options", [&](String &out) { webConfigOptions(out, usbModeDesc, getTotalUSBModes(), usbMode); }},
+    {"tcp_options", [&](String &out) { webConfigOptions(out, tcpModeDesc, getTotalTCPModes(), tcpMode); }},
+    {"ble_options", [&](String &out) { webConfigOptions(out, bleModeDesc, getTotalBluetoothModes(), bleMode); }},
+    {"layout_options", [&](String &out) { webConfigOptions(out, uiLayoutDesc, getTotalUILayouts(), layout); }},
+    {"rds_options", [&](String &out) {
+      for(int i=0 ; i<getTotalRDSModes(); i++)
+        pageAppend(out, pageConfigThemeOption, {
+          {"value", String(i)}, {"selected", rds==i? "SELECTED" : ""}, {"label", rdsMode[i].desc}
+        });
+    }},
+    {"region_options", [&](String &out) {
+      for(int i=0 ; i<getTotalFMRegions(); i++)
+        pageAppend(out, pageConfigThemeOption, {
+          {"value", String(i)}, {"selected", region==i? "SELECTED" : ""}, {"label", fmRegions[i].desc}
+        });
+    }},
+    {"stereo_options", [&](String &out) { webConfigOptions(out, fmStereoDesc, getTotalFMStereoModes(), stereo); }},
+    {"sleep_options", [&](String &out) { webConfigOptions(out, sleepModeDesc, getTotalSleepModes(), sleepMode); }},
+    {"utc_options", [&](String &out) {
       for(int i=0 ; i<getTotalUTCOffsets(); i++)
         pageAppend(out, pageConfigUtcOption, {
           {"value", String(i)}, {"minutes", String(utcOffsets[i].offset * 15)},
-          {"selected", utcOffsetIdx==i? "SELECTED" : ""}, {"label", utcOffsets[i].desc}
+          {"selected", utcOffset==i? "SELECTED" : ""}, {"label", utcOffsets[i].desc}
         });
     }},
-    {"theme_options", [](String &out) {
+    {"theme_options", [&](String &out) {
       for(int i=0 ; i<getTotalThemes(); i++)
         pageAppend(out, pageConfigThemeOption, {
-          {"value", String(i)}, {"selected", themeIdx==i? "SELECTED" : ""}, {"label", theme[i].name}
+          {"value", String(i)}, {"selected", themeIndex==i? "SELECTED" : ""}, {"label", theme[i].name}
         });
     }},
     {"splash", [](String &out) {
@@ -721,7 +888,10 @@ static const String webWiFiPage()
     {"ssid1", ssid1}, {"pass1", pass1}, {"ssid2", ssid2}, {"pass2", pass2},
     {"ssid3", ssid3}, {"pass3", pass3}, {"scan_hidden", scanHidden? "CHECKED" : ""}
   }, {
-    {"navigation", [](String &out) { webNavigation(out, "/wifi"); }}
+    {"navigation", [](String &out) { webNavigation(out, "/wifi"); }},
+    {"wifi_options", [](String &out) {
+      webConfigOptions(out, wifiModeDesc, getTotalWiFiModes(), wifiModeIdx);
+    }}
   });
 }
 

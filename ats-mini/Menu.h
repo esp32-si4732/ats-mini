@@ -47,8 +47,7 @@
 #define CMD_FM_STEREO  0x3300 // |
 #define CMD_DSP_PATCHES 0x3400 // |
 #define CMD_ABOUT      0x3500 // |
-#define CMD_OFFTIMER   0x3600 // |
-#define CMD_AUDIO_CLAMP 0x3700 //-+
+#define CMD_OFFTIMER   0x3600 //-+
 
 // UI Layouts
 #define UI_DEFAULT  0
@@ -99,6 +98,14 @@ extern uint8_t memoryIdx;
 extern const UTCOffset utcOffsets[];
 extern const char *bandModeDesc[];
 extern const FMRegion fmRegions[];
+extern const char *const fmStereoDesc[];
+extern const char *const sleepModeDesc[];
+extern const char *const uiLayoutDesc[];
+extern const char *const usbModeDesc[];
+extern const char *const tcpModeDesc[];
+extern const char *const bleModeDesc[];
+extern const char *const wifiModeDesc[];
+extern const RDSMode rdsMode[];
 extern int bandIdx;
 extern VfoState vfos[2];
 extern uint8_t vfoIdx;
@@ -116,12 +123,21 @@ void selectBand(uint8_t idx, bool drawLoadingPatch = true);
 void applyFmStereo();
 int getTotalBands();
 int getTotalModes();
+int getTotalFMRegions();
+int getTotalFMStereoModes();
+int getTotalSleepModes();
+int getTotalUILayouts();
+int getTotalUSBModes();
+int getTotalTCPModes();
+int getTotalBluetoothModes();
+int getTotalWiFiModes();
 Band *getCurrentBand();
 uint8_t getFreqInputPos();
 int getFreqInputStep();
 const Step *getCurrentStep();
 const Bandwidth *getCurrentBandwidth();
 uint8_t getRDSMode();
+int getTotalRDSModes();
 
 int8_t getCurrentUTCOffset();
 int getTotalUTCOffsets();
@@ -131,6 +147,7 @@ void doAgc(int16_t enc);
 void doAvc(int16_t enc);
 void doFmRegion(int16_t enc);
 void doFmStereo(int16_t enc);
+void doRDSMode(int16_t enc);
 void doBandwidth(int16_t enc);
 void doVolume(int16_t enc);
 void doBrt(int16_t enc);
