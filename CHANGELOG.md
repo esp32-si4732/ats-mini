@@ -4,6 +4,24 @@ The user manual is available at <https://esp32-si4732.github.io/ats-mini/manual.
 
 <!-- towncrier release notes start -->
 
+## 2.44 (2026-10-18)
+
+
+### Added
+
+- Add display, radio, power, and connectivity settings to the Config web page, including Bluetooth Unpair All. Move Audio Clamp configuration from the receiver menu to the web page.
+
+
+### Changed
+
+- Move network settings and web login credentials to a separate Wi-Fi page, and add Wi-Fi mode selection. Organize Config settings into sections.
+- Short pressing the Off Timer menu entry now shuts down the receiver into deep sleep. Clicking still opens the timer settings, where a short press disables the timer.
+
+
+### Fixed
+
+- Suppress clicks when muting or changing bands or modes on receivers without an audio clamp circuit. Disable Audio Clamp on the Config web page for these receivers.
+
 ## 2.43 (2026-10-14)
 
 
