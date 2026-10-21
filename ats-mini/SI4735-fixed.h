@@ -39,7 +39,7 @@ class SI4735_fixed: public SI4735
     // Assemble a replacement separately from the text already on screen.
     char *decodeRadioText(uint8_t version)
     {
-      if(!getRdsReceived() || getRdsGroupType()!=2 || getRdsVersionCode()!=version) return(NULL);
+      if(!getNumRdsFifoUsed() || getRdsGroupType()!=2 || getRdsVersionCode()!=version) return(NULL);
 
       uint8_t flag = getRdsFlagAB();
       if(lastTextFlagAB!=flag || radioTextVersion!=version)
@@ -145,7 +145,7 @@ class SI4735_fixed: public SI4735
     // Fixing SI4735::getRdsPI() bug where it only returns BLOCKAL
     uint16_t getRdsPI(void)
     {
-      if(getRdsReceived() && getRdsNewBlockA())
+      if(getNumRdsFifoUsed())
         return (currentRdsStatus.resp.BLOCKAH << 8) + currentRdsStatus.resp.BLOCKAL;
       else
         return 0x0000;
@@ -161,7 +161,7 @@ class SI4735_fixed: public SI4735
     // Group 0 bit 4 is TA, not the RadioText A/B flag.
     char *getRdsText0A(void)
     {
-      if(!getRdsReceived() || getRdsGroupType()!=0) return(NULL);
+      if(!getNumRdsFifoUsed() || getRdsGroupType()!=0) return(NULL);
 
       uint8_t address = currentRdsStatus.resp.BLOCKBL & 0x03;
       getNext2Block(&rds_buffer0A[address * 2]);

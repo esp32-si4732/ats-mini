@@ -218,23 +218,28 @@ static bool showRdsTime()
 
 bool checkRds()
 {
+  static constexpr uint8_t RDS_MAX_GROUPS_PER_CHECK = 25;
   bool needRedraw = false;
   uint8_t mode = getRDSMode();
 
   if(mode==RDS_OFF) return(false);
 
-  rx.getRdsStatus();
-
-  // Empty FIFO responses can retain event flags and stale A/B blocks.
-  if(!rx.getNumRdsFifoUsed()) return(false);
-
-  if(rx.getRdsReceived() && rx.getRdsSync() && rx.getRdsSyncFound())
+  // Drain at most one FIFO capacity per loop iteration so the UI can run.
+  for(uint8_t i=0 ; i<RDS_MAX_GROUPS_PER_CHECK ; i++)
   {
+    rx.getRdsStatus();
+    uint8_t count = rx.getNumRdsFifoUsed();
+    // Empty responses may retain event flags and stale A/B blocks.
+    if(!count) break;
+
     needRedraw |= (mode & RDS_PS) && showStationName(rx.getRdsStationName());
     needRedraw |= (mode & RDS_RT) && showRadioText(rx.getRdsVersionCode()? rx.getRdsText2B() : rx.getRdsText2A());
     needRedraw |= (mode & RDS_PI) && showRdsPiCode(rx.getRdsPI());
     needRedraw |= (mode & RDS_CT) && showRdsTime();
     needRedraw |= (mode & RDS_PT) && showRdsProgramType(rx.getRdsProgramTypeX(), !!(mode & RDS_RBDS));
+
+    // The reported count includes the group returned by this read (AN332).
+    if(count==1) break;
   }
 
   // Return TRUE if any RDS information changes
