@@ -2,7 +2,106 @@
 
 class SI4735_fixed: public SI4735
 {
+  private:
+    uint16_t radioTextSegments = 0;
+    uint8_t radioTextVersion = 0;
+
+    void resetRadioText(uint8_t flag = 0, uint8_t version = 0)
+    {
+      clearRdsBuffer2A();
+      clearRdsBuffer2B();
+      lastTextFlagAB = flag;
+      radioTextVersion = version;
+      radioTextSegments = 0;
+    }
+
+    char *completeRadioText(char *text, uint8_t address, uint8_t segmentSize)
+    {
+      radioTextSegments |= uint16_t(1) << address;
+      for(uint8_t segment=0 ; segment<16 ; segment++)
+      {
+        if(!(radioTextSegments & (uint16_t(1) << segment))) return(NULL);
+        for(uint8_t i=0 ; i<segmentSize ; i++)
+        {
+          if(text[segment * segmentSize + i]=='\r')
+          {
+            radioTextSegments = 0;
+            return(text);
+          }
+        }
+      }
+
+      // A full-length message need not contain a terminator.
+      radioTextSegments = 0;
+      return(text);
+    }
+
+    // Assemble a replacement separately from the text already on screen.
+    char *decodeRadioText(uint8_t version)
+    {
+      if(!getRdsReceived() || getRdsGroupType()!=2 || getRdsVersionCode()!=version) return(NULL);
+
+      uint8_t flag = getRdsFlagAB();
+      if(lastTextFlagAB!=flag || radioTextVersion!=version)
+        resetRadioText(flag, version);
+
+      char *text = version? rds_buffer2B : rds_buffer2A;
+      uint8_t segmentSize = version? 2 : 4;
+      uint8_t address = currentRdsStatus.resp.BLOCKBL & 0x0F;
+      if(version) getNext2Block(&text[address * segmentSize]);
+      else getNext4Block(&text[address * segmentSize]);
+      text[16 * segmentSize] = '\0';
+      return completeRadioText(text, address, segmentSize);
+    }
+
   public:
+    void RdsInit(void)
+    {
+      SI4735::RdsInit();
+      resetRadioText();
+    }
+
+    void setRdsConfig(uint8_t RDSEN, uint8_t BLETHA, uint8_t BLETHB, uint8_t BLETHC, uint8_t BLETHD)
+    {
+      // The base method calls its own non-virtual RdsInit().
+      SI4735::setRdsConfig(RDSEN, BLETHA, BLETHB, BLETHC, BLETHD);
+      resetRadioText();
+    }
+
+    // PU2CLR 2.1.8 leaves the five reserved command bits uninitialized.
+    void getRdsStatus(uint8_t INTACK = 0, uint8_t MTFIFO = 0, uint8_t STATUSONLY = 0)
+    {
+      si47x_rds_command command = {};
+      static uint16_t lastFreq;
+      if(currentTune!=FM_TUNE_FREQ) return;
+
+      if(lastFreq!=currentWorkFrequency)
+      {
+        lastFreq = currentWorkFrequency;
+        RdsInit();
+      }
+
+      waitToSend();
+
+      command.arg.INTACK = INTACK;
+      command.arg.MTFIFO = MTFIFO;
+      command.arg.STATUSONLY = STATUSONLY;
+
+      Wire.beginTransmission(deviceAddress);
+      Wire.write(FM_RDS_STATUS);
+      Wire.write(command.raw);
+      Wire.endTransmission();
+
+      do
+      {
+        waitToSend();
+        Wire.requestFrom(deviceAddress, 13);
+        for(uint8_t i=0 ; i<13 ; i++)
+          currentRdsStatus.raw[i] = Wire.read();
+      } while(currentRdsStatus.resp.ERR);
+      delayMicroseconds(550);
+    }
+
     // Clear stale SSB sideband bits before the first FM tune
     void setFM(uint16_t fromFreq, uint16_t toFreq, uint16_t initialFreq, uint16_t step)
     {
@@ -59,28 +158,32 @@ class SI4735_fixed: public SI4735
       return (blockB >> 5) & 0x1F;
     }
 
-    // Fixing SI4735::getRdsText2A() which does not follow version bit
-    char *getRdsText2A(void)
+    // Group 0 bit 4 is TA, not the RadioText A/B flag.
+    char *getRdsText0A(void)
     {
-      return getRdsVersionCode()? NULL : SI4735::getRdsText2A();
+      if(!getRdsReceived() || getRdsGroupType()!=0) return(NULL);
+
+      uint8_t address = currentRdsStatus.resp.BLOCKBL & 0x03;
+      getNext2Block(&rds_buffer0A[address * 2]);
+      rds_buffer0A[8] = '\0';
+      return(rds_buffer0A);
     }
 
-    // Fixing SI4735::getRdsText2B() which does not follow version bit
-    char *getRdsText2B(void)
-    {
-      return getRdsVersionCode()? SI4735::getRdsText2B() : NULL;
-    }
+    inline char *getRdsStationName(void) { return getRdsText0A(); }
+
+    inline char *getRdsText2A(void) { return decodeRadioText(0); }
+    inline char *getRdsText2B(void) { return decodeRadioText(1); }
 
     // Only one kind of text is available
     inline char *getRdsProgramInformation(void)
     {
-      return getRdsVersionCode()? SI4735::getRdsText2B() : SI4735::getRdsText2A();
+      return decodeRadioText(getRdsVersionCode());
     }
 
     // Only one kind of text is available
     inline char *getRdsStationInformation(void)
     {
-      return getRdsVersionCode()? SI4735::getRdsText2B() : SI4735::getRdsText2A();
+      return decodeRadioText(getRdsVersionCode());
     }
 
     // Implementing the empty SI4735::setFmStereoOff() placeholder by

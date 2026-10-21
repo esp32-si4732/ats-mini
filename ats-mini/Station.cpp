@@ -132,7 +132,7 @@ static bool showStationName(const char *stationName, bool isLong = false)
 static bool showRadioText(const char *radioText, uint8_t width = 32)
 {
   bool changed = false;
-  int i, j;
+  int i, j, out = 0;
   char c;
 
   // Must have text
@@ -155,19 +155,19 @@ static bool showRadioText(const char *radioText, uint8_t width = 32)
       j++;
     }
 
-    changed |= c!=bufRadioText[i];
-    bufRadioText[i] = c;
+    changed |= c!=bufRadioText[out];
+    bufRadioText[out++] = c;
   }
 
   // Skip trailing whitespace
-  while((i>0) && (bufRadioText[i-1]<=' ')) i--;
+  while((out>0) && (bufRadioText[out-1]<=' ')) out--;
 
   // Check the end of the buffer for changes
-  changed |= bufRadioText[i] || bufRadioText[i+1];
+  changed |= bufRadioText[out] || bufRadioText[out+1];
 
   // Terminate multitline text with two zeros
-  bufRadioText[i++] = '\0';
-  bufRadioText[i++] = '\0';
+  bufRadioText[out++] = '\0';
+  bufRadioText[out] = '\0';
 
   // Done
   return(changed);
@@ -224,6 +224,9 @@ bool checkRds()
   if(mode==RDS_OFF) return(false);
 
   rx.getRdsStatus();
+
+  // Empty FIFO responses can retain event flags and stale A/B blocks.
+  if(!rx.getNumRdsFifoUsed()) return(false);
 
   if(rx.getRdsReceived() && rx.getRdsSync() && rx.getRdsSyncFound())
   {
