@@ -889,6 +889,7 @@ static void clickWiFiMode(uint8_t mode, bool shortPress)
 static void doRDSMode(int16_t enc)
 {
   rdsModeIdx = wrap_range(rdsModeIdx, enc, 0, LAST_ITEM(rdsMode));
+  if(currentMode==FM) rx.setRdsConfig(getRDSMode()!=RDS_OFF, 2, 2, 2, 2);
   if(!(getRDSMode() & RDS_CT) && !ntpIsAvailable()) clockReset();
   prefsRequestSave(SAVE_SETTINGS);
 }
