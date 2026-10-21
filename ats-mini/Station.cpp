@@ -75,7 +75,7 @@ const char *getStationName()
   if(switchThemeEditor())
     return("*STATION*");
 
-  const char *station = getRDSMode() & RDS_PS? bufStationName : "";
+  const char *station = currentMode!=FM || (getRDSMode() & RDS_PS)? bufStationName : "";
   // Live FM identification takes precedence over a saved name.
   if(currentMode==FM && station[strspn(station, " ")]) return(station);
 
