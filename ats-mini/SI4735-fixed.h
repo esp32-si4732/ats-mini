@@ -3,6 +3,7 @@
 class SI4735_fixed: public SI4735
 {
   private:
+    uint8_t nextStationNameSegment = 0;
     uint16_t radioTextSegments = 0;
     uint8_t radioTextVersion = 0;
 
@@ -58,6 +59,7 @@ class SI4735_fixed: public SI4735
     void RdsInit(void)
     {
       SI4735::RdsInit();
+      nextStationNameSegment = 0;
       resetRadioText();
     }
 
@@ -65,6 +67,7 @@ class SI4735_fixed: public SI4735
     {
       // The base method calls its own non-virtual RdsInit().
       SI4735::setRdsConfig(RDSEN, BLETHA, BLETHB, BLETHC, BLETHD);
+      nextStationNameSegment = 0;
       resetRadioText();
     }
 
@@ -164,8 +167,26 @@ class SI4735_fixed: public SI4735
       if(!getNumRdsFifoUsed() || getRdsGroupType()!=0) return(NULL);
 
       uint8_t address = currentRdsStatus.resp.BLOCKBL & 0x03;
+      // Segment zero starts a new cycle; gaps invalidate the current one.
+      if(address==0) nextStationNameSegment = 0;
+      if(address!=nextStationNameSegment)
+      {
+        // Repeating the last segment unchanged does not break the sequence.
+        if(address + 1==nextStationNameSegment &&
+           uint8_t(rds_buffer0A[address * 2])==currentRdsStatus.resp.BLOCKDH &&
+           uint8_t(rds_buffer0A[address * 2 + 1])==currentRdsStatus.resp.BLOCKDL)
+          return(NULL);
+
+        nextStationNameSegment = 0;
+        return(NULL);
+      }
+
       getNext2Block(&rds_buffer0A[address * 2]);
       rds_buffer0A[8] = '\0';
+      if(++nextStationNameSegment!=4) return(NULL);
+
+      // Keep the displayed name until a complete ordered cycle arrives.
+      nextStationNameSegment = 0;
       return(rds_buffer0A);
     }
 
