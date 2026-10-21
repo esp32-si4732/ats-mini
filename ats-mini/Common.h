@@ -39,6 +39,7 @@ static constexpr const lgfx::IFont* FONT_DIGITS  = &lgfx::fonts::Font7;  // 48px
 #define AM            3
 
 // RDS Modes
+#define RDS_OFF       0b00000000  // Off
 #define RDS_PS        0b00000001  // Station name
 #define RDS_CT        0b00000010  // Time
 #define RDS_PI        0b00000100  // PI code
