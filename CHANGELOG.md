@@ -4,6 +4,20 @@ The user manual is available at <https://esp32-si4732.github.io/ats-mini/manual.
 
 <!-- towncrier release notes start -->
 
+## 2.45 (2026-10-22)
+
+
+### Added
+
+- Added RDS OFF option to turn off RDS. [#388](https://github.com/esp32-si4732/ats-mini/issues/388)
+
+
+### Fixed
+
+- Fixed missing, truncated, or mixed RDS text and unnecessary station name resets, including corruption from empty RDS responses.
+- Improved RDS processing to reduce delayed updates and lost data.
+- RDS station names now update only after all four segments have arrived in order, starting with segment zero.
+
 ## 2.44 (2026-10-18)
 
 
