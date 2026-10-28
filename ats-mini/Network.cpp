@@ -15,7 +15,7 @@
 #define WIFI_TOTAL_TIMEOUT  30000
 #define WIFI_ATTEMPT_TIMEOUT  5000
 #define WIFI_DISCOVERY_TIMEOUT  15000 // Leave time to connect after probing hidden APs
-#define NTP_TIMEOUT  15000
+#define NTP_TIMEOUT  45000 // Allow startup delay and fallback to the third server
 
 #ifndef WIFI_POWER_LEVEL
 #define WIFI_POWER_LEVEL WIFI_POWER_17dBm
@@ -416,8 +416,8 @@ static void wifiConnected(uint32_t now)
   esp_sntp_set_time_sync_notification_cb([](struct timeval *) {
     timeSynchronized.store(true);
   });
-  esp_sntp_set_sync_interval(5 * 60 * 1000);
-  configTime(0, 0, "pool.ntp.org");
+  esp_sntp_set_sync_interval(4 * 60 * 60 * 1000);
+  configTime(0, 0, "0.pool.ntp.org", "1.pool.ntp.org", "2.pool.ntp.org");
   attemptStarted = now;
   netState = NetState::Online;
   if(activeNetMode == NET_SYNC)

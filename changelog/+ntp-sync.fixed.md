@@ -1,0 +1,1 @@
+Improve NTP synchronization reliability by using three time servers and allowing up to 45 seconds for synchronization in Sync Only mode ([discussion #396](https://github.com/esp32-si4732/ats-mini/discussions/396)). Synchronize every four hours instead of every five minutes while connected.
