@@ -3,10 +3,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Receiver Maidenhead locator</title>
+<style>
+body {
+  box-sizing: border-box;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+</style>
 <p id="status" role="status">Requesting your location…</p>
 <button id="close" type="button" hidden>Close window</button>
 <script>
-// Serve over HTTPS and open with #origin=<receiver origin>.
+// Serve over HTTPS; optionally open with #origin=<receiver origin>.
 // The receiver must check the reply's origin and source window.
 const statusElement = document.getElementById("status");
 const closeButton = document.getElementById("close");
@@ -29,23 +43,31 @@ function maidenhead({ latitude, longitude }) {
 async function locate() {
   const receiver = new URLSearchParams(location.hash.slice(1)).get("origin");
   const opener = window.opener;
-  if (!receiver || !opener || opener.closed) {
-    throw new Error("Open this page from the receiver.");
-  }
-  const url = new URL(receiver);
-  if (!["http:", "https:"].includes(url.protocol) || url.origin !== receiver) {
-    throw new Error("Invalid receiver origin.");
+  if (receiver !== null) {
+    if (!opener || opener.closed) {
+      throw new Error("Open this page from the receiver.");
+    }
+    const url = new URL(receiver);
+    if (!["http:", "https:"].includes(url.protocol) || url.origin !== receiver) {
+      throw new Error("Invalid receiver origin.");
+    }
   }
   if (!window.isSecureContext || !navigator.geolocation) {
     throw new Error("Geolocation requires HTTPS and a supported browser.");
   }
 
-  statusElement.textContent = `Requesting your location to share a Maidenhead locator with ${receiver}…`;
+  statusElement.textContent = receiver === null
+    ? "Requesting your location…"
+    : `Requesting your location to share a Maidenhead locator with ${receiver}…`;
   const { coords } = await new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 15000 });
   });
-  if (opener.closed) throw new Error("The receiver page was closed. Open it and try again.");
   const locator = maidenhead(coords);
+  if (receiver === null) {
+    statusElement.textContent = `Your Maidenhead locator is ${locator}.`;
+    return;
+  }
+  if (opener.closed) throw new Error("The receiver page was closed. Open it and try again.");
   opener.postMessage({ type: "maidenhead", locator }, receiver);
   statusElement.textContent = `Locator ${locator} sent. You can close this window.`;
   closeButton.hidden = false;
