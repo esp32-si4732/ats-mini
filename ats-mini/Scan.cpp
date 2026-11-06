@@ -2,12 +2,6 @@
 #include "Utils.h"
 #include "Menu.h"
 
-// Tuning delays after rx.setFrequency()
-#define TUNE_DELAY_DEFAULT 30
-#define TUNE_DELAY_FM      60
-#define TUNE_DELAY_AM_SSB  80
-
-#define SCAN_POLL_TIME    10 // Tuning status polling interval (msecs)
 #define SCAN_POINTS      200 // Number of frequencies to scan
 
 #define SCAN_OFF    0   // Scanner off, no data
@@ -23,6 +17,7 @@ struct ScanPoint
 static ScanPoint *scanData = nullptr;
 
 static uint32_t scanTime = millis();
+static uint32_t scanTuneStarted;
 static uint8_t  scanStatus = SCAN_OFF;
 
 static uint32_t scanStartFreq; // Hz
@@ -80,6 +75,11 @@ static void scanInit(uint32_t centerFreq, uint32_t step)
 
   // Clear scan data
   memset(scanData, 0, SCAN_POINTS * sizeof(*scanData));
+
+  // A preceding confirmed tune has acknowledged STC. Start our own tune
+  // before waiting for completion, even if already at the first frequency.
+  scanTuneStarted = millis();
+  rx.startFrequencyTune(freqFromHz(scanStartFreq, currentMode));
 }
 
 static bool scanTickTime()
@@ -87,26 +87,30 @@ static bool scanTickTime()
   // Scan must be on
   if((scanStatus!=SCAN_RUN) || (scanCount>=SCAN_POINTS)) return(false);
 
+  if(consumeAbortPending() || millis() - scanTuneStarted >= TUNE_TIMEOUT_MS)
+  {
+    scanStatus = SCAN_DONE;
+    return(false);
+  }
+
   // Wait for the right time
-  if(millis() - scanTime < SCAN_POLL_TIME) return(true);
+  if(millis() - scanTime < TUNE_POLL_INTERVAL_MS) return(true);
 
   // This is our current frequency to scan
   uint32_t freq = scanStartFreq + scanStep * scanCount;
 
   // Poll for the tuning status
-  rx.getStatus(0, 0);
-  if(!rx.getTuneCompleteTriggered())
+  if(!rx.pollTuneStatus())
   {
     scanTime = millis();
     return(true);
   }
 
-  // If frequency not yet set, set it and wait until next call to measure
+  // Do not attach measurements to a stale or unexpected frequency.
   if(rx.getCurrentFrequency() != freqFromHz(freq, currentMode))
   {
-    rx.setFrequency(freqFromHz(freq, currentMode)); // Implies tuning delay
-    scanTime = millis() - SCAN_POLL_TIME;
-    return(true);
+    scanStatus = SCAN_DONE;
+    return(false);
   }
 
   // Measure RSSI/SNR values
@@ -127,10 +131,13 @@ static bool scanTickTime()
   if((++scanCount >= SCAN_POINTS) || !isFreqInBand(getCurrentBand(), freq) || consumeAbortPending())
     scanStatus = SCAN_DONE;
   else
-    rx.setFrequency(freqFromHz(freq, currentMode)); // Implies tuning delay
+  {
+    scanTuneStarted = millis();
+    rx.startFrequencyTune(freqFromHz(freq, currentMode));
+  }
 
   // Save last scan time
-  scanTime = millis() - SCAN_POLL_TIME;
+  scanTime = millis() - TUNE_POLL_INTERVAL_MS;
 
   // Return current scan status
   return(scanStatus==SCAN_RUN);
@@ -149,24 +156,20 @@ void scanRun(uint32_t centerFreq, uint32_t step)
       return;
   }
 
-  // Set tuning delay
-  rx.setMaxDelaySetFrequency(currentMode == FM ? TUNE_DELAY_FM : TUNE_DELAY_AM_SSB);
   // Mute the audio
   muteOn(MUTE_TEMP, true);
   // Flag is set by rotary encoder and cleared on seek/scan entry
   seekStop = false;
   // Save current frequency
-  uint32_t curFreq = freqToHz(rx.getFrequency(), currentMode);
+  uint32_t curFreq = currentFrequency;
   // Scan receiver frequencies without the SSB tuning or calibration offset.
   if(isSSB()) rx.setSSBBfo(0);
   // Scan the whole range
-  for(scanInit(centerFreq, step) ; scanTickTime(););
+  for(scanInit(centerFreq, step) ; scanTickTime();) delay(1);
   // Restore current frequency
-  rx.setFrequency(freqFromHz(curFreq, currentMode));
+  if(isSSB()) rx.setFrequencyConfirmed(getReceiverFrequency(curFreq));
   // Restore the derived BFO and calibration before unmuting.
-  if(isSSB()) updateFrequency(currentFrequency, false);
+  updateFrequency(curFreq, false);
   // Unmute the audio
   muteOn(MUTE_TEMP, false);
-  // Restore tuning delay
-  rx.setMaxDelaySetFrequency(TUNE_DELAY_DEFAULT);
 }
