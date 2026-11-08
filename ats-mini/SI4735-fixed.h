@@ -296,6 +296,32 @@ class SI4735_fixed: public SI4735
       return(true);
     }
 
+  // PU2CLR 2.1.8 chooses AM seek capacitance from the starting frequency.
+  // Preserve the configured tuning capacitor instead; keep FM unchanged.
+  void seekStation(uint8_t up_down, uint8_t wrap)
+  {
+    if(currentTune != AM_TUNE_FREQ)
+    {
+      SI4735::seekStation(up_down, wrap);
+      return;
+    }
+
+    si47x_seek seek = {};
+    seek.arg.SEEKUP = up_down;
+    seek.arg.WRAP = wrap;
+
+    waitToSend();
+    Wire.beginTransmission(deviceAddress);
+    Wire.write(AM_SEEK_START);
+    Wire.write(seek.raw);
+    Wire.write(uint8_t(0)); // Reserved ARG2
+    Wire.write(uint8_t(0)); // Reserved ARG3
+    Wire.write(currentFrequencyParams.arg.ANTCAPH);
+    Wire.write(currentFrequencyParams.arg.ANTCAPL);
+    Wire.endTransmission();
+    delay(MAX_DELAY_AFTER_SET_FREQUENCY << 2);
+  }
+
   void seekStationProgress(void (*showFunc)(uint16_t f), bool (*stopSeeking)(), uint8_t up_down)
   {
     if(currentSsbStatus) return;
