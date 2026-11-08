@@ -65,6 +65,7 @@ int8_t SsbAgcIdx = 0;                   // Default SSB AGCON  : Range = 0 to 1, 
 int8_t AmAvcIdx = 48;                   // Default AM  = 48 (as per AN332), range = 12 to 90 in steps of 2
 int8_t SsbAvcIdx = 48;                  // Default SSB = 48, range = 12 to 90 in steps of 2
 bool ssbAvcHold = false;                // Temporary; cleared when the band/mode is reinitialized
+bool autoAntennaCapacitor = false;      // Automatic antenna tuning on MW/LW bands
 
 // SoftMute index per mode (AM/SSB)
 int8_t AmSoftMuteIdx = 4;               // Default AM  = 4, range = 0 to 32
@@ -436,11 +437,16 @@ void useBand(Band *band)
       rx.setSSBConfig(getCurrentBandwidth()->idx, 1, 0, 1, 0, 1);
       // G8PTN: Commented out
       //rx.setSsbSoftMuteMaxAttenuation(softMuteMaxAttIdx);
-      applyBFO();
     }
 
-    // Set the tuning capacitor for SW or MW/LW
-    // rx.setTuneFrequencyAntennaCapacitor((band->bandType == MW_BAND_TYPE || band->bandType == LW_BAND_TYPE) ? 0 : 1);
+    // Mode setup resets the capacitor; apply the selected policy afterward.
+    bool automatic = autoAntennaCapacitor &&
+      (band->bandType == MW_BAND_TYPE || band->bandType == LW_BAND_TYPE);
+    bool changed = rx.configureAntennaCapacitor(automatic);
+    bool tuned = changed ? rx.setFrequencyConfirmed(receiverFreq)
+                         : rx.waitFrequencyConfirmed(receiverFreq);
+    if(!tuned) return;
+    if(isSSB()) applyBFO();
 
     // G8PTN: Enable GPIO1 as output
     rx.setGpioCtl(1, 0, 0);

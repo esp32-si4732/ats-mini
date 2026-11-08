@@ -82,6 +82,11 @@ class SI4735_fixed: public SI4735
     bool setFrequencyConfirmed(uint16_t freq)
     {
       startFrequencyTune(freq);
+      return waitFrequencyConfirmed(freq);
+    }
+
+    bool waitFrequencyConfirmed(uint16_t freq)
+    {
       uint32_t started = millis();
       do
       {
@@ -89,6 +94,18 @@ class SI4735_fixed: public SI4735
         delay(TUNE_POLL_INTERVAL_MS);
       } while(millis() - started < TUNE_TIMEOUT_MS);
       return false;
+    }
+
+    // AM/SSB only. Update cached command bytes without tuning or I2C traffic.
+    // Returns true if a new tune is needed to apply the changed setting.
+    bool configureAntennaCapacitor(bool automatic)
+    {
+      uint8_t value = automatic ? 0 : 1;
+      bool changed = currentFrequencyParams.arg.ANTCAPH != 0 ||
+                     currentFrequencyParams.arg.ANTCAPL != value;
+      currentFrequencyParams.arg.ANTCAPH = 0;
+      currentFrequencyParams.arg.ANTCAPL = value;
+      return changed;
     }
 
     void RdsInit(void)

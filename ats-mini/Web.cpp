@@ -67,7 +67,7 @@ static struct
   int layout, region, stereo, brightness, sleepTimer, sleepMode, offTimer;
   int usbMode, tcpMode, bleMode, rds;
   int utcOffset, themeIndex;
-  bool clamp, reverseScroll, halfStep, zoom;
+  bool clamp, reverseScroll, halfStep, zoom, autoCapacitor;
   bool setClock;
   uint32_t epoch;
 } configSettings;
@@ -188,6 +188,11 @@ bool webTick()
     }
     audioClamp = configSettings.clamp;
     digitalWrite(AUDIO_MUTE, audioClamp && (muteOn(MUTE_MAIN) || muteOn(MUTE_SQUELCH)));
+    if(autoAntennaCapacitor != configSettings.autoCapacitor)
+    {
+      autoAntennaCapacitor = configSettings.autoCapacitor;
+      if(currentMode != FM) selectBand(bandIdx, false);
+    }
     prefsRequestSave(SAVE_SETTINGS, true);
     configSettings.pending = false;
     redraw = true;
@@ -494,6 +499,7 @@ void webSetConfig(AsyncWebServerRequest *request)
     configSettings.tcpMode = tcpMode;
     configSettings.bleMode = bleMode;
     configSettings.clamp = request->hasParam("audioclamp", true);
+    configSettings.autoCapacitor = request->hasParam("autoantcap", true);
     configSettings.pending = true;
   }
 
@@ -798,7 +804,7 @@ const String webConfigPage()
   int layout, region, stereo, brightness, sleepTimer, sleepMode, offTimer;
   int usbMode, tcpMode, bleMode, rds;
   int utcOffset, themeIndex;
-  bool clamp, reverseScroll, halfStep, zoom;
+  bool clamp, reverseScroll, halfStep, zoom, autoCapacitor;
   {
     // A redirect may arrive before the main task has applied the saved values.
     std::lock_guard<std::mutex> lock(configSettings.mutex);
@@ -820,6 +826,7 @@ const String webConfigPage()
     bleMode = configSettings.pending ? configSettings.bleMode : bleModeIdx;
     if(bleMode == BLE_UNPAIR_ALL) bleMode = BLE_OFF;
     clamp = configSettings.pending ? configSettings.clamp : audioClamp;
+    autoCapacitor = configSettings.pending ? configSettings.autoCapacitor : autoAntennaCapacitor;
   }
   String splashResolution = String(spr.width()) + "x" + String(spr.height());
 
@@ -827,6 +834,7 @@ const String webConfigPage()
     {"title", pageConfigTitle},
     {"brightness", String(brightness)}, {"sleep_timer", String(sleepTimer)},
     {"off_timer", String(offTimer)}, {"audio_clamp", clamp? "CHECKED" : ""},
+    {"auto_ant_cap", autoCapacitor? "CHECKED" : ""},
     {"scroll", reverseScroll? "CHECKED" : ""},
     {"half_step", halfStep? "CHECKED" : ""}, {"zoom", zoom? "CHECKED" : ""},
     {"resolution", splashResolution}

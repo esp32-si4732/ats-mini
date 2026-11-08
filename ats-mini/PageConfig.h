@@ -33,6 +33,7 @@ static const char pageConfig[] PROGMEM = R"HTML(<H1>{{title}}</H1>
     <TR><TD CLASS="LABEL">Bluetooth Mode</TD><TD><SELECT NAME="blemode">{{{ble_options}}}</SELECT></TD></TR>
     <TR><TH COLSPAN="2" CLASS="HEADING">Hardware</TH></TR>
     <TR><TD CLASS="LABEL">Audio Clamp</TD><TD><INPUT TYPE="CHECKBOX" NAME="audioclamp" VALUE="on" {{audio_clamp}}><BR><SMALL>Enable if the receiver has an audio clamp circuit</SMALL></TD></TR>
+    <TR><TD CLASS="LABEL">Automatic Antenna Capacitor</TD><TD><INPUT TYPE="CHECKBOX" NAME="autoantcap" VALUE="on" {{auto_ant_cap}}><BR><SMALL>For MW1, MW2, MW3 and 160 m bands. Only works on receivers without a Hi-Z input circuit.</SMALL></TD></TR>
     <TR><TD CLASS="LABEL">Half-step Encoder</TD><TD><INPUT TYPE="CHECKBOX" NAME="encoderhalfstep" VALUE="on" {{half_step}}></TD></TR>
     <TR><TH COLSPAN="2" CLASS="HEADING">Splash Screen</TH></TR>
     <TR><TD CLASS="LABEL">Current Image</TD><TD>{{{splash}}}</TD></TR>

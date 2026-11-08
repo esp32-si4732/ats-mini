@@ -217,6 +217,7 @@ extern uint8_t wifiModeIdx;
 extern uint8_t FmRegionIdx;
 extern uint8_t fmStereoIdx;
 extern bool audioClamp;
+extern bool autoAntennaCapacitor;
 extern uint8_t dspPatchesIdx;
 
 extern int8_t agcIdx;
