@@ -483,11 +483,11 @@ bool updateFrequency(int64_t newFreq, bool wrap)
   uint16_t receiverFreq = getReceiverFrequency(newFreq);
   if(!isSSB() || receiverFreq != getReceiverFrequency(currentFrequency))
   {
-    rx.setFrequency(receiverFreq);
+    if(!rx.setFrequencyConfirmed(receiverFreq)) return false;
     if(isSSB()) doAgc(0);
   }
 
-  currentFrequency = isSSB()? newFreq : freqToHz(rx.getFrequency(), currentMode);
+  currentFrequency = isSSB()? newFreq : freqToHz(receiverFreq, currentMode);
   if(isSSB()) applyBFO();
   band->currentFreq = currentFrequency;
   return true;
@@ -548,8 +548,15 @@ bool doSeek(int16_t enc, int16_t enca)
       // and is consumed without executing its command.
       seekStop = false;
       if(!consumeAbortPending())
+      {
+        uint32_t savedFrequency = currentFrequency;
         rx.seekStationProgress(showFrequencySeek, consumeAbortPending, enc>0? 1 : 0);
-      updateFrequency(freqToHz(rx.getFrequency(), currentMode), true);
+        uint32_t target = freqToHz(rx.getCurrentFrequency(), currentMode);
+        // Cancellation status can precede the final hardware frequency.
+        // Retune and confirm the reported position before accepting it.
+        currentFrequency = savedFrequency;
+        updateFrequency(target, true);
+      }
     }
   }
   else if(seekMode() == SEEK_SCHEDULE && enc)

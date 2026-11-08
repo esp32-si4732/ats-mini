@@ -137,8 +137,10 @@ static bool remoteShowError(Stream* stream, const char *message)
 
 static bool remoteSetFrequency(Stream *stream, uint32_t freqHz)
 {
-  if(!updateFrequency(freqHz, false))
+  const Band *band = getCurrentBand();
+  if(freqHz < band->minimumFreq || freqHz > band->maximumFreq)
     return remoteShowError(stream, "Frequency is out of range for the current band");
+  if(!updateFrequency(freqHz, false)) return false;
 
   clearStationInfo();
   identifyFrequency(currentFrequency);

@@ -1,5 +1,8 @@
 #include <SI4735.h>
 
+#define TUNE_TIMEOUT_MS 300 // Maximum wait for tune completion.
+#define TUNE_POLL_INTERVAL_MS 10 // Interval between tune/seek completion checks.
+
 class SI4735_fixed: public SI4735
 {
   private:
@@ -56,6 +59,38 @@ class SI4735_fixed: public SI4735
     }
 
   public:
+    // Use the library's command setup without its fixed post-tune delay.
+    void startFrequencyTune(uint16_t freq)
+    {
+      uint16_t savedDelay = maxDelaySetFrequency;
+      setMaxDelaySetFrequency(0);
+      currentFrequencyParams.arg.FAST = 1;
+      setFrequency(freq);
+      setMaxDelaySetFrequency(savedDelay);
+    }
+
+    bool pollTuneStatus(bool cancel = false)
+    {
+      bool complete = !cancel && (getInterruptStatus().raw & 0x01);
+      getStatus(complete || cancel, cancel);
+      currentWorkFrequency = (uint16_t(currentStatus.resp.READFREQH) << 8) | currentStatus.resp.READFREQL;
+      return complete;
+    }
+
+    // CTS acknowledges the command; STC marks completion. The deadline bounds
+    // the STC wait, not the library's internal CTS/error loops.
+    bool setFrequencyConfirmed(uint16_t freq)
+    {
+      startFrequencyTune(freq);
+      uint32_t started = millis();
+      do
+      {
+        if(pollTuneStatus()) return currentWorkFrequency == freq;
+        delay(TUNE_POLL_INTERVAL_MS);
+      } while(millis() - started < TUNE_TIMEOUT_MS);
+      return false;
+    }
+
     void RdsInit(void)
     {
       SI4735::RdsInit();
@@ -263,29 +298,21 @@ class SI4735_fixed: public SI4735
 
   void seekStationProgress(void (*showFunc)(uint16_t f), bool (*stopSeeking)(), uint8_t up_down)
   {
-    si47x_frequency freq;
-    long elapsed_seek = millis();
-
-    // seek command does not work for SSB
-    if (lastMode == SSB_CURRENT_MODE)
-      return;
-
+    if(currentSsbStatus) return;
+    uint32_t started = millis();
     seekStation(up_down, 0);
-    do
-    {
-      delay(maxDelaySetFrequency);
-      getStatus(0, 0);
-      delay(maxDelaySetFrequency);
-      freq.raw.FREQH = currentStatus.resp.READFREQH;
-      freq.raw.FREQL = currentStatus.resp.READFREQL;
-      currentWorkFrequency = freq.value;
-      if (showFunc != NULL)
-        showFunc(freq.value);
-      if (stopSeeking != NULL)
-        if (stopSeeking())
-          return;
 
-    } while (!currentStatus.resp.VALID && !currentStatus.resp.BLTF && (millis() - elapsed_seek) < maxSeekTime);
+    uint16_t previousFreq = UINT16_MAX;
+    for(;;)
+    {
+      bool cancel = (stopSeeking && stopSeeking()) || (uint32_t)(millis() - started) >= maxSeekTime;
+      bool complete = pollTuneStatus(cancel);
+      if(showFunc && (currentWorkFrequency != previousFreq || complete || cancel))
+        showFunc(currentWorkFrequency);
+      previousFreq = currentWorkFrequency;
+      if(complete || cancel) return;
+      delay(TUNE_POLL_INTERVAL_MS);
+    }
   }
 
 #if 0
