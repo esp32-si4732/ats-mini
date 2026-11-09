@@ -79,7 +79,7 @@ static void scanInit(uint32_t centerFreq, uint32_t step)
   // A preceding confirmed tune has acknowledged STC. Start our own tune
   // before waiting for completion, even if already at the first frequency.
   scanTuneStarted = millis();
-  rx.startFrequencyTune(freqFromHz(scanStartFreq, currentMode));
+  rx.setFrequency(freqFromHz(scanStartFreq, currentMode));
 }
 
 static bool scanTickTime()
@@ -133,7 +133,7 @@ static bool scanTickTime()
   else
   {
     scanTuneStarted = millis();
-    rx.startFrequencyTune(freqFromHz(freq, currentMode));
+    rx.setFrequency(freqFromHz(freq, currentMode));
   }
 
   // Save last scan time

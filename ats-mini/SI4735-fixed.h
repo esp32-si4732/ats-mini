@@ -59,16 +59,6 @@ class SI4735_fixed: public SI4735
     }
 
   public:
-    // Use the library's command setup without its fixed post-tune delay.
-    void startFrequencyTune(uint16_t freq)
-    {
-      uint16_t savedDelay = maxDelaySetFrequency;
-      setMaxDelaySetFrequency(0);
-      currentFrequencyParams.arg.FAST = 1;
-      setFrequency(freq);
-      setMaxDelaySetFrequency(savedDelay);
-    }
-
     bool pollTuneStatus(bool cancel = false)
     {
       bool complete = !cancel && (getInterruptStatus().raw & 0x01);
@@ -81,7 +71,9 @@ class SI4735_fixed: public SI4735
     // the STC wait, not the library's internal CTS/error loops.
     bool setFrequencyConfirmed(uint16_t freq)
     {
-      startFrequencyTune(freq);
+      // Keep the library's 30 ms delay; early GET_INT_STATUS can disrupt
+      // automatic antenna capacitor tuning.
+      setFrequency(freq);
       return waitFrequencyConfirmed(freq);
     }
 
