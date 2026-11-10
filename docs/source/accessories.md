@@ -109,10 +109,12 @@ It is also possible to build one yourself ([schematics](https://electronics.stac
 * <https://www.thingiverse.com/thing:7431972>
 * <https://github.com/esp32-si4732/ats-mini/discussions/262>
 
+
 ## Cases
 
 * <https://www.thingiverse.com/thing:7057083>
-* <https://cults3d.com/en/3d-model/gadget/ats-mini-shell-knob-switch-mrhu-2>
+* <https://cults3d.com/en/3d-model/gadget/si4732-ats-mini-shell-v-3>
 * <https://makerworld.com/en/models/785921-esp32s3-si4732-receivershou-yin-ji-wai-ke>
 * <https://cults3d.com/ru/3d-model/gadzhet/si4732-ats-mini-shell-v-3>
 * <https://cults3d.com/ru/3d-model/razlichnye/mini-radio-si4732-gehaeuse>
+* <https://www.thingiverse.com/thing:7175835>
