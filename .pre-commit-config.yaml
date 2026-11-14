@@ -20,7 +20,7 @@ repos:
         args:
           - --fix=lf
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v22.1.4
+    rev: v23.1.5
     hooks:
       - id: clang-format
         stages: [manual]
