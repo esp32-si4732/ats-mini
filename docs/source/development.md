@@ -79,6 +79,10 @@ When adding, removing, or renaming firmware source or header files, update the `
 
 To decode a stack trace (printed via serial port) use the following tool: <https://esphome.github.io/esp-stacktrace-decoder/>
 
+## ESPConnect
+
+[ESPConnect](https://thelastoutpostworkshop.github.io/ESPConnect/) is a browser-based tool to back up, flash and inspect ESP32 microcontrollers.
+
 ## Enabling the pre-commit hooks
 
 1. Install `uv` <https://docs.astral.sh/uv/getting-started/installation/>

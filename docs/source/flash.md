@@ -75,6 +75,8 @@ On Linux, please make sure that the user account that runs your browser has the 
 
 ![](_static/esp-web-flasher.png)
 
+Alternatively, you can use the [ESPConnect](https://thelastoutpostworkshop.github.io/ESPConnect/) tool, but it only allows uploading one binary file at a time.
+
 ## Flash Download Tool
 
 Works on: Windows

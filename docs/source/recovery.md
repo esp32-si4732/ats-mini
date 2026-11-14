@@ -13,6 +13,8 @@ If you just bought the receiver, want to experiment with different firmwares but
 
 Windows-only backup instructions can be found here: <https://github.com/G8PTN/ATS_MINI/issues/24#issuecomment-2766879242>
 
+Alternatively, you can use the [ESPConnect](https://thelastoutpostworkshop.github.io/ESPConnect/) browser-based tool.
+
 ## Restore
 
 The following command will restore the firmware from backup:
@@ -20,6 +22,8 @@ The following command will restore the firmware from backup:
 ```shell
 uvx --from esptool esptool.py --chip esp32s3 --port SERIAL_PORT --baud 921600 --before default_reset --after hard_reset write_flash  -z --flash_mode keep --flash_freq keep --flash_size keep 0x0 original-flash.bin
 ```
+
+Alternatively, you can use the [ESPConnect](https://thelastoutpostworkshop.github.io/ESPConnect/) browser-based tool.
 
 ## Recovery
 
