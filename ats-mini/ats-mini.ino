@@ -14,7 +14,7 @@
 #include "Themes.h"
 #include "Utils.h"
 #include "EIBI.h"
-#include "Remote.h"
+#include "UsbMode.h"
 #include "BleMode.h"
 #include "TcpMode.h"
 #include "Splash.h"
@@ -508,7 +508,7 @@ bool consumeAbortPending()
     return true;
   }
   if(bleConsumeAbortPending(bleModeIdx)) return true;
-  if(serialConsumeAbortPending(usbModeIdx)) return true;
+  if(usbConsumeAbortPending(usbModeIdx)) return true;
   if(tcpConsumeAbortPending(tcpModeIdx)) return true;
 
   // Checking isPressed without debouncing because this helper is used from
@@ -800,7 +800,7 @@ void loop()
     needRedraw |= handleClick(button.wasShortPressed);
 
   // Each source executes independently, so simultaneous inputs are not lost.
-  needRedraw |= serialLoop(usbModeIdx);
+  needRedraw |= usbLoop(usbModeIdx);
   needRedraw |= bleLoop(bleModeIdx);
   needRedraw |= tcpLoop(tcpModeIdx);
   uint32_t currentTime = millis();

@@ -7,7 +7,7 @@
 #include "Memories.h"
 #include "Draw.h"
 #include "Splash.h"
-#include "Remote.h"
+#include "Screenshot.h"
 #include "BleMode.h"
 #include "Ota.h"
 #include "Patches.h"
@@ -144,7 +144,7 @@ void webScreenshotTick()
       gmtime_r(&now, &fields);
       strftime(screenshot.filename, sizeof(screenshot.filename), "screenshot-%Y-%m-%d-%H-%M-%S.bmp", &fields);
     }
-    screenshot.state = remoteCaptureBmp(screenshot.bmp) ? screenshot.Ready : screenshot.Failed;
+    screenshot.state = screenshotCaptureBmp(screenshot.bmp) ? screenshot.Ready : screenshot.Failed;
   }
 }
 
