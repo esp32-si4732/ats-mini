@@ -8,7 +8,7 @@ Arduino firmware for the ATS Mini ESP32-S3/SI4732 receiver.
 - Follow surrounding C++ style; avoid unrelated reformatting.
 - Internal DRAM/heap is scarce; PSRAM is plentiful. Balance memory savings with performance, safety, and simplicity.
 - Build firmware changes from the repository root:
-  `arduino-cli compile --warnings all ats-mini`
+  `arduino-cli compile --jobs 8 --warnings all ats-mini`
 - Do not compile anything unless asked.
 - Do not create new unit tests unless explicitly asked.
 - Run repository checks: `uv run prek run --all-files`.

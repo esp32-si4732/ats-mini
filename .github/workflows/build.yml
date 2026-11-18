@@ -57,6 +57,8 @@ jobs:
             fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=8M,PSRAM=opi,CPUFreq=80,USBMode=hwcdc,FlashMode=qio,PartitionScheme=custom,DebugLevel=none
             artifact-suffix: ospi
             cli-compile-flags: |
+              - --jobs
+              - 8
               - --profile
               - esp32s3-ospi
               - --export-binaries
@@ -65,6 +67,8 @@ jobs:
             fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=8M,PSRAM=enabled,CPUFreq=80,USBMode=hwcdc,FlashMode=qio,PartitionScheme=custom,DebugLevel=none
             artifact-suffix: qspi
             cli-compile-flags: |
+              - --jobs
+              - 8
               - --profile
               - esp32s3-qspi
               - --export-binaries
@@ -73,6 +77,8 @@ jobs:
             fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=8M,PSRAM=opi,CPUFreq=80,USBMode=hwcdc,FlashMode=qio,PartitionScheme=custom,DebugLevel=none
             artifact-suffix: lilygo-t-embed
             cli-compile-flags: |
+              - --jobs
+              - 8
               - --profile
               - esp32s3-ospi
               - --export-binaries

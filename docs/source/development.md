@@ -16,7 +16,7 @@ A short video tutorial on how to build a custom firmware version ([YouTube mirro
 3. Compile and flash the firmware
 
 ```shell
-arduino-cli compile --clean -e -p COM_PORT -u ats-mini
+arduino-cli compile --jobs 8 -e -p COM_PORT -u ats-mini
 ```
 
 Build profiles are defined in `ats-mini/sketch.yaml`. Choose the profile matching your receiver's PSRAM with `--profile`: `esp32s3-ospi` for Octal PSRAM or `esp32s3-qspi` for Quad PSRAM. Without this option, Arduino CLI uses `esp32s3-ospi`.
@@ -24,13 +24,13 @@ Build profiles are defined in `ats-mini/sketch.yaml`. Choose the profile matchin
 To compile without flashing:
 
 ```shell
-arduino-cli compile --clean --profile esp32s3-ospi ats-mini
-arduino-cli compile --clean --profile esp32s3-qspi ats-mini
+arduino-cli compile --jobs 8 --profile esp32s3-ospi ats-mini
+arduino-cli compile --jobs 8 --profile esp32s3-qspi ats-mini
 ```
 
 Run the command for your profile. Add `-e` to export the firmware binaries, and `-p COM_PORT -u` to flash them. Arduino CLI installs the platform and library versions specified in the selected profile automatically.
 
-Omit `--clean` for faster subsequent builds, which reuse previously compiled files.
+Add `--clean` to clean the compiler cache (rebuilds the project from scratch).
 
 When a library gets upgraded in the `sketch.yaml` project configuration file, it might be necessary to run the following commands to ensure that the Arduino CLI has the most current information about available platforms and libraries:
 
@@ -50,13 +50,13 @@ The available options are:
 To set an option, add the `--build-property` command line argument like this:
 
 ```shell
-arduino-cli compile --build-property "compiler.cpp.extra_flags=-DLILYGO_SI473X" --clean -e -p COM_PORT -u ats-mini
+arduino-cli compile --build-property "compiler.cpp.extra_flags=-DLILYGO_SI473X" --jobs 8 -e -p COM_PORT -u ats-mini
 ```
 
 For example, to lower Bluetooth LE and Wi-Fi TX power:
 
 ```shell
-arduino-cli compile --build-property "compiler.cpp.extra_flags=-DBLE_POWER_LEVEL=ESP_PWR_LVL_N12 -DWIFI_POWER_LEVEL=WIFI_POWER_13dBm" --clean -e -p COM_PORT -u ats-mini
+arduino-cli compile --build-property "compiler.cpp.extra_flags=-DBLE_POWER_LEVEL=ESP_PWR_LVL_N12 -DWIFI_POWER_LEVEL=WIFI_POWER_13dBm" --jobs 8 -e -p COM_PORT -u ats-mini
 ```
 
 ## Using the make command
