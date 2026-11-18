@@ -250,7 +250,7 @@ int getTotalSleepModes() { return(ITEM_COUNT(sleepModeDesc)); }
 // https://en.wikipedia.org/wiki/List_of_UTC_offsets
 // https://www.timeanddate.com/time/time-zones-interesting.html
 //
-uint8_t utcOffsetIdx = 8;
+uint8_t utcOffsetIdx = 15; // UTC+0
 const UTCOffset utcOffsets[] =
 {
   { -12 * 4, "UTC-12" },
