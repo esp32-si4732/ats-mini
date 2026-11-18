@@ -58,7 +58,7 @@ jobs:
             artifact-suffix: ospi
             cli-compile-flags: |
               - --jobs
-              - 8
+              - "8"
               - --profile
               - esp32s3-ospi
               - --export-binaries
@@ -68,7 +68,7 @@ jobs:
             artifact-suffix: qspi
             cli-compile-flags: |
               - --jobs
-              - 8
+              - "8"
               - --profile
               - esp32s3-qspi
               - --export-binaries
@@ -78,7 +78,7 @@ jobs:
             artifact-suffix: lilygo-t-embed
             cli-compile-flags: |
               - --jobs
-              - 8
+              - "8"
               - --profile
               - esp32s3-ospi
               - --export-binaries
