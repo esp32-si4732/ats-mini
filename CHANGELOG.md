@@ -21,7 +21,7 @@ The user manual is available at <https://esp32-si4732.github.io/ats-mini/manual.
 
 - Poll for tuning completion after the initial delay to fix skipped or backward frequency steps with custom DSP patches, and improve scans and seeks. [#391](https://github.com/esp32-si4732/ats-mini/issues/391)
 - Preserve mute and squelch across band or mode changes, including click suppression on receivers without an audio clamp circuit. [#408](https://github.com/esp32-si4732/ats-mini/issues/408)
-- Improve NTP synchronization reliability by using three time servers and allowing up to 45 seconds for synchronization in Sync Only mode ([discussion #396](https://github.com/esp32-si4732/ats-mini/discussions/396)). Synchronize every four hours instead of every five minutes while connected.
+- Improve NTP synchronization reliability by using `atsmini.pool.ntp.org` and allowing up to 45 seconds for synchronization in Sync Only mode ([discussion #396](https://github.com/esp32-si4732/ats-mini/discussions/396)). Synchronize every four hours instead of every five minutes while connected.
 - Keep antenna capacitor settings consistent between AM tuning and seeking. See [discussion #163](https://github.com/esp32-si4732/ats-mini/discussions/163).
 
 ## 2.45 (2026-10-22)
