@@ -79,6 +79,16 @@ When adding, removing, or renaming firmware source or header files, update the `
 
 To decode a stack trace (printed via serial port) use the following tool: <https://esphome.github.io/esp-stacktrace-decoder/>
 
+## Monitoring CAT commands
+
+Enable `Settings -> USB Port -> CAT TS-480` and run (adjust the USB port):
+
+```shell
+socat -d -d -v PTY,link=/tmp/ttyCAT,rawer,echo=0 /dev/cu.usbmodem14401,rawer,echo=0,ispeed=921600,ospeed=921600 2> /tmp/cat.log
+```
+
+Connect the CAT application to `/tmp/ttyCAT`. Watch with `tail -f /tmp/cat.log`: `>` marks commands, `<` replies. Press **Ctrl+C** to stop the bridge.
+
 ## ESPConnect
 
 [ESPConnect](https://thelastoutpostworkshop.github.io/ESPConnect/) is a browser-based tool to back up, flash and inspect ESP32 microcontrollers.
