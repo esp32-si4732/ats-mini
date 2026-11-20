@@ -5,7 +5,7 @@ Remote control has two parts:
 * **Transport** - the connection used to reach the receiver.
 * **Protocol** - the set of commands or button events carried over that connection.
 
-The receiver currently supports three transports: **USB Serial**, **TCP over Wi-Fi**, and **Bluetooth Low Energy**. It also supports two protocols: the **Ad hoc protocol** and the **Bluetooth HID protocol**.
+The receiver currently supports three transports: **USB Serial**, **TCP over Wi-Fi**, and **Bluetooth Low Energy**. Available protocols are **Ad hoc**, **Kenwood CAT**, and **Bluetooth HID**.
 
 ## Transports
 
@@ -16,9 +16,13 @@ Enable `Settings -> USB Port -> Ad hoc` to use USB Serial with the ad hoc protoc
 Use [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) or Picocom to connect to the serial port. Alternatively, open the following web terminal in Chrome, Edge, or Firefox: <https://www.serialterminal.com/>.
 [ESP32 documentation](https://docs.espressif.com/projects/esp-idf/en/v5.0/esp32/get-started/establish-serial-connection.html#verify-serial-connection) notes that the default serial settings are 115200 8N1, though 9600 8N1 may be a bit more reliable.
 
+For CAT software, select `Settings -> USB Port -> CAT TS-480` and choose **Kenwood TS-480** (or **TS-480SAT**) in the application. Use receive-only operation with split and CAT PTT disabled.
+
 ### TCP over Wi-Fi
 
 Enable `Settings -> TCP Port -> Ad hoc` and select `AP Only`, `AP+Connect`, or `Connect` under `Settings -> Wi-Fi`. TCP Port defaults to `Off`, and its setting is saved across restarts. Enabling TCP does not enable Wi-Fi automatically; `Off` and `Sync Only` Wi-Fi modes do not provide a persistent connection.
+
+For Kenwood CAT, select `Settings -> TCP Port -> CAT TS-480` instead. Both protocols use TCP port **60000**.
 
 Connect to `atsmini.local` (or the receiver's IP address) on TCP port **60000**. On Linux or macOS, use [socat](https://www.dest-unreach.org/socat/):
 
@@ -37,6 +41,7 @@ Switching TCP Port to Off, stopping Wi-Fi, or entering CPU Sleep closes the conn
 Enable `Settings -> Bluetooth` to use Bluetooth LE in one of these modes:
 
 * **Ad hoc** - uses the same remote-control protocol as USB Serial, but over BLE.
+* **CAT TS-480** - uses Kenwood CAT over the same BLE serial service as Ad hoc.
 * **HID** - lets the receiver connect to supported Bluetooth remotes and keyboards.
 * **Unpair All** - clears all saved Bluetooth bonds, then switches Bluetooth to Off.
 
@@ -44,13 +49,13 @@ Bluetooth support is experimental and may be unstable.
 
 #### Local serial port over BLE
 
-If you prefer using a normal local serial port, you can bridge the receiver's BLE Ad hoc mode to one with the [ble-serial](https://github.com/Jakeler/ble-serial/) utility.
+If you prefer using a normal local serial port, you can bridge the receiver's BLE Ad hoc or CAT TS-480 mode to one with the [ble-serial](https://github.com/Jakeler/ble-serial/) utility.
 
 First install `uv` <https://docs.astral.sh/uv/getting-started/installation/>
 
 The following example commands are primarily for **Linux** and **macOS**:
 
-1. Enable `Settings -> Bluetooth -> Ad hoc` on the receiver.
+1. Enable `Settings -> Bluetooth -> Ad hoc` or `CAT TS-480` on the receiver.
 2. Scan for the receiver over BLE:
 
 ```shell
@@ -198,6 +203,30 @@ echo -n c | socat -t 120 -T5 stdio TCP4:atsmini.local:60000,connect-timeout=5 > 
 ```
 
 The `-t 120` option allows up to two minutes to receive the screenshot after the command input ends; `-T5` exits sooner after five seconds without data.
+
+### Kenwood CAT protocol
+
+Select **CAT TS-480** under `Settings -> USB Port`, `TCP Port`, or `Bluetooth`. In the application, choose **Kenwood TS-480** or **TS-480SAT**, with split and CAT PTT disabled. End each command with `;`.
+
+| Command | Operation | Supported behavior |
+|---------|-----------|--------------------|
+| `FA`, `FB` | Read/set | VFO A/B frequency in Hz (11 digits). Selects a suitable band automatically; changing the inactive VFO does not retune reception. |
+| `FR` | Read/set | Active receive VFO: `0` = A, `1` = B. |
+| `FT` | Read/set | Reports the active VFO; accepts only that same VFO (no split). |
+| `MD` | Read/set | Mode: `1` = LSB, `2` = USB, `4` = FM, `5` = AM. FM is limited to the receiver's VHF band. |
+| `AG0` | Read/set | Volume, `000`–`255`, rounded to the receiver's levels. |
+| `SQ0` | Read/set | Squelch, `000`–`255`, preserving the RSSI/SNR selection. |
+| `SM0` | Read | Estimated signal strength, `0000`–`0020`. |
+| `FW` | Read/set | Always reports `0000` (normal filter); writes are accepted without changing bandwidth. |
+| `IF` | Read | Receiver status, including frequency, mode and active VFO. |
+| `ID` | Read | Returns `ID020;` (TS-480). |
+| `AI` | Read/set | `0` = off; `1` = changed `IF` status at most every 1.5 seconds; `2` = individual setting reports; `3` = both. |
+| `PS` | Read/set | Reports power on; `PS1` is accepted as a no-op. Power-off is unsupported. |
+| `RX` | Set | Remains in receive mode. |
+| `UP`, `DN` | Set | Tune by the selected step. Optional two-digit count `00`–`99`; defaults to one step. No seeking or wrapping. |
+| `VV` | Set | Copy the active VFO's tuning settings to the inactive VFO. |
+
+Unsupported commands, including transmit operations, and invalid arguments return `?;`.
 
 ### Bluetooth HID protocol
 

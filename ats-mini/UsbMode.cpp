@@ -27,18 +27,31 @@ static InputEvent serialReadInput(uint8_t& byte)
   return InputEvent::Byte;
 }
 
-bool usbLoop(uint8_t usbMode)
+static bool serialSelectMode(uint8_t usbMode)
 {
-  if(usbMode == USB_OFF)
+  static uint8_t previousMode = USB_OFF;
+  if(usbMode != previousMode)
   {
     remoteSerialState = RemoteState{};
     serialDisconnectPending = false;
-    return false;
+    // Bytes queued under the previous protocol must not become new commands.
+    int pending = Serial.available();
+    while(pending-- > 0) Serial.read();
+    previousMode = usbMode;
   }
-  return remoteLoop(&Serial, &remoteSerialState, serialReadInput);
+  return usbMode == USB_ADHOC || usbMode == USB_KENWOOD;
+}
+
+bool usbLoop(uint8_t usbMode)
+{
+  if(!serialSelectMode(usbMode)) return false;
+  return remoteLoop(Serial, remoteSerialState, serialReadInput,
+                    usbMode == USB_KENWOOD ? RemoteProtocol::Kenwood : RemoteProtocol::Adhoc);
 }
 
 bool usbConsumeAbortPending(uint8_t usbMode)
 {
-  return usbMode != USB_OFF && remoteConsumeAbortPending(&remoteSerialState, serialReadInput);
+  if(!serialSelectMode(usbMode)) return false;
+  return remoteConsumeAbortPending(remoteSerialState, serialReadInput,
+                                   usbMode == USB_KENWOOD ? RemoteProtocol::Kenwood : RemoteProtocol::Adhoc);
 }

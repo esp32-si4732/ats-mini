@@ -51,12 +51,25 @@ void tcpStop()
   tcpClient.stop();
   tcpServer.end();
   tcpInputResetPending = true;
+  remoteTCPState = RemoteState{};
+}
+
+static bool tcpSelectMode(uint8_t tcpMode)
+{
+  static uint8_t previousMode = TCP_OFF;
+  if(tcpMode != previousMode)
+  {
+    // Reconnect after switching protocols; queued input belongs to the old one.
+    tcpStop();
+    previousMode = tcpMode;
+  }
+  return tcpMode == TCP_ADHOC || tcpMode == TCP_KENWOOD;
 }
 
 bool tcpLoop(uint8_t tcpMode)
 {
   bool networkUp = WiFi.status() == WL_CONNECTED || (WiFi.getMode() & WIFI_AP);
-  if(tcpMode != TCP_ADHOC || !networkUp)
+  if(!tcpSelectMode(tcpMode) || !networkUp)
   {
     if(tcpServer) tcpStop();
     return false;
@@ -87,10 +100,12 @@ bool tcpLoop(uint8_t tcpMode)
     }
   }
 
-  return remoteLoop(&tcpClient, &remoteTCPState, tcpReadInput);
+  return remoteLoop(tcpClient, remoteTCPState, tcpReadInput,
+                    tcpMode == TCP_KENWOOD ? RemoteProtocol::Kenwood : RemoteProtocol::Adhoc);
 }
 
 bool tcpConsumeAbortPending(uint8_t tcpMode)
 {
-  return tcpMode == TCP_ADHOC && remoteConsumeAbortPending(&remoteTCPState, tcpReadInput);
+  return tcpSelectMode(tcpMode) && remoteConsumeAbortPending(remoteTCPState, tcpReadInput,
+    tcpMode == TCP_KENWOOD ? RemoteProtocol::Kenwood : RemoteProtocol::Adhoc);
 }

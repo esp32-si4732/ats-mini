@@ -55,6 +55,7 @@ int8_t getBleStatus()
 void bleStop()
 {
   hidPushAndRotate = false;
+  remoteBLEState = RemoteState{};
   if (BLESerial.isStarted())
     BLESerial.end();
 
@@ -91,6 +92,7 @@ void bleInit(uint8_t bleMode)
   switch(bleMode)
   {
     case BLE_ADHOC:
+    case BLE_KENWOOD:
       BLESerial.begin(RECEIVER_NAME);
       break;
     case BLE_HID:
@@ -112,8 +114,9 @@ bool blePushAndRotate()
 bool bleLoop(uint8_t bleMode)
 {
   if(bleMode != BLE_HID) hidPushAndRotate = false;
-  if (bleMode == BLE_ADHOC)
-    return remoteLoop(&BLESerial, &remoteBLEState, bleReadInput);
+  if (bleMode == BLE_ADHOC || bleMode == BLE_KENWOOD)
+    return remoteLoop(BLESerial, remoteBLEState, bleReadInput,
+                      bleMode == BLE_KENWOOD ? RemoteProtocol::Kenwood : RemoteProtocol::Adhoc);
 
   if (bleMode != BLE_HID)
     return false;
@@ -149,8 +152,9 @@ bool bleLoop(uint8_t bleMode)
 
 bool bleConsumeAbortPending(uint8_t bleMode)
 {
-  if (bleMode == BLE_ADHOC)
-    return remoteConsumeAbortPending(&remoteBLEState, bleReadInput);
+  if (bleMode == BLE_ADHOC || bleMode == BLE_KENWOOD)
+    return remoteConsumeAbortPending(remoteBLEState, bleReadInput,
+                                     bleMode == BLE_KENWOOD ? RemoteProtocol::Kenwood : RemoteProtocol::Adhoc);
 
   if (bleMode == BLE_HID && BLEHid.consumeAbortPending())
   {

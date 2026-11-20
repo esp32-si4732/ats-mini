@@ -31,17 +31,17 @@ OPTIONS = \
 	--warnings all
 
 HEADERS = \
-	Parser.h ParserTypes.h ParserUtils.h ParserAdhoc.h \
+	Parser.h ParserTypes.h ParserUtils.h ParserAdhoc.h ParserKenwood.h \
 	Common.h Themes.h Menu.h Memories.h Storage.h Display.h Rotary.h \
-	Utils.h Button.h EIBI.h Remote.h RemoteAdhoc.h Screenshot.h UsbMode.h BleMode.h TcpMode.h BlePeripheral.h \
+	Utils.h Button.h EIBI.h Remote.h RemoteAdhoc.h RemoteKenwood.h Screenshot.h UsbMode.h BleMode.h TcpMode.h BlePeripheral.h \
 	BleUartPeripheral.h BleCentral.h BleHidCentral.h \
 	SI4735-fixed.h patch_init.h PatchParser.h Patches.h Splash.h Ota.h Web.h \
 	$(wildcard Page*.h)
 
 SRC = \
-	Parser.cpp ParserAdhoc.cpp \
+	Parser.cpp ParserAdhoc.cpp ParserKenwood.cpp \
 	$(INO) Utils.cpp Rotary.cpp Button.cpp Draw.cpp Menu.cpp Memories.cpp \
-	Station.cpp Battery.cpp Storage.cpp Themes.cpp Remote.cpp RemoteAdhoc.cpp Screenshot.cpp UsbMode.cpp \
+	Station.cpp Battery.cpp Storage.cpp Themes.cpp Remote.cpp RemoteAdhoc.cpp RemoteKenwood.cpp Screenshot.cpp UsbMode.cpp \
 	Network.cpp Web.cpp Patches.cpp Ota.cpp Splash.cpp EIBI.cpp Scan.cpp About.cpp BleMode.cpp TcpMode.cpp \
 	BlePeripheral.cpp BleUartPeripheral.cpp \
 	BleCentral.cpp BleHidCentral.cpp \
@@ -76,8 +76,13 @@ build/TestParserAdhoc: tests/TestParserAdhoc.cpp ParserAdhoc.cpp ParserAdhoc.h P
 	mkdir -p build
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -std=c++11 -Wall -Wextra -UNDEBUG tests/TestParserAdhoc.cpp ParserAdhoc.cpp Parser.cpp $(LDFLAGS) -o $@
 
-test: build/TestParser build/TestParserAdhoc
+build/TestParserKenwood: tests/TestParserKenwood.cpp ParserKenwood.cpp ParserKenwood.h Parser.cpp Parser.h ParserTypes.h ParserUtils.h
+	mkdir -p build
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -std=c++11 -Wall -Wextra -UNDEBUG tests/TestParserKenwood.cpp ParserKenwood.cpp Parser.cpp $(LDFLAGS) -o $@
+
+test: build/TestParser build/TestParserAdhoc build/TestParserKenwood
 	./build/TestParser
 	./build/TestParserAdhoc
+	./build/TestParserKenwood
 
 .PHONY: all help build upload clean test

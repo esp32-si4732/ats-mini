@@ -41,6 +41,14 @@ inline ByteSpan drop(ByteSpan s, size_t n) {
   return n <= s.size ? ByteSpan{s.data + n, s.size - n} : ByteSpan{};
 }
 
+inline bool equal(ByteSpan s, const char* text, bool ignore_case = true) {
+  if (s.size != std::strlen(text)) return false;
+  for (size_t i = 0; i < s.size; ++i) {
+    if (ignore_case ? lower(s.data[i]) != lower(text[i]) : s.data[i] != text[i]) return false;
+  }
+  return true;
+}
+
 template <size_t N>
 bool copy(ByteSpan s, char (&out)[N]) {
   if (s.size >= N) return false;
