@@ -81,6 +81,7 @@ The menu can be invoked by clicking the encoder button and is closed automatical
 * **RDS** - Radio Data System options: PS - radio station name, CT - date and time, RT - text, PTY - genre, ALL (EU/US) - everything, OFF - turn RDS off. RDS CT should contain UTC date and time, but some stations incorrectly transmit local or completely bogus values. The clock is synchronized from RDS only once. To synchronize it again, disable and re-enable RDS CT or switch the receiver off and on.
 * **FM Stereo** - **Auto** lets the receiver blend down to mono on its own as the signal gets worse, **Mono** forces mono audio, trading the stereo image for less hiss on a weak station.
 * **FM Region** - FM de-emphasis time constant by region (50µs for EU/JP/AU and 75µs for the US).
+* **Capacitor** - Automatically adjusts the antenna tuning capacitor on MW1, MW2, MW3, and 160 m bands. Off by default; only works on receivers without a Hi-Z input circuit.
 * **Calibration** - SSB calibration offset (-2000...2000, per mode/band).
 * **DSP Patches** - Select **Default** or an uploaded AM/SSB patch set. Manage these experimental patches on the web interface's **Patches** page.
 * **Load EiBi** - download the EiBi [schedule](#schedule) (requires Wi-Fi internet connection).
@@ -127,7 +128,6 @@ The `Config` page lets you set the UTC date/time manually or from the browser, a
 * `Off Timer`: changing the duration restarts its countdown; saving the same duration leaves it running.
 * `Half-step Encoder`: leave it off for the original EC11 20C20P encoder (20 clicks, 20 pulses), and enable it for an EC11 30C15P encoder (30 clicks, 15 pulses). Half-step mode is also required for the LILYGO T-Embed SI4732 hardware variant. See [discussion #87](https://github.com/esp32-si4732/ats-mini/discussions/87) for more information.
 * `Audio Clamp`: disable it for receivers without an audio clamp circuit to suppress clicks when muting or changing bands or modes. Leave it enabled for receivers with the circuit and for LILYGO T-Embed SI4732.
-* `Automatic Antenna Capacitor`: enables automatic antenna tuning on MW1, MW2, MW3, and 160 m bands. It is disabled by default and only works on receivers without a Hi-Z input circuit.
 * `Splash Screen`: upload or delete an optional [splash image](_static/splash-outdoor.png) shown when the receiver starts.
 
 The `Wi-Fi` page lets you select the Wi-Fi mode, configure up to three access points the receiver will try to connect to and add optional login and password to protect the memory, settings, Wi-Fi, and firmware update pages. Enable `Scan Hidden SSIDs` only if one of the configured access points does not broadcast its network name; leaving it off makes Wi-Fi connection faster. Changing Wi-Fi mode may disconnect the browser; Off and Sync Only disable the web interface.
