@@ -17,6 +17,7 @@ static const char pageConfig[] PROGMEM = R"HTML(<H1>{{title}}</H1>
     <TR><TD CLASS="LABEL">UI Layout</TD><TD><SELECT NAME="uilayout">{{{layout_options}}}</SELECT></TD></TR>
     <TR><TD CLASS="LABEL">Theme</TD><TD><SELECT NAME="theme">{{{theme_options}}}</SELECT></TD></TR>
     <TR><TD CLASS="LABEL">Reverse Scrolling</TD><TD><INPUT TYPE="CHECKBOX" NAME="scroll" VALUE="on" {{scroll}}></TD></TR>
+    <TR><TD CLASS="LABEL">Encoder Acceleration</TD><TD><INPUT TYPE="CHECKBOX" NAME="encoderacceleration" VALUE="on" {{encoder_acceleration}}></TD></TR>
     <TR><TD CLASS="LABEL">Zoomed Menu</TD><TD><INPUT TYPE="CHECKBOX" NAME="zoom" VALUE="on" {{zoom}}></TD></TR>
     <TR><TH COLSPAN="2" CLASS="HEADING">Radio</TH></TR>
     <TR><TD CLASS="LABEL">RDS</TD><TD><SELECT NAME="rds">{{{rds_options}}}</SELECT></TD></TR>

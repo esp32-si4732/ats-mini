@@ -79,6 +79,7 @@ uint8_t FmRegionIdx = 0;                // FM Region
 uint16_t currentBrt = 130;              // Display brightness, range = 10 to 255 in steps of 5
 uint16_t currentSleep = DEFAULT_SLEEP;  // Display sleep timeout, range = 0 to 255 in steps of 5
 long elapsedSleep = millis();           // Display sleep timer
+bool encoderAcceleration = true;        // Accelerate fast encoder rotation
 bool zoomMenu = false;                  // Display zoomed menu item
 int8_t scrollDirection = 1;             // Menu scroll direction
 #if defined(LILYGO_SI473X)
@@ -694,6 +695,7 @@ bool processRssiSnr()
 bool handleRotation(int16_t enc, int16_t accelerated, bool pressed)
 {
   if(!enc || (sleepOn() && sleepModeIdx == SLEEP_LOCKED)) return false;
+  if(!encoderAcceleration) accelerated = enc;
   bool changed = false;
   if(pressed)
   {

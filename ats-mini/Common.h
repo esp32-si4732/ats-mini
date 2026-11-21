@@ -202,6 +202,7 @@ extern uint8_t sleepModeIdx;
 extern bool zoomMenu;
 extern int8_t scrollDirection;
 extern bool encoderHalfStep;
+extern bool encoderAcceleration;
 extern uint8_t utcOffsetIdx;
 extern uint8_t uiLayoutIdx;
 

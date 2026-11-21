@@ -67,7 +67,7 @@ static struct
   int layout, region, stereo, brightness, sleepTimer, sleepMode, offTimer;
   int usbMode, tcpMode, bleMode, rds;
   int utcOffset, themeIndex;
-  bool clamp, reverseScroll, halfStep, zoom, autoCapacitor;
+  bool clamp, reverseScroll, halfStep, acceleration, zoom, autoCapacitor;
   bool setClock;
   uint32_t epoch;
 } configSettings;
@@ -165,6 +165,7 @@ bool webTick()
     scrollDirection = configSettings.reverseScroll? -1 : 1;
     zoomMenu = configSettings.zoom;
     setEncoderHalfStep(configSettings.halfStep);
+    encoderAcceleration = configSettings.acceleration;
     uiLayoutIdx = configSettings.layout;
     if(FmRegionIdx != configSettings.region)
       doFmRegion(configSettings.region - FmRegionIdx);
@@ -485,6 +486,7 @@ void webSetConfig(AsyncWebServerRequest *request)
     configSettings.reverseScroll = request->hasParam("scroll", true);
     configSettings.zoom = request->hasParam("zoom", true);
     configSettings.halfStep = request->hasParam("encoderhalfstep", true);
+    configSettings.acceleration = request->hasParam("encoderacceleration", true);
     configSettings.rds = rds;
     configSettings.setClock = setClock;
     configSettings.epoch = setClock? epoch : 0;
@@ -804,7 +806,7 @@ const String webConfigPage()
   int layout, region, stereo, brightness, sleepTimer, sleepMode, offTimer;
   int usbMode, tcpMode, bleMode, rds;
   int utcOffset, themeIndex;
-  bool clamp, reverseScroll, halfStep, zoom, autoCapacitor;
+  bool clamp, reverseScroll, halfStep, acceleration, zoom, autoCapacitor;
   {
     // A redirect may arrive before the main task has applied the saved values.
     std::lock_guard<std::mutex> lock(configSettings.mutex);
@@ -813,6 +815,7 @@ const String webConfigPage()
     reverseScroll = configSettings.pending ? configSettings.reverseScroll : scrollDirection < 0;
     zoom = configSettings.pending ? configSettings.zoom : zoomMenu;
     halfStep = configSettings.pending ? configSettings.halfStep : encoderHalfStep;
+    acceleration = configSettings.pending ? configSettings.acceleration : encoderAcceleration;
     rds = configSettings.pending ? configSettings.rds : rdsModeIdx;
     layout = configSettings.pending ? configSettings.layout : uiLayoutIdx;
     region = configSettings.pending ? configSettings.region : FmRegionIdx;
@@ -836,6 +839,7 @@ const String webConfigPage()
     {"off_timer", String(offTimer)}, {"audio_clamp", clamp? "CHECKED" : ""},
     {"auto_ant_cap", autoCapacitor? "CHECKED" : ""},
     {"scroll", reverseScroll? "CHECKED" : ""},
+    {"encoder_acceleration", acceleration? "CHECKED" : ""},
     {"half_step", halfStep? "CHECKED" : ""}, {"zoom", zoom? "CHECKED" : ""},
     {"resolution", splashResolution}
   }, {

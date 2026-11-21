@@ -153,19 +153,20 @@ static const char *menu[] =
 #define MENU_UI           7
 #define MENU_ZOOM         8
 #define MENU_SCROLL       9
-#define MENU_RDS          10
-#define MENU_FM_STEREO    11
-#define MENU_FM_REGION    12
-#define MENU_ANTCAP       13
-#define MENU_CALIBRATION  14
-#define MENU_DSP_PATCHES  15
-#define MENU_LOADEIBI     16
-#define MENU_UPDATEFW     17
-#define MENU_USBMODE      18
-#define MENU_TCPMODE      19
-#define MENU_BLEMODE      20
-#define MENU_WIFIMODE     21
-#define MENU_ABOUT        22
+#define MENU_ENC_ACCEL    10
+#define MENU_RDS          11
+#define MENU_FM_STEREO    12
+#define MENU_FM_REGION    13
+#define MENU_ANTCAP       14
+#define MENU_CALIBRATION  15
+#define MENU_DSP_PATCHES  16
+#define MENU_LOADEIBI     17
+#define MENU_UPDATEFW     18
+#define MENU_USBMODE      19
+#define MENU_TCPMODE      20
+#define MENU_BLEMODE      21
+#define MENU_WIFIMODE     22
+#define MENU_ABOUT        23
 
 
 static uint8_t updateFwIdx = 0;
@@ -185,6 +186,7 @@ static const char *settings[] =
   "UI Layout",
   "Zoom Menu",
   "Scroll Dir.",
+  "Enc. Accel.",
   "RDS",
   "FM Stereo",
   "FM Region",
@@ -953,6 +955,12 @@ static void doZoom(int16_t enc)
   prefsRequestSave(SAVE_SETTINGS);
 }
 
+static void doEncoderAcceleration()
+{
+  encoderAcceleration = !encoderAcceleration;
+  prefsRequestSave(SAVE_SETTINGS);
+}
+
 static void doScrollDir(int16_t enc)
 {
   scrollDirection = (scrollDirection == 1) ? -1 : 1;
@@ -1333,6 +1341,7 @@ static void clickSettings(int cmd, bool shortPress)
       currentCmd = CMD_DATETIME;
       break;
     case MENU_ZOOM:       currentCmd = CMD_ZOOM;       break;
+    case MENU_ENC_ACCEL:  currentCmd = CMD_ENC_ACCEL;  break;
     case MENU_SCROLL:     currentCmd = CMD_SCROLL;     break;
     case MENU_OFFTIMER:
       if(shortPress) receiverShutdown();
@@ -1400,6 +1409,7 @@ bool doSideBar(uint16_t cmd, int16_t enc, int16_t enca)
     case CMD_BLEMODE:    doBleMode(scrollDirection * enc);break;
     case CMD_WIFIMODE:   doWiFiMode(scrollDirection * enc);break;
     case CMD_ZOOM:       doZoom(enc);break;
+    case CMD_ENC_ACCEL:  doEncoderAcceleration();break;
     case CMD_SCROLL:     doScrollDir(enc);break;
     case CMD_UTCOFFSET:  doUTCOffset(scrollDirection * enc);break;
     case CMD_DATETIME:   doDateTime(enc);break;
@@ -2218,6 +2228,16 @@ static void drawAntennaCapacitor(int x, int y, int sx)
   spr.drawString(autoAntennaCapacitor ? "On" : "Off", 40+x+(sx/2), 60+y, FONT_LARGE);
 }
 
+static void drawEncoderAcceleration(int x, int y, int sx)
+{
+  drawCommon(settings[MENU_ENC_ACCEL], x, y, sx);
+  drawZoomedMenu(settings[MENU_ENC_ACCEL]);
+  spr.setTextDatum(MC_DATUM);
+
+  spr.setTextColor(TH.menu_param);
+  spr.drawString(encoderAcceleration ? "On" : "Off", 40+x+(sx/2), 60+y, FONT_LARGE);
+}
+
 static void drawScrollDir(int x, int y, int sx)
 {
   drawCommon(settings[MENU_SCROLL], x, y, sx);
@@ -2364,6 +2384,7 @@ void drawSideBar(uint16_t cmd, int x, int y, int sx)
     case CMD_WIFIMODE:   drawWiFiMode(x, y, sx);   break;
     case CMD_UPDATEFW:   drawUpdateFW(x, y, sx);   break;
     case CMD_ZOOM:       drawZoom(x, y, sx);       break;
+    case CMD_ENC_ACCEL:  drawEncoderAcceleration(x, y, sx);break;
     case CMD_SCROLL:     drawScrollDir(x, y, sx);  break;
     case CMD_UTCOFFSET:  drawUTCOffset(x, y, sx);  break;
     case CMD_DATETIME:   drawDateTime(x, y, sx);   break;
