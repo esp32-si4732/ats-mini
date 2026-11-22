@@ -28,6 +28,8 @@ static const char pageConfig[] PROGMEM = R"HTML(<H1>{{title}}</H1>
     <TR><TD CLASS="LABEL">Sleep Timer</TD><TD><INPUT TYPE="NUMBER" NAME="sleeptimer" MIN="0" MAX="255" STEP="5" VALUE="{{sleep_timer}}" REQUIRED><BR><SMALL>Seconds; 0 disables sleep</SMALL></TD></TR>
     <TR><TD CLASS="LABEL">Sleep Mode</TD><TD><SELECT NAME="sleepmode">{{{sleep_options}}}</SELECT></TD></TR>
     <TR><TD CLASS="LABEL">Off Timer</TD><TD><INPUT TYPE="NUMBER" NAME="offtimer" MIN="0" MAX="240" STEP="5" VALUE="{{off_timer}}" REQUIRED><BR><SMALL>Minutes; 0 disables shutdown. Changing the duration restarts the timer.</SMALL></TD></TR>
+    <TR><TD CLASS="LABEL">Wi-Fi TX Power</TD><TD><SELECT NAME="wifipower">{{{wifi_power_options}}}</SELECT></TD></TR>
+    <TR><TD CLASS="LABEL">Bluetooth LE TX Power</TD><TD><SELECT NAME="blepower">{{{ble_power_options}}}</SELECT></TD></TR>
     <TR><TH COLSPAN="2" CLASS="HEADING">Connectivity</TH></TR>
     <TR><TD CLASS="LABEL">USB Mode</TD><TD><SELECT NAME="usbmode">{{{usb_options}}}</SELECT></TD></TR>
     <TR><TD CLASS="LABEL">TCP Mode</TD><TD><SELECT NAME="tcpmode">{{{tcp_options}}}</SELECT><BR><SMALL>Listens on port 60000; requires Wi-Fi</SMALL></TD></TR>

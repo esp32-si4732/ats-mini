@@ -2,6 +2,7 @@
 #define COMMON_H
 
 #include <stdint.h>
+#include <atomic>
 #include "Display.h"
 #include <SI4735-fixed.h>
 
@@ -262,6 +263,27 @@ uint16_t getRdsPiCode();
 void clearStationInfo();
 bool checkRds();
 bool identifyFrequency(uint32_t freq, bool periodic = false);
+
+// Wi-Fi and Bluetooth LE TX power settings
+constexpr int8_t WIFI_POWER_DEFAULT_DBM = 17; // 16.5 dBm, displayed as 17 dBm
+constexpr int8_t BLE_POWER_DEFAULT_DBM = 0;   // Whole dBm
+struct BlePowerOption
+{
+  int8_t dbm;
+  int8_t level; // SDK enum
+};
+
+extern const int8_t wifiPowerOptions[]; // Integer dBm labels
+extern const size_t wifiPowerCount;
+extern const BlePowerOption blePowerOptions[];
+extern const size_t blePowerCount;
+extern std::atomic<int8_t> wifiPowerDbm;
+extern std::atomic<int8_t> blePowerDbm;
+
+bool wifiPowerValid(int power);
+bool blePowerValid(int power);
+bool wifiApplyPower();
+void bleApplyPower();
 
 // Network.cpp
 int8_t getWiFiStatus();

@@ -1,16 +1,8 @@
 #include "BleCentral.h"
+#include "Common.h"
 
 BleCentral* BleCentral::activeScanner = nullptr;
 static constexpr uint32_t BLE_DISCONNECT_WAIT_MS = 500;
-
-#ifndef BLE_POWER_LEVEL
-#define BLE_POWER_LEVEL ESP_PWR_LVL_N0
-#endif
-
-static void configureBleCentralPower()
-{
-  BLEDevice::setPower(BLE_POWER_LEVEL);
-}
 
 BleCentral::~BleCentral()
 {
@@ -22,7 +14,7 @@ void BleCentral::begin(const char* deviceName)
   if (state_ != State::Idle) return;
 
   BLEDevice::init(deviceName);
-  configureBleCentralPower();
+  bleApplyPower();
   configureSecurity();
   clearPeer();
   scanAttempts = 0;

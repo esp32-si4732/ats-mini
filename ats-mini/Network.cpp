@@ -17,9 +17,30 @@
 #define WIFI_DISCOVERY_TIMEOUT  15000 // Leave time to connect after probing hidden APs
 #define NTP_TIMEOUT  45000 // Allow startup delay and fallback to the third server
 
-#ifndef WIFI_POWER_LEVEL
-#define WIFI_POWER_LEVEL WIFI_POWER_17dBm
-#endif
+const int8_t wifiPowerOptions[] = {
+  2, 5, 7, 9, 11, 13, 14, 15, 17, 18, 20
+};
+const size_t wifiPowerCount = sizeof(wifiPowerOptions) / sizeof(wifiPowerOptions[0]);
+
+std::atomic<int8_t> wifiPowerDbm{WIFI_POWER_DEFAULT_DBM};
+
+bool wifiPowerValid(int power)
+{
+  for(int8_t option : wifiPowerOptions)
+    if(power == option) return true;
+  return false;
+}
+
+bool wifiApplyPower()
+{
+  // Keep the setting for the next startup when Wi-Fi is off.
+  if(WiFi.getMode() == WIFI_MODE_NULL) return true;
+  // Integer labels 9 and 17 represent SDK limits of 8.5 and 16.5 dBm.
+  int8_t powerDbm = wifiPowerDbm.load();
+  int8_t powerQuarterDbm = powerDbm * 4;
+  if(powerDbm == 9 || powerDbm == 17) powerQuarterDbm -= 2;
+  return esp_wifi_set_max_tx_power(powerQuarterDbm) == ESP_OK;
+}
 
 enum class NetState : uint8_t { Idle, Scanning, Probing, Connecting, Retry, Online };
 static NetState netState = NetState::Idle;
@@ -320,7 +341,7 @@ static void wifiRegisterPowerLevelCallback()
 static void wifiPowerLevelOnEvent(WiFiEvent_t event)
 {
   (void)event;
-  WiFi.setTxPower(WIFI_POWER_LEVEL);
+  wifiApplyPower();
 }
 
 //

@@ -65,7 +65,7 @@ static struct
   std::mutex mutex;
   bool pending = false;
   int layout, region, stereo, brightness, sleepTimer, sleepMode, offTimer;
-  int usbMode, tcpMode, bleMode, rds;
+  int usbMode, tcpMode, bleMode, rds, wifiPowerDbm, blePowerDbm;
   int utcOffset, themeIndex;
   bool clamp, reverseScroll, halfStep, acceleration, zoom, autoCapacitor;
   bool setClock;
@@ -179,6 +179,22 @@ bool webTick()
     {
       offTimerMinutes = configSettings.offTimer;
       offTimerRestart();
+    }
+    if(wifiPowerDbm != configSettings.wifiPowerDbm)
+    {
+      int8_t previousPowerDbm = wifiPowerDbm.load();
+      wifiPowerDbm = configSettings.wifiPowerDbm;
+      if(!wifiApplyPower())
+      {
+        wifiPowerDbm = previousPowerDbm;
+        wifiApplyPower();
+        statusShow("Wi-Fi power failed", "Previous setting kept");
+      }
+    }
+    if(blePowerDbm != configSettings.blePowerDbm)
+    {
+      blePowerDbm = configSettings.blePowerDbm;
+      bleApplyPower();
     }
     usbModeIdx = configSettings.usbMode;
     tcpModeIdx = configSettings.tcpMode;
@@ -404,12 +420,25 @@ static bool webConfigNumber(AsyncWebServerRequest *request, const char *name, in
   return true;
 }
 
+// Accept only canonical integer strings and supported power values.
+static bool webConfigPower(AsyncWebServerRequest *request, const char *name, int &value,
+                           bool (*isValid)(int))
+{
+  if(!request->hasParam(name, true)) return false;
+  const String &text = request->getParam(name, true)->value();
+  if(!text.length() || text.length() > 4) return false;
+  int power = text.toInt();
+  if(text != String(power) || !isValid(power)) return false;
+  value = power;
+  return true;
+}
+
 void webSetConfig(AsyncWebServerRequest *request)
 {
   if(!webIsAuthenticated(request)) return request->requestAuthentication();
 
   int layout, region, stereo, brightness, sleepTimer, sleepMode, offTimer;
-  int usbMode, tcpMode, bleMode, rds;
+  int usbMode, tcpMode, bleMode, rds, wifiPowerDbm, blePowerDbm;
   int utcOffset, themeIndex;
   if(!webConfigNumber(request, "uilayout", layout, 0, getTotalUILayouts() - 1) ||
      !webConfigNumber(request, "fmregion", region, 0, getTotalFMRegions() - 1) ||
@@ -420,6 +449,8 @@ void webSetConfig(AsyncWebServerRequest *request)
      !webConfigNumber(request, "offtimer", offTimer, 0, 240, 5) ||
      !webConfigNumber(request, "usbmode", usbMode, 0, getTotalUSBModes() - 1) ||
      !webConfigNumber(request, "tcpmode", tcpMode, 0, getTotalTCPModes() - 1) ||
+     !webConfigPower(request, "wifipower", wifiPowerDbm, wifiPowerValid) ||
+     !webConfigPower(request, "blepower", blePowerDbm, blePowerValid) ||
      !webConfigNumber(request, "blemode", bleMode, 0, getTotalBluetoothModes() - 1) ||
      !webConfigNumber(request, "rds", rds, 0, getTotalRDSModes() - 1) ||
      !webConfigNumber(request, "utcoffset", utcOffset, 0, getTotalUTCOffsets() - 1) ||
@@ -500,6 +531,8 @@ void webSetConfig(AsyncWebServerRequest *request)
     configSettings.usbMode = usbMode;
     configSettings.tcpMode = tcpMode;
     configSettings.bleMode = bleMode;
+    configSettings.wifiPowerDbm = wifiPowerDbm;
+    configSettings.blePowerDbm = blePowerDbm;
     configSettings.clamp = request->hasParam("audioclamp", true);
     configSettings.autoCapacitor = request->hasParam("autoantcap", true);
     configSettings.pending = true;
@@ -804,7 +837,7 @@ static void webConfigOptions(String &out, const char *const *labels, int count, 
 const String webConfigPage()
 {
   int layout, region, stereo, brightness, sleepTimer, sleepMode, offTimer;
-  int usbMode, tcpMode, bleMode, rds;
+  int usbMode, tcpMode, bleMode, rds, wifiPowerDbm, blePowerDbm;
   int utcOffset, themeIndex;
   bool clamp, reverseScroll, halfStep, acceleration, zoom, autoCapacitor;
   {
@@ -828,6 +861,8 @@ const String webConfigPage()
     tcpMode = configSettings.pending ? configSettings.tcpMode : tcpModeIdx;
     bleMode = configSettings.pending ? configSettings.bleMode : bleModeIdx;
     if(bleMode == BLE_UNPAIR_ALL) bleMode = BLE_OFF;
+    wifiPowerDbm = configSettings.pending ? configSettings.wifiPowerDbm : ::wifiPowerDbm.load();
+    blePowerDbm = configSettings.pending ? configSettings.blePowerDbm : ::blePowerDbm.load();
     clamp = configSettings.pending ? configSettings.clamp : audioClamp;
     autoCapacitor = configSettings.pending ? configSettings.autoCapacitor : autoAntennaCapacitor;
   }
@@ -846,6 +881,26 @@ const String webConfigPage()
     {"navigation", [](String &out) { webNavigation(out, "/config"); }},
     {"usb_options", [&](String &out) { webConfigOptions(out, usbModeDesc, getTotalUSBModes(), usbMode); }},
     {"tcp_options", [&](String &out) { webConfigOptions(out, tcpModeDesc, getTotalTCPModes(), tcpMode); }},
+    {"wifi_power_options", [&](String &out) {
+      for(size_t i = 0; i < wifiPowerCount; i++)
+      {
+        int8_t powerDbm = wifiPowerOptions[i];
+        pageAppend(out, pageConfigThemeOption, {
+          {"value", String(powerDbm)}, {"selected", wifiPowerDbm==powerDbm? "SELECTED" : ""},
+          {"label", String(powerDbm) + " dBm"}
+        });
+      }
+    }},
+    {"ble_power_options", [&](String &out) {
+      for(size_t i = 0; i < blePowerCount; i++)
+      {
+        int8_t powerDbm = blePowerOptions[i].dbm;
+        pageAppend(out, pageConfigThemeOption, {
+          {"value", String(powerDbm)}, {"selected", blePowerDbm==powerDbm? "SELECTED" : ""},
+          {"label", String(powerDbm) + " dBm"}
+        });
+      }
+    }},
     {"ble_options", [&](String &out) { webConfigOptions(out, bleModeDesc, getTotalBluetoothModes(), bleMode); }},
     {"layout_options", [&](String &out) { webConfigOptions(out, uiLayoutDesc, getTotalUILayouts(), layout); }},
     {"rds_options", [&](String &out) {

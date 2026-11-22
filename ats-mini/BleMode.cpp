@@ -8,6 +8,39 @@
 #include "BleMode.h"
 #include <host/ble_store.h>
 
+const BlePowerOption blePowerOptions[] = {
+  {-12, ESP_PWR_LVL_N12},
+  {-9, ESP_PWR_LVL_N9},
+  {-6, ESP_PWR_LVL_N6},
+  {-3, ESP_PWR_LVL_N3},
+  {0, ESP_PWR_LVL_N0},
+  {3, ESP_PWR_LVL_P3},
+  {6, ESP_PWR_LVL_P6},
+  {9, ESP_PWR_LVL_P9}
+};
+const size_t blePowerCount = sizeof(blePowerOptions) / sizeof(blePowerOptions[0]);
+
+std::atomic<int8_t> blePowerDbm{BLE_POWER_DEFAULT_DBM};
+
+bool blePowerValid(int power)
+{
+  for(const auto &option : blePowerOptions)
+    if(power == option.dbm) return true;
+  return false;
+}
+
+void bleApplyPower()
+{
+  if(!BLEDevice::getInitialized() || esp_bt_controller_get_status() != ESP_BT_CONTROLLER_STATUS_ENABLED) return;
+  int8_t power = blePowerDbm.load();
+  for(const auto &option : blePowerOptions)
+    if(option.dbm == power)
+    {
+      BLEDevice::setPower(static_cast<esp_power_level_t>(option.level));
+      return;
+    }
+}
+
 static BleUartPeripheral BLESerial;
 static BleHidCentral BLEHid;
 static RemoteState remoteBLEState;

@@ -131,6 +131,8 @@ The `Config` page lets you set the UTC date/time manually or from the browser, a
 * `Audio Clamp`: disable it for receivers without an audio clamp circuit to suppress clicks when muting or changing bands or modes. Leave it enabled for receivers with the circuit and for LILYGO T-Embed SI4732.
 * `Splash Screen`: upload or delete an optional [splash image](_static/splash-outdoor.png) shown when the receiver starts.
 
+Wi-Fi and Bluetooth LE TX power can be changed only on the `Config` page, under Power. The defaults are 17 dBm for Wi-Fi and 0 dBm for Bluetooth LE. Changes apply immediately and are saved across restarts. Lower power reduces range and may disconnect remote controls or the web interface.
+
 The `Wi-Fi` page lets you select the Wi-Fi mode, configure up to three access points the receiver will try to connect to and add optional login and password to protect the memory, settings, Wi-Fi, and firmware update pages. Enable `Scan Hidden SSIDs` only if one of the configured access points does not broadcast its network name; leaving it off makes Wi-Fi connection faster. Changing Wi-Fi mode may disconnect the browser; Off and Sync Only disable the web interface.
 
 Firmware updates are available through **Settings → Update FW** or the web interface's **Update** page. See [updating over Wi-Fi](flash.md#update-over-wi-fi) for instructions.
