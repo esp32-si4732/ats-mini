@@ -8,7 +8,7 @@ profiles:
     libraries:
       - PU2CLR SI4735 (2.1.8)
       - LovyanGFX (1.2.33)
-      - Async TCP (3.5.0)
+      - Async TCP (3.6.1)
       - ESP Async WebServer (3.12.1)
 
   esp32s3-qspi:
@@ -20,7 +20,7 @@ profiles:
     libraries:
       - PU2CLR SI4735 (2.1.8)
       - LovyanGFX (1.2.33)
-      - Async TCP (3.5.0)
+      - Async TCP (3.6.1)
       - ESP Async WebServer (3.12.1)
 
 default_profile: esp32s3-ospi
