@@ -373,7 +373,6 @@ void BleHidCentral::handleInputReport(BLERemoteCharacteristic* characteristic, c
   }
 
   if (!decoded) return;
-  abortPending = true;
 
   bool volumeIncrementPressed = !!(pressedMask_ & VolumeIncrementPressed);
   bool volumeDecrementPressed = !!(pressedMask_ & VolumeDecrementPressed);
@@ -390,6 +389,7 @@ void BleHidCentral::handleInputReport(BLERemoteCharacteristic* characteristic, c
 
   if (hasPlayPause && !playPausePressed)
   {
+    abortPending = true;
     playPausePressedAt = now;
     ignoreNextPlayPauseRelease = false;
   }
@@ -399,6 +399,7 @@ void BleHidCentral::handleInputReport(BLERemoteCharacteristic* characteristic, c
 
   if (hasVolumeIncrement && !volumeIncrementPressed && pendingState.rotation < 32767)
   {
+    abortPending = true;
     pendingState.rotation++;
     if (playPausePressed)
     {
@@ -409,6 +410,7 @@ void BleHidCentral::handleInputReport(BLERemoteCharacteristic* characteristic, c
 
   if (hasVolumeDecrement && !volumeDecrementPressed && pendingState.rotation > -32768)
   {
+    abortPending = true;
     pendingState.rotation--;
     if (playPausePressed)
     {
@@ -419,12 +421,14 @@ void BleHidCentral::handleInputReport(BLERemoteCharacteristic* characteristic, c
 
   if (hasScanNext && !scanNextPressed && pendingState.rotation < 32767)
   {
+    abortPending = true;
     pendingState.rotation++;
     holdVirtualPush();
   }
 
   if (hasScanPrevious && !scanPreviousPressed && pendingState.rotation > -32768)
   {
+    abortPending = true;
     pendingState.rotation--;
     holdVirtualPush();
   }
